@@ -1,0 +1,17 @@
+{
+  "part_a": {
+    "n": 40,
+    "unsourced_claims": 0,
+    "footer_missing": 0,
+    "over_90_words": 0,
+    "wrong_language": 0,
+    "us_spellings": 0,
+    "gate_failures": 0
+  },
+  "part_b": {
+    "recall_on_flawed": 1.0,
+    "false_positives": 0,
+    "flawed": 30,
+    "clean": 10
+  }
+}

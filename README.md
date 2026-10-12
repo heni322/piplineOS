@@ -14,8 +14,9 @@ operator-signed go-live checklist with `GLOBAL_GO_LIVE=true` in production).
 |---|---|
 | 0 Investigation | Done |
 | 1 Architecture & plan | Done — see `docs/` |
-| 2 Foundations | **Done, awaiting approval** — see `docs/PHASE-2-REPORT.md` |
-| 3 MVP vertical slice (UK) | Not started |
+| 2 Foundations | Done |
+| 3 MVP vertical slice (UK) | **Done, awaiting approval** — see `docs/PHASE-3-REPORT.md`, demo in `docs/DEMO.md` |
+| 4 Replies, booking, show rate | Not started |
 
 ## Quick start (Windows, PowerShell)
 
@@ -23,7 +24,9 @@ Prerequisites: Docker Desktop **running**, [uv](https://docs.astral.sh/uv/), Nod
 
 ```powershell
 ./scripts/dev-setup.ps1                     # creates .env with fresh keys, starts Postgres(5433)/Valkey/Mailpit, migrates, syncs config
-cd backend; uv run pipelineos demo traces   # 5 synthetic dry-run compliance traces
+cd backend; uv run pipelineos demo seed      # demo tenant + operator login (shown once)
+uv run pipelineos demo run                  # agents: signals -> contacts -> compliance -> drafts for approval
+uv run pipelineos demo traces               # 5 synthetic dry-run compliance traces
 uv run pipelineos users create-operator you@yourcompany.example   # prints a TOTP enrolment URI once
 uv run uvicorn app.main:app --reload        # API on :8000 (docs at /api/docs in dev)
 cd ../frontend; pnpm dev                    # web on :3000

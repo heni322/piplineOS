@@ -17,5 +17,8 @@ Done-for-you, compliance-first multi-agent outbound system for UK (then EU) B2B 
 | [PHASE-1-REPORT.md](PHASE-1-REPORT.md) | Phase 1 report |
 | [PHASE-2-REPORT.md](PHASE-2-REPORT.md) | Phase 2 report (foundations) |
 | [traces-phase-2.json](traces-phase-2.json) | Raw output of the Phase 2 dry-run compliance traces |
+| [PHASE-3-REPORT.md](PHASE-3-REPORT.md) | Phase 3 report (MVP vertical slice, UK) |
+| [DEMO.md](DEMO.md) | 10-minute demo script for prospective clients |
+| [evals-phase-3.json](evals-phase-3.json), [demo-run-phase-3.json](demo-run-phase-3.json), [traces-phase-3.json](traces-phase-3.json) | Phase 3 evidence |
 
 > Not legal or tax advice. All legal/tax rules are configuration marked `verified_by_counsel: false` / `verified_by_accountant: false` until signed off by a solicitor/accountant.
