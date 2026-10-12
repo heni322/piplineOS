@@ -147,7 +147,8 @@ class LLMClient:
                     "",
                 )
                 raise LLMEscalation("timeout", str(exc)) from exc
-            cost = self.pricer(model, resp.input_tokens, resp.output_tokens)
+            used_model = resp.model or model  # e.g. 'simulated' when the simulator answered
+            cost = self.pricer(used_model, resp.input_tokens, resp.output_tokens)
             spent += cost or 0
             if resp.stop_reason == "refusal":
                 self._rec(
@@ -155,7 +156,7 @@ class LLMClient:
                     lead_id,
                     agent,
                     prompt,
-                    model,
+                    used_model,
                     attempt,
                     resp.input_tokens,
                     resp.output_tokens,
@@ -181,7 +182,7 @@ class LLMClient:
                     lead_id,
                     agent,
                     prompt,
-                    model,
+                    used_model,
                     attempt,
                     resp.input_tokens,
                     resp.output_tokens,
@@ -210,7 +211,7 @@ class LLMClient:
                     lead_id,
                     agent,
                     prompt,
-                    model,
+                    used_model,
                     attempt,
                     resp.input_tokens,
                     resp.output_tokens,
@@ -227,7 +228,7 @@ class LLMClient:
                 lead_id,
                 agent,
                 prompt,
-                model,
+                used_model,
                 attempt,
                 resp.input_tokens,
                 resp.output_tokens,
