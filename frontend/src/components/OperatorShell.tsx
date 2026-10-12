@@ -13,6 +13,9 @@ const LINKS = [
   { href: "/operator/escalations", label: t.nav.escalations },
   { href: "/operator/data-requests", label: t.nav.dataRequests },
   { href: "/operator/meetings", label: t.nav.meetings },
+  { href: "/operator/billing", label: t.nav.billing },
+  { href: "/operator/clients", label: t.nav.clients },
+  { href: "/operator/reports", label: t.nav.reports },
   { href: "/operator/compliance", label: t.nav.compliance },
   { href: "/operator/dry-run", label: t.nav.dryRun },
 ];
