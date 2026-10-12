@@ -71,6 +71,8 @@ class ApprovalItem(BaseModel):
     critique: dict[str, object] | None
     created_at: datetime
     masked: bool
+    kind: str = "outreach"  # outreach | agent_reply (incl. slot offers)
+    prospect_reply: str | None = None  # the reply this answers (untrusted text, masked by default)
 
 
 class ApprovalPage(BaseModel):
@@ -110,9 +112,10 @@ def _approval_item(
         conn.execute(
             text(
                 "SELECT id, sequence_step, subject_enc, body_enc FROM messages WHERE lead_id = :l "
-                "AND status = 'pending_approval' ORDER BY sequence_step"
+                "AND status = 'pending_approval' AND kind = :k AND (:k = 'outreach' OR id = :id) "
+                "ORDER BY sequence_step"
             ),
-            {"l": lead_id},
+            {"l": lead_id, "k": head["kind"], "id": head["id"]},
         )
         .mappings()
         .all()
@@ -140,6 +143,18 @@ def _approval_item(
         ),
         {"l": lead_id},
     ).first()
+    reply_text = None
+    if head["kind"] != "outreach":
+        enc = conn.execute(
+            text(
+                "SELECT body_text_enc FROM replies WHERE lead_id = :l AND body_text_enc IS NOT NULL AND "
+                "(id = :r OR :r IS NULL) ORDER BY received_at DESC LIMIT 1"
+            ),
+            {"l": lead_id, "r": head["reply_id"]},
+        ).scalar()
+        if enc:
+            reply_text = cipher.decrypt(conn, t, "replies.body", enc)
+            reply_text = reply_text if unmask else _mask_in_text(reply_text, name)
     company = head["company"] or "[personal name]"
     footer = str(head["compliance_footer"] or "").replace("{unsubscribe_url}", f"{public_base}/u/<signed-link-at-send>")
     return ApprovalItem(
@@ -169,10 +184,13 @@ def _approval_item(
         critique=head["critique"],
         created_at=head["created_at"],
         masked=not unmask,
+        kind=head["kind"],
+        prospect_reply=reply_text,
     )
 
 
-HEAD_SQL = """SELECT m.id, m.tenant_id, m.lead_id, m.subject_options_enc, m.compliance_footer, m.quality_score,
+HEAD_SQL = """SELECT m.id, m.tenant_id, m.lead_id, m.kind, m.reply_id, m.subject_options_enc, m.compliance_footer,
+       m.quality_score,
        m.critique, m.created_at, p.name_enc, p.title, p.country_code, c.name AS company, s.signal_summary, s.source_url,
        s.relevance_score
 FROM messages m JOIN leads l ON l.id = m.lead_id JOIN prospects p ON p.id = l.prospect_id

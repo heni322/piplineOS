@@ -1,22 +1,31 @@
-"""Public endpoints: one-click unsubscribe (RFC 8058). GET shows a confirmation page (link scanners prefetch GETs);
-POST performs the unsubscribe. Always idempotent; always safe."""
+"""Public endpoints: one-click unsubscribe (RFC 8058) and the prospect's reschedule link. GET only ever shows a page
+(link scanners prefetch GETs); POST performs the action. Unsubscribe is always idempotent and always safe; a
+reschedule link is single-use, offers only freshly computed free slots and goes through the calendar gateway."""
 
 from __future__ import annotations
 
 import contextlib
 import html
+import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from urllib.parse import parse_qs
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import text
+from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import settings_dep
+from app.api.deps import cipher_dep, settings_dep
 from app.core.audit import write_audit
+from app.core.crypto import PiiCipher
 from app.db.session import DbContext, get_engine, transaction
 from app.domain.leads.state_machine import TransitionError, record_objection
+from app.domain.meetings import service as meetings
+from app.domain.outbound.calendar import CalendarGateway
 from app.domain.suppression import unsubscribe
 from app.domain.suppression.service import RecipientHashes, suppress_domain, suppress_email
+from app.domain.tenants.config import load_config
 from app.settings import Settings
 
 router = APIRouter(tags=["public"])
@@ -110,3 +119,121 @@ def unsubscribe_do(token: str, settings: Annotated[Settings, Depends(settings_de
         "You have been unsubscribed",
         "<p>You will not receive further emails from us. This applies to every campaign we run.</p>",
     )
+
+
+# ------------------------------------------------------------------------------------------- reschedule link
+RESCHEDULE_INVALID = (
+    "<p>This link is no longer valid. Reply to your confirmation email and we will find another time.</p>"
+)
+
+
+def _reschedule_context(
+    token: str, settings: Settings, cipher: PiiCipher, now: datetime
+) -> tuple[uuid.UUID, uuid.UUID, list[meetings.Slot], str] | None:
+    """Returns (tenant_id, meeting_id, offered slots, prospect timezone) or None when the link cannot be used."""
+    try:
+        token_id = unsubscribe.verify(settings.key("unsubscribe_signing_key"), token, unsubscribe.RESCHEDULE)
+    except unsubscribe.InvalidToken:
+        return None
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        found = conn.execute(text("SELECT * FROM reschedule_lookup(:id)"), {"id": token_id}).mappings().first()
+    if found is None or found["used_at"] is not None:
+        return None
+    tenant_id, meeting_id = found["tenant_id"], found["meeting_id"]
+    with transaction(DbContext.system(tenant_id), engine) as conn:
+        m = conn.execute(text("SELECT * FROM meetings WHERE id = :m"), {"m": meeting_id}).mappings().first()
+        if m is None or m["status"] not in ("booked", "confirmed") or m["starts_at"] <= now:
+            return None
+        _, cfg = load_config(conn, tenant_id)
+        prospect = meetings.load_prospect(conn, cipher, tenant_id, m["lead_id"])
+        horizon = now + timedelta(days=cfg.calendar.horizon_business_days * 2 + 4)
+        busy = CalendarGateway(settings, cipher).busy(cfg.calendar.calendar_ref, now, horizon)
+        busy += [
+            meetings.Slot(r.starts_at, r.ends_at)
+            for r in conn.execute(
+                text("SELECT starts_at, ends_at FROM meetings WHERE status IN ('booked','confirmed') AND id <> :m"),
+                {"m": meeting_id},
+            )
+        ]
+        current = meetings.Slot(m["starts_at"], m["ends_at"])
+        slots = meetings.candidate_slots(cfg, prospect, now, busy, exclude=[current])
+    return tenant_id, meeting_id, slots, prospect.tz
+
+
+@router.get("/r/{token}", response_class=HTMLResponse)
+def reschedule_page(
+    token: str,
+    settings: Annotated[Settings, Depends(settings_dep)],
+    cipher: Annotated[PiiCipher, Depends(cipher_dep)],
+) -> HTMLResponse:
+    ctx = _reschedule_context(token, settings, cipher, datetime.now(UTC))
+    if ctx is None:
+        return _page("Link not valid", RESCHEDULE_INVALID, 400)
+    _, _, slots, tz = ctx
+    if not slots:
+        return _page("No free times", "<p>There are no free times right now. Reply to your confirmation email.</p>")
+    safe = html.escape(token, quote=True)
+    options = "".join(
+        f'<p><label><input type="radio" name="slot" value="{html.escape(s.starts_at.isoformat(), quote=True)}"'
+        f"{' checked' if i == 0 else ''}> {html.escape(meetings.label(s, tz))}</label></p>"
+        for i, s in enumerate(slots)
+    )
+    return _page(
+        "Choose a new time",
+        f'<form method="post" action="/r/{safe}">{options}<button type="submit">Move my call</button></form>',
+    )
+
+
+@router.post("/r/{token}", response_class=HTMLResponse)
+async def reschedule_do(
+    token: str,
+    request: Request,
+    settings: Annotated[Settings, Depends(settings_dep)],
+    cipher: Annotated[PiiCipher, Depends(cipher_dep)],
+) -> HTMLResponse:
+    """Parses the tiny urlencoded form itself (no multipart dependency), then does the DB work off the event loop."""
+    raw = await request.body()
+    if len(raw) > 200:
+        return _page("Time not available", "<p>That request was not understood.</p>", 400)
+    slot = (parse_qs(raw.decode("utf-8", "replace")).get("slot") or [""])[0]
+    return await run_in_threadpool(_reschedule_do, token, slot, settings, cipher)
+
+
+def _reschedule_do(token: str, slot: str, settings: Settings, cipher: PiiCipher) -> HTMLResponse:
+    now = datetime.now(UTC)
+    ctx = _reschedule_context(token, settings, cipher, now)
+    if ctx is None:
+        return _page("Link not valid", RESCHEDULE_INVALID, 400)
+    tenant_id, meeting_id, slots, tz = ctx
+    chosen = next((s for s in slots if s.starts_at.isoformat() == slot), None)
+    if chosen is None:  # only a freshly offered slot can be chosen; anything else is refused
+        return _page("Time not available", "<p>That time is no longer available. Go back and pick another.</p>", 409)
+    token_id = unsubscribe.verify(settings.key("unsubscribe_signing_key"), token, unsubscribe.RESCHEDULE)
+    with transaction(DbContext.system(tenant_id), get_engine()) as conn:
+        used = conn.execute(
+            text("UPDATE reschedule_tokens SET used_at = now() WHERE id = :id AND used_at IS NULL RETURNING id"),
+            {"id": token_id},
+        ).first()
+        if used is None:
+            return _page("Link not valid", RESCHEDULE_INVALID, 400)
+        _, cfg = load_config(conn, tenant_id)
+        result = meetings.reschedule(
+            conn,
+            cipher,
+            settings,
+            cfg,
+            CalendarGateway(settings, cipher),
+            tenant_id=tenant_id,
+            meeting_id=meeting_id,
+            new_slot=chosen,
+            now=now,
+        )
+    if result["status"] == "rescheduled":
+        return _page(
+            "Your call has moved",
+            f"<p>Your call is now on {html.escape(meetings.label(chosen, tz))}. A new confirmation is on its way.</p>",
+        )
+    if result["status"] == "escalated":
+        return _page("We will be in touch", "<p>A member of the team will contact you to find a time.</p>")
+    return _page("Time not available", "<p>That time could not be booked. Reply to your confirmation email.</p>", 409)
