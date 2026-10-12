@@ -10,6 +10,9 @@ const t = getMessages();
 const LINKS = [
   { href: "/operator", label: t.nav.overview },
   { href: "/operator/approvals", label: t.nav.approvals },
+  { href: "/operator/escalations", label: t.nav.escalations },
+  { href: "/operator/data-requests", label: t.nav.dataRequests },
+  { href: "/operator/meetings", label: t.nav.meetings },
   { href: "/operator/compliance", label: t.nav.compliance },
   { href: "/operator/dry-run", label: t.nav.dryRun },
 ];

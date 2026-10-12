@@ -74,7 +74,7 @@ export default function ApprovalsPage() {
           review_seconds: Math.round((Date.now() - opened.current) / 1000),
         }),
       });
-      setStatus(decision === "reject" ? t.rejected : t.approved);
+      setStatus(decision === "reject" ? (item.kind === "outreach" ? t.rejected : t.replyRejected) : t.approved);
       await load();
     } catch (e) {
       setError((e as Problem).detail ?? (e as Problem).title);
@@ -126,7 +126,10 @@ export default function ApprovalsPage() {
                 <li key={i.message_id}>
                   <button type="button" aria-current={i.message_id === selected} onClick={() => setSelected(i.message_id)}>
                     <span className="co">{i.company}</span>
-                    <span className="meta">{i.prospect_name}, {i.prospect_title}, quality {i.quality_score ?? "–"}</span>
+                    <span className="meta">
+                      {i.kind === "outreach" ? `${i.prospect_name}, ${i.prospect_title}, quality ${i.quality_score ?? "–"}`
+                        : `${t.replyKind}: ${i.prospect_name}`}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -159,6 +162,13 @@ export default function ApprovalsPage() {
                   {shown.masked && <dd className="muted">{t.masked}</dd>}
                 </div>
               </dl>
+              {shown.prospect_reply && (
+                <figure className="their-reply">
+                  <figcaption>{t.theirReply}</figcaption>
+                  <blockquote>{shown.prospect_reply}</blockquote>
+                  <p className="hint">{t.theirReplyHint}</p>
+                </figure>
+              )}
               <div className="sheet">
                 {mode === "edit" && detail ? (
                   detail.sequence.map((m) => (
@@ -208,7 +218,7 @@ export default function ApprovalsPage() {
                   <label htmlFor="reject-reason">{t.rejectReason}</label>
                   <textarea id="reject-reason" ref={rejectRef} value={reason} onChange={(e) => setReason(e.target.value)} style={{ minHeight: "4rem" }} />
                   <div className="actionbar" style={{ position: "static", border: 0 }}>
-                    <button type="button" className="danger" disabled={busy || reason.trim().length < 3} onClick={() => decide("reject")}>{t.rejectConfirm}</button>
+                    <button type="button" className="danger" disabled={busy || reason.trim().length < 3} onClick={() => decide("reject")}>{item?.kind === "outreach" ? t.rejectConfirm : t.rejectReplyConfirm}</button>
                     <button type="button" className="secondary" onClick={() => setMode("view")}>{t.cancel}</button>
                   </div>
                 </div>
