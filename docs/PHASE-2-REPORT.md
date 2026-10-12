@@ -5,9 +5,9 @@ Phase 2 built the safety infrastructure, in the order the brief requires, before
 
 **246 automated tests pass** (238 backend against real PostgreSQL 16 + pgvector, 4 frontend component tests, 4 browser tests including WCAG 2.1 AA checks). Lint and strict type checks are clean. The compliance engine has 100% branch coverage. All required dry-run traces behave as specified, with **zero real side effects**.
 
-Writing the tests surfaced **seven real defects, all fixed**. They are listed in §6.
+Writing the tests surfaced **eight real defects, all fixed**. They are listed in §6.
 
-One item is **not fully met**: one high-severity frontend advisory has no upstream fix (dev-only lint dependency). The Docker Compose stack has **not been run** yet, because there is no Docker engine here or running on your machine. The compose file is validated, and the same migrations and tests ran against an equivalent local PostgreSQL 16.
+**Verified on your Windows machine too.** The Compose Postgres (pgvector) and Valkey containers run on ports 5433/6380, next to your other projects without clashing. Migrations, config sync and the traces give identical results there, and **all 238 backend tests pass on Windows**. That run caught an eighth, Windows-only defect (D8, fixed). One item is **not fully met**: one high-severity frontend advisory has no upstream fix (dev-only lint dependency). The API, worker and web *containers* have not been built yet; on your machine the backend ran natively with `uv`.
 
 ## 2. Changes made
 
@@ -45,7 +45,7 @@ They are recorded in **ADR-0009**. The ones you may want to review:
 | # | Requirement | Status | Evidence |
 |---|---|---|---|
 | 2.1 | Repo structure, pre-commit, README | Met | Repository root; `.pre-commit-config.yaml` |
-| 2.2 | Docker Compose (Postgres 5433 + pgvector, Valkey, Mailpit), `.env.example` | Partially met | `docker compose config` validates, but the stack has **not been run** (no Docker engine available) |
+| 2.2 | Docker Compose (Postgres 5433 + pgvector, Valkey, Mailpit), `.env.example` | Met (infra services); app images not yet built | `pipelineos-postgres-1` and `pipelineos-valkey-1` healthy on your PC; api/worker/web images are built in Phase 6 hardening |
 | 2.3 | FastAPI skeleton, problem+json errors, JSON logs with correlation IDs, PII scrubber | Met | `tests/security/test_api.py::test_errors_use_problem_json`, `tests/unit/test_logging_settings_masking.py::test_logs_never_contain_emails_or_secrets` |
 | 2.4 | DB core, Alembic, roles, fail-closed RLS context | Met | `test_rls.py::test_missing_context_fails_closed`, `test_infra.py::test_migrations_apply_and_roll_back_on_a_fresh_database` |
 | 2.5 | Envelope encryption, blind index, suppression hash, masking | Met | `test_crypto_db.py` (wrong tenant/purpose, rotation, key destruction, wrong master key) |
@@ -82,6 +82,7 @@ They are recorded in **ADR-0009**. The ones you may want to review:
 | Frontend | `pnpm lint && pnpm typecheck && pnpm test && pnpm build` | Clean; vitest **4 passed** |
 | Browser E2E + accessibility | `pnpm e2e` | **4 passed**; axe WCAG 2.1 AA: 0 violations |
 | Frontend dependencies | `pnpm audit` | 0 critical, 1 high (no fix exists), 0 moderate |
+| Backend on **your Windows PC** (Docker Postgres 16 + pgvector, Valkey) | `uv run pytest` | **238 passed, 0 failed** (after fix D8) |
 | **Baseline comparison** | Phase 0/1: 0 tests | **0 → 246**; no previously passing test fails |
 
 ### Dry-run traces (`pipelineos demo traces`, fresh dev database, synthetic data)
@@ -107,12 +108,13 @@ They are recorded in **ADR-0009**. The ones you may want to review:
 | D5 | Public unsubscribe couldn't resolve its token (FORCE RLS binds the owner too) | **Unsubscribe links would not have worked** | Owner-only SELECT policy for the definer lookup |
 | D6 | Engine ignored a country's *corporate* subscriber rule | A stricter rule for corporates could be bypassed | The subscriber rule always applies |
 | D7 | Daily caps mixed the gateway clock with the database clock | Caps could under-count | The gateway timestamps sends with its own clock |
+| D8 | The prompt-lock check used Windows `\` paths, while the lock file uses `/` | CI on Windows reported prompts as deleted | Lock keys are always POSIX paths (found by the Windows run) |
 
 ## 7. Risks and open issues
 
 | # | Risk | Severity | Mitigation / status |
 |---|---|---|---|
-| R1 | Docker engine not running on your PC; Compose stack never executed | High (blocks local run) | Start Docker Desktop, then run `scripts/dev-setup.ps1`; I'll verify end-to-end on your machine |
+| R1 | ~~Docker not running~~ — resolved: Docker Desktop now runs; PipelineOS Postgres/Valkey containers are up | Closed | App container images still to be built (Phase 6) |
 | R4 | Global cross-tenant suppression may make you a controller of that list | High (legal) | Hash-only, contact-prevention only; **solicitor review** |
 | R5 | Named-rep sending with AI-written replies | High (legal/trust) | Disclosure config arrives in Phase 4; solicitor review |
 | R12 | `braces` ≤ 3.0.3 (CVE-2026-93687, ReDoS), via `eslint-config-next`; **no patched release exists** | Low in practice (dev-time lint only, never shipped, no untrusted input), but formally "high" | **Needs your acceptance**; recheck at each phase; CI fails only on critical until a fix exists |
@@ -123,7 +125,7 @@ They are recorded in **ADR-0009**. The ones you may want to review:
 | R17 | The UK VAT threshold (£90,000) is from my training data | Medium | Marked "verify"; accountant sign-off item |
 
 ## 8. What you must do
-1. **Start Docker Desktop**, then tell me. I'll run the stack on your machine and confirm it works there (migrations, config sync, traces, API, web).
+1. Nothing for Docker: the PipelineOS containers (`pipelineos-postgres-1`, `pipelineos-valkey-1`) are running on your PC. Stop them anytime with `docker compose stop`. Your local `.env` holds fresh keys and is git-ignored. Keep it private.
 2. **Accept or reject R12** (dev-only `braces` advisory with no fix available).
 3. Optional, before Phase 3 evals: an Anthropic API key (with a monthly cap). Without it, Phase 3 runs on recorded/mock LLM responses.
 4. Unchanged and still needed eventually: company details for the footer, plus solicitor/accountant reviews (go-live checklist).
