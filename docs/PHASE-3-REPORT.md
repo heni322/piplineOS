@@ -71,6 +71,7 @@ No new dependencies. No paid services.
 | Browser: `scripts/e2e-fullstack.sh` (4 smoke + 1 full-stack review flow with axe) | **5 passed** |
 | Lint / types / import contracts / prompt lock | Clean (ruff, mypy --strict on 104 files, eslint, tsc); 2 contracts kept; 4 prompts locked |
 | Dependency audits | Backend: none. Frontend: 0 critical, 1 high (the same `braces` item, still no fix exists) |
+| Backend on **your Windows PC** (Docker Postgres + Valkey) | **313 passed, 0 failed** |
 | **Baseline** | Phase 2: 246 → Phase 3: **324**. No previously passing test fails |
 
 **Agent 3 eval** (`docs/evals-phase-3.json`):
@@ -91,6 +92,8 @@ No new dependencies. No paid services.
 | Wide World IT | rejected by compliance | Email verification "risky" |
 | Graphic Design Institute | disqualified | No contact matching the buyer persona |
 | Northwind Bakery / Contoso 2nd posting | no lead | Below the ICP threshold / duplicate within the window |
+
+**On your PC**, the same demo gave Woodgrove as *suppressed* rather than *pending approval*. That is correct: the Phase 2 traces run earlier on that database had recorded the same fictional person unsubscribing under another demo client, and global suppression applies across all clients.
 
 **Required sample-lead traces** (`docs/traces-phase-3.json`): unchanged and passing.
 - UK corporate → dry-run sent.
