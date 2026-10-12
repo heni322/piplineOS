@@ -1,4 +1,4 @@
-# PipelineOS demo script (Phase 3, synthetic data, dry-run)
+# PipelineOS demo script (Phases 3–4, synthetic data, dry-run)
 
 For showing a prospective client how the service works. Takes about 10 minutes. Everything is fictional
 (`.example` domains) and nothing can leave the system: no email, no booking, no paid AI call.
@@ -10,6 +10,8 @@ For showing a prospective client how the service works. Takes about 10 minutes. 
 cd backend
 uv run pipelineos demo seed                  # prints the demo operator login + authenticator QR link ONCE
 uv run pipelineos demo run                   # agents find signals, contacts and draft emails
+# optional, for part 2 of the story (replies and meetings); run it after showing the approval desk:
+# uv run pipelineos demo conversations
 uv run uvicorn app.main:app --port 8000      # API
 cd ../frontend; pnpm build; pnpm start       # web on http://localhost:3000
 ```
@@ -33,6 +35,17 @@ Add the printed `otpauth://` link to an authenticator app, then sign in at http:
    The instruction was stripped before the AI saw it, and the email contains no link.
 5. **Dry-run log.** After `POST /api/v1/send/run` (or `uv run pipelineos demo send`), the would-be email appears
    here with the recipient masked, during the recipient's business hours only.
+
+## Part 2: replies and meetings (after `pipelineos demo conversations`)
+
+6. **Meetings.** "Contoso replied that their team is stretched out of hours. The agent checked the reply against
+   the client's criteria, quoting the prospect's own words, offered three real times, and booked the one they
+   picked. Invite, agenda, two reminders, attended." Open the brief (opening it is logged because it shows a name).
+7. **Escalations and data requests.** Blue Yonder asked what data we hold. "Suppressed at once, everywhere. The
+   legal deadline is counted down here. The agent never answers legal requests; a person sends the drafted reply."
+   Proseware's unsubscribe was actioned instantly and needs nobody.
+8. **The awkward cases.** Adventure Works was on holiday: follow-ups wait until the day after they're back.
+   Woodgrove pointed us to a colleague: a new contact, checked against the rules from scratch before anything was drafted.
 
 ## What to say about AI
 

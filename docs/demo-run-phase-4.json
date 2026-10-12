@@ -1,0 +1,45 @@
+{
+  "reply_handling": {
+    "Contoso Managed IT Ltd": [
+      "qualification:met",
+      "slots_offered_for_approval"
+    ],
+    "Adventure Works MSP Ltd": [
+      "paused_until:2026-11-03"
+    ],
+    "Woodgrove IT plc": [
+      "referral:new_lead:allow",
+      "original_lead_closed"
+    ],
+    "Proseware Systems Ltd": [
+      "suppressed_globally",
+      "follow_ups_cancelled",
+      "dpr_recorded_completed:unsubscribe"
+    ],
+    "Blue Yonder Managed Services Ltd": [
+      "suppressed_globally",
+      "follow_ups_cancelled",
+      "dpr_opened:access",
+      "tenant_notified"
+    ],
+    "Contoso Managed IT Ltd (slot choice)": [
+      "booking:booked"
+    ]
+  },
+  "final_states": {
+    "Fabrikam Cloud Ltd": "alternative_channel",
+    "Graphic Design Institute Ltd": "disqualified",
+    "Coho Data Services Ltd": "rejected_by_compliance",
+    "[sole trader]": "alternative_channel",
+    "Wide World IT Ltd": "rejected_by_compliance",
+    "Tailspin Networks Ltd": "suppressed",
+    "Litware Solutions Ltd": "rejected_by_compliance",
+    "Adventure Works MSP Ltd": "contacted",
+    "Woodgrove IT plc": "disqualified",
+    "Proseware Systems Ltd": "objected",
+    "Blue Yonder Managed Services Ltd": "objected",
+    "Woodgrove IT plc (referral)": "contacted",
+    "Contoso Managed IT Ltd": "attended"
+  },
+  "meeting_id": "2d13a1be-2aec-4aee-b70a-ccb923468c73"
+}

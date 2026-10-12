@@ -7,7 +7,10 @@ items:
   - key: uk.solicitor_review
     scope: uk
     title: UK solicitor review completed
-    description: Compliance config, email footer, privacy notice, LIA template and DPA reviewed and approved.
+    description: >-
+      Compliance config, email footer, privacy notice, LIA template and DPA reviewed and approved; plus the
+      data-protection response templates, the AI disclosure wording, what is retained after erasure (suppression
+      hash, audit metadata) and the reply safety keyword lists.
   - key: uk.transfer_documents
     scope: uk
     title: Transfer documents for non-UK operator access

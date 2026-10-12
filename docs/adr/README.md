@@ -15,3 +15,5 @@ Status values: Proposed · Accepted · Superseded. All are **Proposed** until th
 | [0008](0008-auth.md) | First-party auth with Argon2id + TOTP MFA, server-side sessions | Proposed |
 | [0009](0009-phase-2-implementation-choices.md) | Phase 2 implementation choices and deviations | Proposed |
 | [0010](0010-phase-3-agents-simulator-approval.md) | Phase 3 agents, LLM simulator, approval desk | Proposed |
+| [0011](0011-delegated-decisions-2026-10-12.md) | Decisions taken under delegated authority | Accepted |
+| [0012](0012-phase-4-replies-booking.md) | Phase 4 reply handling, data-protection requests, booking and show rate | Proposed |
