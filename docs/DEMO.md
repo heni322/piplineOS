@@ -1,4 +1,4 @@
-# PipelineOS demo script (Phases 3–4, synthetic data, dry-run)
+# PipelineOS demo script (Phases 3–5, synthetic data, dry-run)
 
 For showing a prospective client how the service works. Takes about 10 minutes. Everything is fictional
 (`.example` domains) and nothing can leave the system: no email, no booking, no paid AI call.
@@ -12,6 +12,7 @@ uv run pipelineos demo seed                  # prints the demo operator login + 
 uv run pipelineos demo run                   # agents find signals, contacts and draft emails
 # optional, for part 2 of the story (replies and meetings); run it after showing the approval desk:
 # uv run pipelineos demo conversations
+# uv run pipelineos demo billing             # part 3: the October draft invoice
 uv run uvicorn app.main:app --port 8000      # API
 cd ../frontend; pnpm build; pnpm start       # web on http://localhost:3000
 ```
@@ -46,6 +47,16 @@ Add the printed `otpauth://` link to an authenticator app, then sign in at http:
    Proseware's unsubscribe was actioned instantly and needs nobody.
 8. **The awkward cases.** Adventure Works was on holiday: follow-ups wait until the day after they're back.
    Woodgrove pointed us to a colleague: a new contact, checked against the rules from scratch before anything was drafted.
+
+## Part 3: billing and the client's view (after `pipelineos demo billing`)
+
+9. **Billing.** "The client only pays for a meeting when the whole chain holds: we found the signal, they replied,
+   they matched the criteria the client accepted, the meeting happened and the calendar confirms it." Open the
+   October draft: each meeting line shows that chain. Point at why it can't be issued yet: nothing is invoiced
+   before go-live and the accountant's review.
+10. **The client portal.** Sign in as the demo client (`client@northwind-demo.example`, password printed once by
+    `demo seed`). Results, meetings marked billable or not with the reason, a dispute button, and the terms they
+    accepted. "If a meeting wasn't real, they dispute it here and it comes off the bill."
 
 ## What to say about AI
 

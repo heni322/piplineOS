@@ -17,3 +17,4 @@ Status values: Proposed · Accepted · Superseded. All are **Proposed** until th
 | [0010](0010-phase-3-agents-simulator-approval.md) | Phase 3 agents, LLM simulator, approval desk | Proposed |
 | [0011](0011-delegated-decisions-2026-10-12.md) | Decisions taken under delegated authority | Accepted |
 | [0012](0012-phase-4-replies-booking.md) | Phase 4 reply handling, data-protection requests, booking and show rate | Proposed |
+| [0013](0013-phase-5-billing-portal.md) | Phase 5 billing, client sign-offs, portal and reporting | Proposed |

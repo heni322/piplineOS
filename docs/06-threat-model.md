@@ -39,6 +39,8 @@ Status: **Proposed (Phase 1)** · Method: STRIDE per component + OWASP Top 10 (2
 | T12 | LLM cost abuse / runaway loops | DoS | Per-step budget, per-tenant daily budget, max retries 2, circuit breaker | Unit tests |
 | T13 | SSRF via source URLs fetched for research | EoP | Fetcher allows only http(s), blocks private/link-local IPs after DNS resolution, size + time limits, no redirects to private ranges | Tests |
 | T14 | Malicious HTML/markdown in replies rendered in dashboard (stored XSS) | Tampering | Replies rendered as plain text; React escaping; strict CSP; no `dangerouslySetInnerHTML` (ESLint rule) | Tests + lint |
+| T15 | Invoice tampering or billing for meetings that didn't qualify | Tampering, Repudiation | Eligibility requires the full evidence chain incl. client-accepted criteria (hash) and client/calendar attendance; issued invoices immutable in the DB; only operator/system write invoices (restrictive RLS); gapless numbering; MFA for issue/void; disputes with credit notes | `test_billing.py`, `test_billing_api.py` |
+| T16 | Forged acceptance of terms | Spoofing | Sign-offs append-only; DB policy: client admins sign only as themselves in the portal; operator records only with an evidence reference | `test_signoffs_are_immutable_and_only_signable_as_yourself` |
 
 ## 4. OWASP Top 10 (2021) mapping
 
