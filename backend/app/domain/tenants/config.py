@@ -85,6 +85,17 @@ class ShowRate(_Strict):
     agenda: str = "1. Your current service desk setup\n2. Where overflow cover could help\n3. Next steps, if any"
 
 
+class Pricing(_Strict):
+    """Commercial terms the client signs. Amounts in minor units (pence / cents), excluding VAT."""
+
+    currency: Literal["GBP", "EUR"] = "GBP"
+    setup_fee_minor: int = Field(default=0, ge=0)
+    monthly_retainer_minor: int = Field(default=0, ge=0)
+    per_meeting_minor: int = Field(default=0, ge=0)
+    payment_terms_days: int = Field(default=14, ge=1, le=90)
+    dispute_window_days: int = Field(default=14, ge=1, le=60)
+
+
 class TenantConfig(_Strict):
     schema_version: int = 1
     niche_slug: str
@@ -108,6 +119,7 @@ class TenantConfig(_Strict):
     ai_disclosure: Literal["always", "on_request"] = "always"
     ai_disclosure_text: str = "This reply was drafted with the help of AI."
     nurture_days: int = Field(default=90, ge=14, le=365)
+    pricing: Pricing | None = None
 
 
 def save_config(conn: Connection, tenant_id: uuid.UUID, cfg: TenantConfig, created_by: uuid.UUID | None = None) -> int:

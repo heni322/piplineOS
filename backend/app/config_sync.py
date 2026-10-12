@@ -67,6 +67,28 @@ class TaxRule(_Strict):
     verified_by_accountant: Literal[False] = False
 
 
+class SupplierFile(_Strict):
+    legal_name: str = Field(min_length=2)
+    company_number: str | None = None
+    registered_address: str = Field(min_length=2)
+    country_code: str = Field(pattern=r"^[A-Z]{2}$")
+    vat_number: str | None = None
+    billing_email: str
+    invoice_prefix: str = Field(pattern=r"^[A-Z0-9-]{2,12}$")
+    payment_details: str | None = None
+
+    @property
+    def placeholder(self) -> bool:
+        values = [
+            self.legal_name,
+            self.company_number,
+            self.registered_address,
+            self.payment_details,
+            self.billing_email,
+        ]
+        return any(v is None or "TODO" in v or v.endswith(".invalid") for v in values)
+
+
 class TaxFile(_Strict):
     settings: TaxSettings
     rules: list[TaxRule]
@@ -323,10 +345,45 @@ def sync_checklist(conn: Connection, root: Path, report: SyncReport) -> None:
         (report.created if res.rowcount else report.unchanged).append(f"golive:{item.key}")
 
 
+def sync_supplier(conn: Connection, root: Path, report: SyncReport) -> None:
+    path = root / "supplier.yaml"
+    if not path.exists():
+        return
+    sf = SupplierFile.model_validate(_load(path))
+    d = sf.model_dump(mode="json")
+    h = content_hash(d)
+    cur = conn.execute(
+        text("SELECT version, content_hash FROM supplier_profiles ORDER BY version DESC LIMIT 1")
+    ).first()
+    if cur and cur.content_hash == h:
+        report.unchanged.append("supplier")
+        return
+    conn.execute(
+        text("""INSERT INTO supplier_profiles (version, content_hash, legal_name, company_number, registered_address,
+          country_code, vat_number, billing_email, invoice_prefix, payment_details, placeholder)
+          VALUES (:v, :h, :n, :cn, :a, :c, :vat, :e, :p, :pd, :ph)"""),
+        {
+            "v": (cur.version + 1) if cur else 1,
+            "h": h,
+            "n": sf.legal_name,
+            "cn": sf.company_number,
+            "a": sf.registered_address,
+            "c": sf.country_code,
+            "vat": sf.vat_number,
+            "e": sf.billing_email,
+            "p": sf.invoice_prefix,
+            "pd": sf.payment_details,
+            "ph": sf.placeholder,
+        },
+    )
+    report.created.append("supplier")
+
+
 def sync_all(conn: Connection, root: Path) -> SyncReport:
     report = SyncReport()
     sync_countries(conn, root, report)
     sync_tax(conn, root, report)
     sync_transfers(conn, root, report)
     sync_checklist(conn, root, report)
+    sync_supplier(conn, root, report)
     return report

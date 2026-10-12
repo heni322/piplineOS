@@ -26,6 +26,7 @@ from app.db.session import DbContext, transaction
 from app.demo import dataset
 from app.domain.compliance.repository import enable_country
 from app.domain.suppression.service import RecipientHashes, suppress_email
+from app.domain.tenants import signoffs
 from app.domain.tenants.config import TenantConfig, save_config
 from app.settings import Settings
 from app.workflows.pipeline import Providers
@@ -41,6 +42,8 @@ class DemoIds:
     operator_email: str
     operator_password: str | None
     operator_totp_secret: str | None
+    client_email: str = "client@northwind-demo.example"
+    client_password: str | None = None
 
 
 def providers() -> Providers:
@@ -121,4 +124,33 @@ def seed_demo(engine: Engine, settings: Settings, operator_email: str = "operato
                 "objection",
                 source_ref="demo: objected to another tenant's campaign",
             )
-    return DemoIds(tenant_id, campaign_id, op_id, operator_email, password, totp)
+    client_password = _demo_client(engine, settings, cipher, tenant_id)
+    return DemoIds(tenant_id, campaign_id, op_id, operator_email, password, totp, client_password=client_password)
+
+
+def _demo_client(engine: Engine, settings: Settings, cipher: PiiCipher, tenant_id: uuid.UUID) -> str | None:
+    """A fictional client admin who signs the demo's qualification criteria and pricing in the portal."""
+    email = "client@northwind-demo.example"
+    bkey = settings.key("blind_index_key")
+    password: str | None = None
+    with transaction(DbContext(), engine) as conn:
+        uid = conn.execute(text("SELECT id FROM auth_find_user(:b)"), {"b": blind_index(bkey, email, None)}).scalar()
+    if uid is None:
+        uid, password = uuid.uuid4(), secrets.token_urlsafe(12)
+        with transaction(DbContext(role="operator"), engine) as conn:
+            conn.execute(
+                text("""INSERT INTO users (id, tenant_id, email_bidx, email_enc, password_hash, role)
+                  VALUES (:id, :t, :b, :e, :p, 'tenant_admin')"""),
+                {
+                    "id": uid,
+                    "t": tenant_id,
+                    "b": blind_index(bkey, email, None),
+                    "e": cipher.encrypt(conn, None, "users.email", email),
+                    "p": hash_password(password),
+                },
+            )
+    with transaction(DbContext(tenant_id=tenant_id, role="tenant_admin", user_id=uid), engine) as conn:
+        for kind in ("qualification_criteria", "pricing"):
+            if not signoffs.current_is_signed(conn, tenant_id, kind):
+                signoffs.sign(conn, tenant_id=tenant_id, kind=kind, user_id=uid, method="portal")
+    return password

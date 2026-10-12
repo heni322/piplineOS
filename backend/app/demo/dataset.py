@@ -17,6 +17,7 @@ from app.domain.tenants.config import (
     Icp,
     Persona,
     PlaybookEntry,
+    Pricing,
     Qualification,
     Sequence,
     TenantConfig,
@@ -463,6 +464,15 @@ DEMO_CONFIG = TenantConfig(
             approved_response="Cover is pay-as-you-go per month, so it can start small and stop any time.",
         ),
     ],
+    # Fictional demo terms only (not a pricing recommendation): small retainer + fee per attended, qualified meeting.
+    pricing=Pricing(
+        currency="GBP",
+        setup_fee_minor=25_000,
+        monthly_retainer_minor=50_000,
+        per_meeting_minor=30_000,
+        payment_terms_days=14,
+        dispute_window_days=14,
+    ),
 )
 
 # What each company should end up as after the Phase 3 pipeline (asserted by the integration test).

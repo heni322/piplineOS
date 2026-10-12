@@ -64,6 +64,9 @@ class Permission(StrEnum):
     MANAGE_COMPLIANCE = "manage_compliance"
     SIGN_OFF_GOLIVE = "sign_off_golive"
     VIEW_COMPLIANCE_LOG = "view_compliance_log"
+    SIGN_TERMS = "sign_terms"  # client accepts qualification criteria / pricing (tenant_admin only, in the portal)
+    VIEW_BILLING = "view_billing"
+    MANAGE_BILLING = "manage_billing"
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
@@ -77,6 +80,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.RAISE_DISPUTE,
             Permission.UNMASK_PII,
             Permission.VIEW_COMPLIANCE_LOG,
+            Permission.SIGN_TERMS,
+            Permission.VIEW_BILLING,
         }
     ),
     "tenant_viewer": frozenset({Permission.VIEW_TENANT, Permission.VIEW_LEADS}),

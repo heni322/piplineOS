@@ -101,6 +101,8 @@ def demo_seed() -> None:
             ),
         }
         typer.echo("Demo operator created (credentials shown ONCE; dev database only).", err=True)
+    if ids.client_password:
+        out |= {"client_email": ids.client_email, "client_password": ids.client_password}
     typer.echo(json.dumps(out, indent=2))
 
 
@@ -161,6 +163,42 @@ def demo_conversations() -> None:
     ids = seed_demo(get_engine(), s)
     ctx = agent_context(get_engine(), s, PiiCipher(s.key("pii_master_key")), ids.tenant_id, ids.campaign_id)
     typer.echo(json.dumps(summary(run_conversations(ctx, providers(), ids.operator_id)), indent=2))
+
+
+@demo_app.command("billing")
+def demo_billing(period: str = "2026-10-01") -> None:
+    """Phase 5 demo: draft the client's invoice for a month (after `demo conversations`). Drafts only: issuing is
+    blocked until go-live, the accountant's sign-off and real supplier details."""
+    from datetime import UTC, date, datetime
+
+    from app.demo.seed import seed_demo
+    from app.domain.billing import service as billing
+
+    s = get_settings()
+    if s.environment in ("staging", "prod"):
+        raise typer.BadParameter("demo commands are disabled in staging/prod")
+    ids = seed_demo(get_engine(), s)
+    with transaction(DbContext(role="operator", user_id=ids.operator_id), get_engine()) as conn:
+        res = billing.refresh_draft(
+            conn,
+            tenant_id=ids.tenant_id,
+            period_start=date.fromisoformat(period),
+            today=datetime.now(UTC).date(),
+            actor_id=str(ids.operator_id),
+        )
+    typer.echo(
+        json.dumps(
+            {
+                "invoice_id": str(res.invoice_id) if res.invoice_id else None,
+                "lines": res.lines,
+                "excluded": res.excluded,
+                "total": billing.money(res.total_minor, "GBP"),
+                "issue_blocked_by": res.blocked_reasons,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
 
 
 if __name__ == "__main__":

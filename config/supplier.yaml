@@ -1,0 +1,10 @@
+# Your own company details, printed on every invoice. Replace every "TODO" with the real value before go-live.
+# Invoices can be drafted while placeholders remain, but none can be issued.
+legal_name: "TODO: your company's registered name"
+company_number: "TODO"
+registered_address: "TODO: registered office address"
+country_code: GB
+vat_number: null            # set once VAT-registered (and update config/tax_rules.yaml settings)
+billing_email: "billing@example.invalid"
+invoice_prefix: "INV"
+payment_details: "TODO: bank details or payment link"
