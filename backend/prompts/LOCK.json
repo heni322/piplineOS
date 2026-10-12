@@ -1,5 +1,8 @@
 {
   "common/untrusted_data_policy.v1.md": "793210ffb919228aceb289c78bc60882226906ca6190534fbeab7702a54b37cb",
+  "reply_handler/classify.v1.md": "c19eb253481364b9e266ab3cdca81b068c2747e7a4ad7178d41ea21e3725e0b3",
+  "reply_handler/qualify.v1.md": "966beff9c38fad15cbafe5c90bdccb6de7aad8fd3629face4f5b2825e87c59fb",
+  "reply_handler/respond.v1.md": "54584d0f295f8143db2cca85e60e0906c6479a6364401cd595c5e7d5c08e3c72",
   "trigger_hunter/score.v1.md": "01831b8755a0c957754e4e37cf5ff1d469bce22ad398610f000aa705114b3481",
   "writer/critique.v1.md": "7aac6cb135c5d09ebeeda3c5a5212132cbc4ba18c13ccff9be0b150e2df8fed4",
   "writer/draft.v1.md": "0f2f41a4416b403c023a07924c56029802258127a12980e1e4145908cc538c11"

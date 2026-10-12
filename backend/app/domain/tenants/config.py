@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import text
@@ -40,6 +41,50 @@ class Sequence(_Strict):
     spacing_business_days: int = Field(default=3, ge=2, le=10)
 
 
+class Criterion(_Strict):
+    id: str = Field(pattern=r"^[a-z_]{2,30}$")
+    question: str  # what must be true, in plain words
+    evidence_from: Literal["reply", "profile"] = "reply"
+    hint_keywords: list[str] = []  # helps the deterministic fallback; the model may use other evidence
+    required: bool = True
+
+
+class Qualification(_Strict):
+    framework: Literal["bant", "meddic", "custom"] = "custom"
+    criteria: list[Criterion] = Field(min_length=1)
+    min_confidence: float = Field(default=0.7, ge=0, le=1)
+
+
+class PlaybookEntry(_Strict):
+    id: str = Field(pattern=r"^[a-z_]{2,40}$")
+    objection: str  # e.g. "We already have a provider"
+    match_keywords: list[str] = Field(min_length=1)
+    approved_response: str  # tenant-approved talking point the reply must stay within
+
+
+class Calendar(_Strict):
+    status: Literal["ok", "disconnected"] = "ok"
+    calendar_ref: str = "primary"
+    host_timezone: str = "Europe/London"
+    host_country: str = "GB"
+    host_subdivision: str | None = "GB-ENG"
+    meeting_minutes: int = Field(default=30, ge=15, le=90)
+    day_start_hour: int = Field(default=10, ge=7, le=12)
+    day_end_hour: int = Field(default=16, ge=13, le=19)
+    min_notice_business_days: int = Field(default=1, ge=0, le=5)
+    horizon_business_days: int = Field(default=10, ge=3, le=30)
+    slots_to_offer: int = Field(default=3, ge=2, le=5)
+    offer_valid_days: int = Field(default=5, ge=1, le=14)
+
+
+class ShowRate(_Strict):
+    reminder_offsets_minutes: list[int] = [1440, 60]
+    max_reschedules: int = Field(default=3, ge=0, le=5)
+    reminders_after_objection: bool = False
+    meeting_title: str = "Introductory call"
+    agenda: str = "1. Your current service desk setup\n2. Where overflow cover could help\n3. Next steps, if any"
+
+
 class TenantConfig(_Strict):
     schema_version: int = 1
     niche_slug: str
@@ -55,6 +100,14 @@ class TenantConfig(_Strict):
     language: str = "en-GB"
     min_quality_score: float = Field(default=8.0, ge=0, le=10)
     max_rewrites: int = Field(default=2, ge=0, le=2)
+    supported_languages: list[str] = ["en"]
+    qualification: Qualification | None = None
+    objection_playbook: list[PlaybookEntry] = []
+    calendar: Calendar = Calendar()
+    show_rate: ShowRate = ShowRate()
+    ai_disclosure: Literal["always", "on_request"] = "always"
+    ai_disclosure_text: str = "This reply was drafted with the help of AI."
+    nurture_days: int = Field(default=90, ge=14, le=365)
 
 
 def save_config(conn: Connection, tenant_id: uuid.UUID, cfg: TenantConfig, created_by: uuid.UUID | None = None) -> int:

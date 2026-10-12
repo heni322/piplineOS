@@ -8,6 +8,7 @@ Layer 3: agents have no side-effecting tools; outputs are schema-validated and c
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 
 PATTERNS = [
@@ -21,6 +22,12 @@ PATTERNS = [
     r"\b(wire|transfer) (a |the )?(deposit|payment|money|funds)\b",
     r"\bremove (me|them|this person) from (the )?suppression\b",
     r"<\s*/?\s*(system|assistant|untrusted_source)\b",
+    # the same override in the other EU languages we will serve
+    r"ignorez (toutes )?(les )?(instructions|consignes)",
+    r"ignorier(e|en sie) (alle )?(vorherigen |bisherigen )?(anweisungen|instruktionen)",
+    r"negeer (alle )?(vorige |eerdere )?(instructies|opdrachten)",
+    r"ignora (todas )?(las )?instrucciones",
+    r"ignora (tutte )?(le )?istruzioni",
 ]
 _RX = re.compile("|".join(PATTERNS), re.IGNORECASE)
 _SENTENCE = re.compile(r"(?<=[.!?])\s+|\n+")
@@ -36,10 +43,15 @@ class Sanitised:
         return bool(self.removed)
 
 
+def _normalise(text: str) -> str:
+    """NFKC + drop invisible format characters (zero-width spaces/joiners, bidi controls) used to hide instructions."""
+    return "".join(ch for ch in unicodedata.normalize("NFKC", text) if unicodedata.category(ch) != "Cf")
+
+
 def sanitise_untrusted(text: str) -> Sanitised:
     kept: list[str] = []
     removed: list[str] = []
-    for sentence in _SENTENCE.split(text or ""):
+    for sentence in _SENTENCE.split(_normalise(text or "")):
         s = sentence.strip()
         if not s:
             continue
@@ -48,4 +60,4 @@ def sanitise_untrusted(text: str) -> Sanitised:
 
 
 def looks_like_injection(text: str) -> bool:
-    return bool(_RX.search(text or ""))
+    return bool(_RX.search(_normalise(text or "")))

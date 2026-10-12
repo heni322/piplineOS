@@ -11,7 +11,16 @@ from datetime import UTC, datetime, timedelta
 from app.adapters.companies_house.base import RegistryCompany
 from app.adapters.enrichment.base import EnrichedPerson
 from app.adapters.signals.base import RawSignal
-from app.domain.tenants.config import BrandVoice, Icp, Persona, Sequence, TenantConfig
+from app.domain.tenants.config import (
+    BrandVoice,
+    Criterion,
+    Icp,
+    Persona,
+    PlaybookEntry,
+    Qualification,
+    Sequence,
+    TenantConfig,
+)
 
 NOW = datetime.now(UTC).replace(microsecond=0)
 
@@ -265,13 +274,22 @@ PEOPLE: dict[str, list[EnrichedPerson]] = {
     ],
     "woodgrove-it.example": [
         _p(
+            "Sam Okafor",
+            "Head of Service Delivery",
+            "woodgrove-it.example",
+            "Cardiff, Wales",
+            "sam.okafor@woodgrove-it.example",
+            "p-05b",
+            0.80,
+        ),
+        _p(
             "Casey Jones",
             "Chief Technology Officer",
             "woodgrove-it.example",
             "Cardiff, Wales",
             "casey.jones@woodgrove-it.example",
             "p-05",
-        )
+        ),
     ],
     "litware.example": [
         _p(
@@ -387,6 +405,64 @@ DEMO_CONFIG = TenantConfig(
     ),
     sequence=Sequence(follow_ups=2, spacing_business_days=3),
     outreach_purpose="service desk capacity support for managed IT providers",
+    qualification=Qualification(
+        framework="custom",
+        criteria=[
+            Criterion(
+                id="need",
+                question="They have a service desk capacity or out-of-hours coverage problem",
+                hint_keywords=[
+                    "stretched",
+                    "backlog",
+                    "out of hours",
+                    "out-of-hours",
+                    "overflow",
+                    "struggling",
+                    "capacity",
+                    "overnight",
+                    "weekend",
+                    "cover",
+                ],
+            ),
+            Criterion(
+                id="authority",
+                question="The contact leads or influences service delivery decisions",
+                evidence_from="profile",
+            ),
+            Criterion(
+                id="timing",
+                question="They want to act within the next 6 months",
+                hint_keywords=[
+                    "this quarter",
+                    "next quarter",
+                    "before christmas",
+                    "this month",
+                    "next month",
+                    "soon",
+                    "asap",
+                    "january",
+                    "february",
+                    "march",
+                    "weeks",
+                ],
+            ),
+        ],
+    ),
+    objection_playbook=[
+        PlaybookEntry(
+            id="already_have_provider",
+            objection="We already have a provider",
+            match_keywords=["already have", "existing provider", "already use", "current provider"],
+            approved_response="Many clients use us alongside an existing provider, only for overflow and "
+            "out-of-hours peaks, with no long contract.",
+        ),
+        PlaybookEntry(
+            id="no_budget",
+            objection="No budget right now",
+            match_keywords=["no budget", "budget is", "can't afford", "too expensive"],
+            approved_response="Cover is pay-as-you-go per month, so it can start small and stop any time.",
+        ),
+    ],
 )
 
 # What each company should end up as after the Phase 3 pipeline (asserted by the integration test).

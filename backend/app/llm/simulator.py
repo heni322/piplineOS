@@ -137,6 +137,103 @@ def _critique(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _classify(data: dict[str, Any], sources: list[tuple[str, str]]) -> dict[str, Any]:
+    from datetime import date
+
+    from app.agents.reply_handler.rules import apply_rules, parse_slot_choice
+
+    text = sources[0][1] if sources else ""
+    r = apply_rules(text, date.fromisoformat(data.get("received_on", "2026-01-01")))
+    playbook = next(
+        (p["id"] for p in data.get("playbook", []) if any(w in text.lower() for w in _PLAYBOOK_HINTS.get(p["id"], []))),
+        None,
+    )
+    slot = parse_slot_choice(text, data.get("offered_slots", [])) if data.get("offered_slots") else None
+    cls: str
+    if r.safety:
+        cls, conf = r.safety, 0.95
+    elif r.out_of_office:
+        cls, conf = "out_of_office", 0.95
+    elif r.referral_hint:
+        cls, conf = "referral", 0.9
+    elif r.negative_hint:
+        cls, conf = "negative", 0.85
+    elif r.not_now_hint:
+        cls, conf = "not_now", 0.8
+    elif r.interested_hint or slot is not None or r.wants_reschedule or r.confirms or playbook:
+        cls, conf = "interested", 0.85
+    else:
+        cls, conf = "unclear", 0.4
+    return {
+        "classification": cls,
+        "confidence": conf,
+        "language": r.language if r.language != "unknown" else "en",
+        "evidence": [],
+        "ooo_return_date": r.ooo_return_date.isoformat() if r.ooo_return_date else None,
+        "referral": {"name": r.referral_name, "email": r.referral_email, "title": None} if r.referral_hint else None,
+        "sales_objection": "pushback matched to playbook" if playbook else None,
+        "playbook_id": playbook,
+        "slot_choice": slot + 1 if slot is not None else None,
+        "wants_reschedule": r.wants_reschedule,
+        "asks_if_ai": r.asks_if_ai,
+        "escalate_flags": r.flags,
+    }
+
+
+_PLAYBOOK_HINTS = {
+    "already_have_provider": ["already have", "existing provider", "already use", "current provider"],
+    "no_budget": ["no budget", "budget is", "can't afford", "too expensive"],
+}
+
+
+def _qualify(data: dict[str, Any], sources: list[tuple[str, str]]) -> dict[str, Any]:
+    from app.demo.dataset import DEMO_CONFIG
+
+    text = sources[0][1] if sources else ""
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+|\n+", text) if s.strip() and s.strip() != "---"]
+    hints = {c.id: c.hint_keywords for c in (DEMO_CONFIG.qualification.criteria if DEMO_CONFIG.qualification else [])}
+    out = []
+    for c in data.get("criteria", []):
+        if c.get("evidence_from") == "profile":
+            out.append({"id": c["id"], "met": None, "evidence_quote": None, "confidence": 0.0})
+            continue
+        quote = next((s for s in sentences if any(k in s.lower() for k in hints.get(c["id"], []))), None)
+        out.append(
+            {
+                "id": c["id"],
+                "met": True if quote else None,
+                "evidence_quote": quote,
+                "confidence": 0.85 if quote else 0.3,
+            }
+        )
+    return {"criteria": out, "summary": "Simulated qualification from keyword evidence."}
+
+
+def _respond(data: dict[str, Any]) -> dict[str, Any]:
+    first, sender = data.get("prospect_first_name", "there"), data.get("sender_first_name", "")
+    intent = data.get("intent")
+    if intent == "not_now":
+        body = (
+            f"Hi {first},\n\nThanks for letting me know, that makes sense. I won't chase in the meantime; if it "
+            f"would help to reconnect later in the year, just reply to this email.\n\n{sender}"
+        )
+    elif intent == "ask_qualifying":
+        need = ", ".join(data.get("missing_criteria", [])) or "your priorities"
+        body = (
+            f"Hi {first},\n\nThanks for coming back to me. To make sure a call is worth your time, could you "
+            f"share a little about {need}?\n\n{sender}"
+        )
+    else:
+        entry = data.get("playbook_entry") or {}
+        approved = entry.get("approved_response", "")
+        body = f"Hi {first},\n\nThat's fair. {approved} Would that be worth a short chat?\n\n{sender}"
+    return {
+        "language": data.get("language", "en-GB"),
+        "body": body,
+        "playbook_id": (data.get("playbook_entry") or {}).get("id") if intent == "playbook" else None,
+    }
+
+
 class SimulatedBackend:
     def complete(
         self,
@@ -156,6 +253,12 @@ class SimulatedBackend:
             out = _draft(data, sources)
         elif title == "WriterCritique":
             out = _critique(data)
+        elif title == "ReplyClassification":
+            out = _classify(data, sources)
+        elif title == "QualificationResult":
+            out = _qualify(data, sources)
+        elif title == "ReplyDraft":
+            out = _respond(data)
         else:
             raise ValueError(f"simulator has no behaviour for schema {title!r}")
         return BackendResponse(
