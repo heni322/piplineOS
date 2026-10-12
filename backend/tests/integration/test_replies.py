@@ -473,3 +473,23 @@ def test_reply_sla_and_referral_recovery_task(world: World, monkeypatch) -> None
     tasks._dispatch("lead.referral_checked", {"lead_id": str(out.new_lead_id)})
     assert sent == [str(out.new_lead_id)]
     assert tasks.draft_referral_task.run(str(out.new_lead_id)) == "skipped"  # already drafted inline
+
+
+def test_interested_reply_without_qualification_criteria_goes_to_a_person(world: World) -> None:
+    cfg = world.ctx.config  # type: ignore[attr-defined]
+    world.ctx = dataclasses.replace(world.ctx, config=cfg.model_copy(update={"qualification": None}))  # type: ignore[type-var]
+    out = world.say(CONTOSO, FIRST_REPLIES[CONTOSO], START + timedelta(hours=1))
+    assert out.actions == ["escalated:no_qualification_criteria"]
+    assert not q(world, "SELECT 1 FROM slot_offers") and not q(world, "SELECT 1 FROM messages WHERE kind <> 'outreach'")
+
+
+def test_reseeding_upgrades_an_outdated_demo_config(clean_db, settings) -> None:  # type: ignore[no-untyped-def]
+    from app.demo.dataset import DEMO_CONFIG
+    from app.domain.tenants.config import load_config, save_config
+
+    demo = seed_demo(clean_db, settings)
+    with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
+        save_config(conn, demo.tenant_id, DEMO_CONFIG.model_copy(update={"qualification": None}), None)
+    seed_demo(clean_db, settings)
+    with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
+        assert load_config(conn, demo.tenant_id)[1] == DEMO_CONFIG

@@ -26,7 +26,7 @@ from app.db.session import DbContext, transaction
 from app.demo import dataset
 from app.domain.compliance.repository import enable_country
 from app.domain.suppression.service import RecipientHashes, suppress_email
-from app.domain.tenants.config import save_config
+from app.domain.tenants.config import TenantConfig, save_config
 from app.settings import Settings
 from app.workflows.pipeline import Providers
 
@@ -94,8 +94,9 @@ def seed_demo(engine: Engine, settings: Settings, operator_email: str = "operato
                 {"s": DEMO_SLUG},
             ).scalar_one()
     with transaction(DbContext.system(tenant_id), engine) as conn:
-        if not conn.execute(text("SELECT 1 FROM tenant_configs")).first():
-            save_config(conn, tenant_id, dataset.DEMO_CONFIG, None)
+        stored = conn.execute(text("SELECT config FROM tenant_configs ORDER BY version DESC LIMIT 1")).scalar()
+        if stored is None or TenantConfig.model_validate(stored) != dataset.DEMO_CONFIG:
+            save_config(conn, tenant_id, dataset.DEMO_CONFIG, None)  # new version; history is kept
         campaign_id = conn.execute(text("SELECT id FROM campaigns WHERE name = 'UK IT MSPs — demo'")).scalar()
         if campaign_id is None:
             campaign_id = conn.execute(

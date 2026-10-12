@@ -7,11 +7,11 @@ It also covers out-of-office (pause and resume), referrals (new lead with a fres
 
 The operator console has three new pages: **Escalations**, **Data requests** (deadline countdown, MFA-protected erasure) and **Meetings** (masked list, logged brief, attendance). AI-written replies reach the existing approval desk with the prospect's message shown beside them.
 
-**411 automated tests pass** (396 backend, 9 component, 6 browser), with zero accessibility violations on the new pages. The Agent 4 eval (75 labelled replies, 16 of them prompt-injection attempts) gives **100% recall on unsubscribe and data-protection requests**, and still ≥95% when the AI model is deliberately wrong every time, because the safety rules don't depend on the model.
+**413 automated tests pass** (398 backend, 9 component, 6 browser), with zero accessibility violations on the new pages. The Agent 4 eval (75 labelled replies, 16 of them prompt-injection attempts) gives **100% recall on unsubscribe and data-protection requests**, and still ≥95% when the AI model is deliberately wrong every time, because the safety rules don't depend on the model.
 
 As in Phase 3, every AI call ran on the built-in simulator (no API key, per ADR-0011). **Real-model classification and reply quality is not measured yet.**
 
-Testing and review found **9 real defects, all fixed** (§6), including one serious one: "Please delete all the data you hold about me" was not recognised as an erasure request. Nothing left the system: 0 real emails, 0 real calendar events, 0 paid API calls.
+Testing, review and the Windows run found **10 real defects, all fixed** (§6), including one serious one: "Please delete all the data you hold about me" was not recognised as an erasure request. Nothing left the system: 0 real emails, 0 real calendar events, 0 paid API calls.
 
 Decisions I took under your delegation are recorded in ADR-0011 (R12 accepted, real-model evals approved in principle but on hold, Phase 4 started) and ADR-0012 (Phase 4 design choices, §3).
 
@@ -30,7 +30,7 @@ Decisions I took under your delegation are recorded in ADR-0011 (R12 accepted, r
 | API | `/escalations`, `/data-protection-requests` (+ status, MFA-protected `complete-erasure`), `/meetings` (+ logged `brief`, `attendance`), dev-only `/dev/inbound`; public single-use `/r/{token}` reschedule page; approval items now carry `kind` and the prospect's reply |
 | Frontend | Escalations inbox, data-request tracker with countdown, meetings with logged brief and attendance buttons; approval desk shows reply drafts with "Their reply" context; new nav and strings |
 | Demo | `demo/conversations.py`, CLI `pipelineos demo conversations` |
-| Tests / evals | 83 new backend tests, 3 component tests, 1 browser test; Agent 4 eval harness + 75-reply labelled set; e2e script now runs two stages on fresh databases |
+| Tests / evals | 85 new backend tests, 3 component tests, 1 browser test; Agent 4 eval harness + 75-reply labelled set; e2e script now runs two stages on fresh databases |
 | Docs | ADR-0011, ADR-0012, this report, evidence files (`demo-run-phase-4.json`, `evals-phase-4.json`, `traces-phase-4.json`) |
 
 No new dependencies (the reschedule form is parsed without adding `python-multipart`). No paid services.
@@ -81,14 +81,14 @@ Taken under your delegation, within its limits (legal, ICO, VAT, credentials, sp
 
 | Suite | Result |
 |---|---|
-| Backend: `uv run pytest` (unit 246, property 1, contract 13, integration 92, security 39, evals 5) | **396 passed**, 0 failed (≈100 s, real PostgreSQL 16 + pgvector) |
+| Backend: `uv run pytest` (unit 246, property 1, contract 13, integration 94, security 39, evals 5) | **398 passed**, 0 failed (≈100 s, real PostgreSQL 16 + pgvector) |
 | Frontend components: `pnpm test` | **9 passed** |
 | Browser: `scripts/e2e-fullstack.sh`, stage 1 (4 smoke + approval desk) and stage 2 (escalations, data requests, meetings) | **6 passed**, axe: 0 violations |
 | Lint / types / import contracts / prompt lock | Clean (ruff, mypy --strict on 122 files, eslint, tsc); 2 contracts kept; 7 prompts locked (new test: every shipped prompt must be locked) |
 | Migrations | `0005` up → down to base → up → down to 0004 → up: OK |
 | Dependency audits | Backend: none. Frontend production: none. Dev: 1 high (`braces`, accepted as R12) |
 | Backend on **your Windows PC** | See §5.1 |
-| **Baseline** | Phase 3: 324 → Phase 4: **411**. No previously passing test fails |
+| **Baseline** | Phase 3: 324 → Phase 4: **413**. No previously passing test fails |
 
 **Agent 4 eval** (`docs/evals-phase-4.json`, simulator): 75 replies (13 unsubscribe, 6 contact objections, 13 data-protection requests, 5 out-of-office, 4 referrals, 5 negative, 4 not-now, 7 interested, 2 unclear, 16 injection attempts including hidden characters, French and German overrides, fake system tags and quoted threads). Accuracy 100%; injections 14/14 escalated, 0 unsafe actions; the two "unsubscribe + injection" replies still unsubscribed.
 **Not covered:** with the simulator, this mainly measures the rules and the pipeline. A real model's classification and reply quality need the on-hold eval run.
@@ -116,7 +116,9 @@ Side effects of the whole run, all dry-run: 10 email sends and 1 calendar event 
 | Suppressed after approval | allow at queue, block at send | suppressed, nothing sent |
 
 ### 5.1 On your Windows PC
-_Filled in after the sync and run below._
+Synced as branch `phase/4-replies-booking` (git bundle, no history rewritten), migrated to `0005`, tested against your Docker PostgreSQL:
+- First run: **396 passed, 0 failed** (≈184 s).
+- The demo on your existing database exposed **D22**: the database still held the Phase 3 demo configuration (no qualification criteria), and Contoso was asked an empty "qualifying question" in a loop instead of being booked. Fixed (escalate to a person when no criteria exist; re-seeding now stores the current demo configuration as a new version). After the fix: see the final line below.
 
 ## 6. Defects found during this phase (all fixed, with regression tests)
 
@@ -131,6 +133,7 @@ _Filled in after the sync and run below._
 | D19 | The default AI disclosure said replies were "checked by our team" | Untrue in sampling mode | Wording changed |
 | D20 | The unsupported-language rule only applied to *interested* and *not now* replies | Other foreign-language replies were escalated for the wrong reason | Applies to every non-out-of-office reply |
 | D21 | The approval desk would have failed to show reply context (wrong encryption context name) | Agent replies unreviewable | Fixed; API test covers it |
+| D22 | With no qualification criteria configured, an interested reply produced an empty qualifying question, every time (found on your PC) | Prospects stuck in a loop; no meeting | Escalate to a person; demo re-seed upgrades the stored configuration |
 
 ## 7. Risks and open issues
 

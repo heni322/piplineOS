@@ -595,7 +595,10 @@ def _interested(
             asks_if_ai=rules.asks_if_ai,
         )
         return [f"playbook_reply_drafted:{entry.id}"]
-    # (d) qualification
+    # (d) qualification: without signed criteria there is nothing to qualify against, so a person decides
+    if cfg.qualification is None or not cfg.qualification.criteria:
+        _escalate(conn, ctx.tenant_id, lead_id, "other", {"why": "no qualification criteria configured"})
+        return ["escalated:no_qualification_criteria"]
     texts = [
         ctx.cipher.decrypt(conn, ctx.tenant_id, "replies.body", b)
         for b in conn.execute(
