@@ -62,7 +62,10 @@ def load_prompt(rel_path: str, root: Path = PROMPTS_DIR) -> PromptFile:
 
 
 def compute_lock(root: Path = PROMPTS_DIR) -> dict[str, str]:
-    return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob("*.md"))}
+    # POSIX-style keys so the lock file is identical on Windows and Linux.
+    return {
+        p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob("*.md"))
+    }
 
 
 def check_lock(root: Path = PROMPTS_DIR) -> list[str]:
