@@ -13,3 +13,4 @@ Status values: Proposed · Accepted · Superseded. All are **Proposed** until th
 | [0006](0006-prompt-versioning-and-llm-validation.md) | File-based versioned prompts, Pydantic-validated outputs | Proposed |
 | [0007](0007-config-as-versioned-data.md) | Legal/tax/country rules as versioned YAML → immutable DB rows | Proposed |
 | [0008](0008-auth.md) | First-party auth with Argon2id + TOTP MFA, server-side sessions | Proposed |
+| [0009](0009-phase-2-implementation-choices.md) | Phase 2 implementation choices and deviations | Proposed |

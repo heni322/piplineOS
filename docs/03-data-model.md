@@ -158,7 +158,7 @@ erDiagram
 
 All 33 required tables are present: tenants, users, tenant_configs, niches, signals, companies, prospects, prospect_field_sources, compliance_rules, compliance_decisions, country_rollout_status, campaigns, sending_domains, inboxes, deliverability_metrics, messages, message_personalization_sources, approvals, replies, qualifications, meetings, meeting_reminders, attendance_events, disputes, invoices, tax_rules, suppression_list, data_protection_requests, sub_processors, transfer_mechanisms, pii_access_log, audit_log, llm_calls.
 
-Supporting tables added: sessions, leads, alternative_channel_tasks, dry_run_log, unsubscribe_tokens, escalations, invoice_lines, tax_settings, golive_checklist_items, outbox, idempotency_keys, scheduled_actions.
+Supporting tables added: tenant_keys (wrapped per-tenant data keys, ADR-0005/0009), sessions, leads, alternative_channel_tasks, dry_run_log, unsubscribe_tokens, escalations, invoice_lines, tax_settings, golive_checklist_items, outbox, idempotency_keys, scheduled_actions.
 
 ## 5. Retention (defaults, configurable per tenant; flagged for legal review)
 
