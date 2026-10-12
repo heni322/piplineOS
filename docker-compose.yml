@@ -1,0 +1,85 @@
+# PipelineOS local development stack. Everything runs in DRY-RUN mode with mock adapters.
+# Postgres is published on 5433 so it does not clash with a local PostgreSQL on 5432.
+name: pipelineos
+
+x-backend: &backend
+  build:
+    context: ./backend
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://pipelineos_app:app_dev_only@postgres:5432/pipelineos
+    DATABASE_OWNER_URL: postgresql+psycopg://pipelineos_owner:owner_dev_only@postgres:5432/pipelineos
+    REDIS_URL: redis://valkey:6379/0
+  depends_on:
+    postgres: { condition: service_healthy }
+    valkey: { condition: service_healthy }
+  volumes:
+    - ./config:/config:ro
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD: postgres_dev_only
+    ports: ["5433:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pipelineos"]
+      interval: 5s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports: ["6380:6379"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  mailpit:
+    # Dev-only fake inbox for viewing rendered dry-run emails. Never relays outside.
+    image: axllent/mailpit:v1.20
+    ports: ["8025:8025"]
+
+  migrate:
+    <<: *backend
+    command: ["sh", "-c", "alembic upgrade head && pipelineos config sync --path /config"]
+    restart: "no"
+
+  api:
+    <<: *backend
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8000:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker-default:
+    <<: *backend
+    command: ["celery", "-A", "app.workflows.celery_app", "worker", "-Q", "default", "-c", "2", "-l", "INFO"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker-send:
+    <<: *backend
+    command: ["celery", "-A", "app.workflows.celery_app", "worker", "-Q", "send", "-c", "1", "-l", "INFO"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "app.workflows.celery_app", "beat", "-l", "INFO"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    build:
+      context: ./frontend
+    environment:
+      API_BASE_URL: http://api:8000
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:

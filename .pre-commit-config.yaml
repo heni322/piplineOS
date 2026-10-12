@@ -1,0 +1,26 @@
+# Install once: pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: bash -c 'cd backend && uv run ruff check . && uv run ruff format --check .'
+        language: system
+        pass_filenames: false
+        files: ^backend/
+      - id: mypy
+        name: mypy
+        entry: bash -c 'cd backend && uv run mypy'
+        language: system
+        pass_filenames: false
+        files: ^backend/
+      - id: frontend-lint
+        name: frontend lint + types
+        entry: bash -c 'cd frontend && pnpm lint && pnpm typecheck'
+        language: system
+        pass_filenames: false
+        files: ^frontend/

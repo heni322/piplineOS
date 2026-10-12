@@ -1,8 +1,27 @@
+# secrets
 .env
 .env.*
 !.env.example
-node_modules/
+*.pem
+*.key
+# python
 .venv/
 __pycache__/
-.next/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.hypothesis/
+.import_linter_cache/
+# node
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+# os
+.DS_Store
+Thumbs.db
