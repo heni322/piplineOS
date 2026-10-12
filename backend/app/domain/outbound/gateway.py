@@ -163,7 +163,7 @@ class OutboundGateway:
             .one()
         )
 
-        if m["sequence_step"] > 0 and row["state"] != "contacted":
+        if m["kind"] == "outreach" and m["sequence_step"] > 0 and row["state"] != "contacted":
             # Follow-ups only while the lead is still 'contacted' (no reply, objection, booking or suppression).
             conn.execute(
                 text("UPDATE messages SET status = 'cancelled', last_error = :e WHERE id = :id"),

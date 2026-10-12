@@ -13,6 +13,8 @@ from sqlalchemy.engine import Engine
 
 from app.adapters.companies_house.base import CompaniesRegistry
 from app.adapters.enrichment.base import EnrichmentProvider
+from app.adapters.inbound.base import InboundEmail, Inbox
+from app.adapters.inbound.mock import MockInbox
 from app.adapters.verifier.base import EmailVerifier
 from app.agents.base import AgentContext
 from app.agents.decision_maker.agent import find_decision_maker
@@ -24,7 +26,10 @@ from app.db.session import DbContext, transaction
 from app.domain.approvals import service as approvals
 from app.domain.compliance.gate import run_gate
 from app.domain.deliverability.hours import add_business_days
+from app.domain.meetings import service as meetings
+from app.domain.outbound.calendar import CalendarGateway
 from app.domain.outbound.gateway import OutboundGateway, SendOutcome
+from app.domain.replies import service as replies
 from app.domain.tenants.config import load_config
 from app.llm.client import LLMBackend
 from app.llm.factory import build_llm_client
@@ -39,6 +44,7 @@ class Providers:
     enrichment: EnrichmentProvider
     verifier: EmailVerifier
     registry: CompaniesRegistry
+    inbox: Inbox = field(default_factory=MockInbox)
 
 
 @dataclass
@@ -105,6 +111,55 @@ def run_campaign(ctx: AgentContext, providers: Providers, since: datetime | None
     return run
 
 
+def queue_due_reminders(
+    engine: Engine, settings: Settings, cipher: PiiCipher, tenant_id: uuid.UUID, now: datetime
+) -> int:
+    """Turns due meeting reminders into templated messages (then sent by send_due through the gateway)."""
+    n = 0
+    with transaction(DbContext.system(tenant_id), engine) as conn:
+        _, cfg = load_config(conn, tenant_id)
+        conn.execute(
+            text("""UPDATE meeting_reminders r SET status = 'cancelled' FROM meetings m WHERE m.id = r.meeting_id
+              AND r.status = 'scheduled' AND m.status NOT IN ('booked','confirmed')""")
+        )
+        due = conn.execute(
+            text("""SELECT r.id, r.meeting_id, r.offset_minutes, m.lead_id, m.starts_at, m.ends_at,
+              l.objected_after_booking FROM meeting_reminders r JOIN meetings m ON m.id = r.meeting_id
+              JOIN leads l ON l.id = m.lead_id WHERE r.status = 'scheduled' AND r.message_id IS NULL
+              AND r.scheduled_for <= :now AND m.status IN ('booked','confirmed') FOR UPDATE OF r"""),
+            {"now": now},
+        ).all()
+        for r in due:
+            if r.objected_after_booking and not cfg.show_rate.reminders_after_objection:
+                conn.execute(text("UPDATE meeting_reminders SET status = 'skipped' WHERE id = :r"), {"r": r.id})
+                continue
+            p = meetings.load_prospect(conn, cipher, tenant_id, r.lead_id)
+            when = meetings.label(meetings.Slot(r.starts_at, r.ends_at), p.tz)
+            soon = "tomorrow" if r.offset_minutes >= 720 else "shortly"
+            body = (
+                f"Hi {p.first_name},\n\nA quick reminder of our call {soon}: {when}.\n\nAgenda:\n"
+                f"{cfg.show_rate.agenda}\n\nIf the time no longer works, just reply and I will find another.\n\n"
+                f"{cfg.brand_voice.sender_name.split()[0]}"
+            )
+            mid = meetings.template_message(
+                conn,
+                cipher,
+                settings,
+                cfg,
+                tenant_id=tenant_id,
+                lead_id=r.lead_id,
+                kind="meeting_reminder",
+                body=body,
+                status="approved",
+                subject=f"Reminder: {cfg.show_rate.meeting_title}, {when}",
+                key=f"reminder:{r.id}",
+                meeting_id=r.meeting_id,
+            )
+            conn.execute(text("UPDATE meeting_reminders SET message_id = :m WHERE id = :r"), {"m": mid, "r": r.id})
+            n += 1
+    return n
+
+
 def send_due(
     engine: Engine,
     settings: Settings,
@@ -115,6 +170,7 @@ def send_due(
 ) -> list[SendOutcome]:
     """Send approved messages that are due (dry-run unless all live keys are on). Schedules follow-ups."""
     at = now or datetime.now(UTC)
+    queue_due_reminders(engine, settings, cipher, tenant_id, at)
     gw = gateway or OutboundGateway(settings, engine, cipher, clock=lambda: at)
     with transaction(DbContext.system(tenant_id), engine) as conn:
         due = (
@@ -134,7 +190,65 @@ def send_due(
         results.append(out)
         if out.status in ("sent", "dry_run_sent"):
             _schedule_follow_ups(engine, settings, tenant_id, mid, at)
+            with transaction(DbContext.system(tenant_id), engine) as conn:
+                conn.execute(
+                    text("UPDATE meeting_reminders SET status = :s WHERE message_id = :m"), {"s": out.status, "m": mid}
+                )
     return results
+
+
+def process_inbound(
+    ctx: AgentContext,
+    messages: list[InboundEmail],
+    providers: Providers,
+    calendar: CalendarGateway | None = None,
+    now: datetime | None = None,
+) -> list[replies.Outcome]:
+    """Agent 4 over new inbound replies. Referral leads are drafted after their compliance check commits;
+    AI-handled replies follow the tenant's approval mode."""
+    cal = calendar or CalendarGateway(ctx.settings, ctx.cipher)
+    outcomes = []
+    for msg in messages:
+        out = replies.handle(ctx, msg, providers=providers, calendar=cal, now=now)
+        outcomes.append(out)
+        if out.new_lead_id is not None:
+            with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+                state = conn.execute(text("SELECT state FROM leads WHERE id = :l"), {"l": out.new_lead_id}).scalar_one()
+            if state == "compliance_checked" and write_for_lead(ctx, out.new_lead_id).status == "pending_approval":
+                with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+                    approvals.route(conn, ctx.tenant_id, out.new_lead_id)
+        if out.reply_id is not None:
+            with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+                for mid, lid in conn.execute(
+                    text(
+                        "SELECT id, lead_id FROM messages WHERE reply_id = :r AND kind = "
+                        "'agent_reply' AND status = 'pending_approval'"
+                    ),
+                    {"r": out.reply_id},
+                ):
+                    approvals.route_reply(conn, ctx.tenant_id, mid, lid)
+                for mid, lid in conn.execute(
+                    text(
+                        "SELECT m.id, m.lead_id FROM messages m JOIN slot_offers o ON o.message_id "
+                        "= m.id WHERE m.status = 'pending_approval' AND o.status = 'open' AND "
+                        "m.reply_id IS NULL AND m.lead_id IN (SELECT lead_id FROM replies WHERE "
+                        "id = :r)"
+                    ),
+                    {"r": out.reply_id},
+                ):
+                    approvals.route_reply(conn, ctx.tenant_id, mid, lid)
+    return outcomes
+
+
+def reply_sla_breaches(engine: Engine, tenant_id: uuid.UUID, minutes: int = 5, now: datetime | None = None) -> int:
+    """Replies received more than `minutes` ago that are still unclassified (target: classified within 5 minutes)."""
+    with transaction(DbContext.system(tenant_id), engine) as conn:
+        return int(
+            conn.execute(
+                text("SELECT count(*) FROM replies WHERE classified_at IS NULL AND received_at < :t"),
+                {"t": (now or datetime.now(UTC)) - timedelta(minutes=minutes)},
+            ).scalar_one()
+        )
 
 
 def _schedule_follow_ups(

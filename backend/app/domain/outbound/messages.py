@@ -28,14 +28,16 @@ def create_draft(
     language: str = "en-GB",
     quality_score: float | None = None,
     prompt_version: str | None = None,
+    idempotency_key: str | None = None,
+    kind: str = "outreach",
 ) -> uuid.UUID:
     hashes = RecipientHashes.for_email(suppression_key, recipient_email)
     message_id = uuid.uuid4()
     conn.execute(
         text("""INSERT INTO messages (id, tenant_id, lead_id, campaign_id, inbox_id, sequence_step, language,
           subject_enc, body_enc, compliance_footer, quality_score, prompt_version, recipient_hash,
-          recipient_domain_hash, status, idempotency_key)
-          VALUES (:id, :t, :l, :c, :i, :step, :lang, :s, :b, :f, :q, :pv, :rh, :dh, 'draft', :k)"""),
+          recipient_domain_hash, status, idempotency_key, kind)
+          VALUES (:id, :t, :l, :c, :i, :step, :lang, :s, :b, :f, :q, :pv, :rh, :dh, 'draft', :k, :kind)"""),
         {
             "id": message_id,
             "t": tenant_id,
@@ -51,7 +53,8 @@ def create_draft(
             "pv": prompt_version,
             "rh": hashes.email,
             "dh": hashes.domain,
-            "k": f"msg:{lead_id}:{sequence_step}",
+            "k": idempotency_key or f"msg:{lead_id}:{sequence_step}",
+            "kind": kind,
         },
     )
     return message_id

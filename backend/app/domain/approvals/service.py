@@ -37,6 +37,23 @@ def in_sample(lead_id: uuid.UUID, pct: int) -> bool:
     return int(hashlib.sha256(lead_id.bytes).hexdigest()[:8], 16) % 100 < pct
 
 
+def route_reply(conn: Connection, tenant_id: uuid.UUID, message_id: uuid.UUID, lead_id: uuid.UUID) -> str:
+    """AI-handled replies follow the tenant's approval mode too (sampling auto-approves outside the sample)."""
+    t = conn.execute(
+        text("SELECT approval_mode, approval_sample_pct FROM tenants WHERE id = :t"), {"t": tenant_id}
+    ).one()
+    if t.approval_mode == "always" or in_sample(message_id, t.approval_sample_pct):
+        return "human"
+    conn.execute(
+        text("UPDATE messages SET status = 'approved' WHERE id = :m AND status = 'pending_approval'"), {"m": message_id}
+    )
+    conn.execute(
+        text("INSERT INTO approvals (tenant_id, message_id, decision, sampled) VALUES (:t, :m, 'approved', true)"),
+        {"t": tenant_id, "m": message_id},
+    )
+    return "auto"
+
+
 def route(conn: Connection, tenant_id: uuid.UUID, lead_id: uuid.UUID) -> str:
     """Called after the writer: either leave for a human, or auto-approve under sampling mode."""
     t = conn.execute(
@@ -80,7 +97,7 @@ def decide(
 ) -> dict[str, object]:
     head = (
         conn.execute(
-            text("SELECT id, lead_id, status, sequence_step FROM messages WHERE id = :m FOR UPDATE"),
+            text("SELECT id, lead_id, status, sequence_step, kind FROM messages WHERE id = :m FOR UPDATE"),
             {"m": head_message_id},
         )
         .mappings()
@@ -93,13 +110,15 @@ def decide(
     if head["status"] != "pending_approval":
         raise ApprovalError(f"message is {head['status']}, not pending approval")
     lead_id = head["lead_id"]
+    kind = head["kind"]
+    is_reply = kind != "outreach"  # AI-handled replies: approving sends the reply; the lead keeps its state
     seq = (
         conn.execute(
             text(
-                "SELECT id, subject_enc, body_enc FROM messages WHERE lead_id = :l AND status = "
-                "'pending_approval' ORDER BY sequence_step FOR UPDATE"
+                "SELECT id, subject_enc, body_enc FROM messages WHERE lead_id = :l AND status = 'pending_approval' "
+                "AND kind = :k AND (:k = 'outreach' OR id = :h) ORDER BY sequence_step FOR UPDATE"
             ),
-            {"l": lead_id},
+            {"l": lead_id, "k": kind, "h": head_message_id},
         )
         .mappings()
         .all()
@@ -115,14 +134,19 @@ def decide(
                   VALUES (:t, :m, :r, 'rejected', :why, :s)"""),
                 {"t": tenant_id, "m": m["id"], "r": reviewer_id, "why": reason, "s": review_seconds},
             )
-        transition(
-            conn,
-            lead_id,
-            State.DISQUALIFIED,
-            actor_type="user",
-            actor_id=str(reviewer_id),
-            reason=f"rejected in review: {reason[:100]}",
-        )
+        if is_reply:
+            conn.execute(
+                text("UPDATE slot_offers SET status = 'superseded' WHERE message_id = :m"), {"m": head_message_id}
+            )
+        else:
+            transition(
+                conn,
+                lead_id,
+                State.DISQUALIFIED,
+                actor_type="user",
+                actor_id=str(reviewer_id),
+                reason=f"rejected in review: {reason[:100]}",
+            )
         write_audit(
             conn,
             action="approval.rejected",
@@ -133,7 +157,7 @@ def decide(
             entity_id=lead_id,
             after={"messages": len(seq)},
         )
-        return {"status": "rejected", "lead_state": "disqualified"}
+        return {"status": "rejected", "lead_state": "unchanged" if is_reply else "disqualified"}
 
     edit_map = {e.message_id: e for e in edits}
     if decision == "edit" and not edits:
@@ -199,14 +223,15 @@ def decide(
             {"m": m["id"], "b": e.body},
         )
         warnings.append(f"message {m['id']} edited")
-    transition(
-        conn,
-        lead_id,
-        State.APPROVED,
-        actor_type="user",
-        actor_id=str(reviewer_id),
-        reason="approved with edits" if edits else "approved",
-    )
+    if not is_reply:
+        transition(
+            conn,
+            lead_id,
+            State.APPROVED,
+            actor_type="user",
+            actor_id=str(reviewer_id),
+            reason="approved with edits" if edits else "approved",
+        )
     write_audit(
         conn,
         action="approval.approved",
@@ -217,4 +242,10 @@ def decide(
         entity_id=lead_id,
         after={"edited": len(edits), "messages": len(seq)},
     )
-    return {"status": "approved", "lead_state": "approved", "edited": len(edits), "notes": warnings}
+    return {
+        "status": "approved",
+        "lead_state": "unchanged" if is_reply else "approved",
+        "edited": len(edits),
+        "notes": warnings,
+        "kind": kind,
+    }

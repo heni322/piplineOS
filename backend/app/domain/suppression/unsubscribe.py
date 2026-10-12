@@ -18,15 +18,18 @@ class InvalidToken(Exception):
     pass
 
 
-def _mac(key: bytes, token_id: uuid.UUID) -> bytes:
-    return hmac.new(key, PREFIX + token_id.bytes, hashlib.sha256).digest()[:16]
+RESCHEDULE = b"resched:v1:"  # domain separation: an unsubscribe token can never verify as a reschedule token
 
 
-def sign(key: bytes, token_id: uuid.UUID) -> str:
-    return base64.urlsafe_b64encode(token_id.bytes + _mac(key, token_id)).decode().rstrip("=")
+def _mac(key: bytes, token_id: uuid.UUID, purpose: bytes = PREFIX) -> bytes:
+    return hmac.new(key, purpose + token_id.bytes, hashlib.sha256).digest()[:16]
 
 
-def verify(key: bytes, token: str) -> uuid.UUID:
+def sign(key: bytes, token_id: uuid.UUID, purpose: bytes = PREFIX) -> str:
+    return base64.urlsafe_b64encode(token_id.bytes + _mac(key, token_id, purpose)).decode().rstrip("=")
+
+
+def verify(key: bytes, token: str, purpose: bytes = PREFIX) -> uuid.UUID:
     try:
         raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
     except (ValueError, TypeError) as exc:
@@ -34,6 +37,6 @@ def verify(key: bytes, token: str) -> uuid.UUID:
     if len(raw) != 32 or base64.urlsafe_b64encode(raw).decode().rstrip("=") != token:
         raise InvalidToken("malformed or non-canonical")
     token_id = uuid.UUID(bytes=raw[:16])
-    if not hmac.compare_digest(raw[16:], _mac(key, token_id)):
+    if not hmac.compare_digest(raw[16:], _mac(key, token_id, purpose)):
         raise InvalidToken("bad signature")
     return token_id

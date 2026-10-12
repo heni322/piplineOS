@@ -146,5 +146,22 @@ def demo_send() -> None:
     )
 
 
+@demo_app.command("conversations")
+def demo_conversations() -> None:
+    """Phase 4 demo: approve, dry-run send, then simulated prospect replies handled by Agent 4 (booking, reminders,
+    out-of-office, referral, unsubscribe, data-protection request). DEV DATABASE ONLY; time is simulated."""
+    from app.core.crypto import PiiCipher
+    from app.demo.conversations import run_conversations, summary
+    from app.demo.seed import providers, seed_demo
+    from app.workflows.pipeline import agent_context
+
+    s = get_settings()
+    if s.environment in ("staging", "prod"):
+        raise typer.BadParameter("demo commands are disabled in staging/prod")
+    ids = seed_demo(get_engine(), s)
+    ctx = agent_context(get_engine(), s, PiiCipher(s.key("pii_master_key")), ids.tenant_id, ids.campaign_id)
+    typer.echo(json.dumps(summary(run_conversations(ctx, providers(), ids.operator_id)), indent=2))
+
+
 if __name__ == "__main__":
     app()

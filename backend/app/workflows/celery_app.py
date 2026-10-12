@@ -31,6 +31,8 @@ celery_app.conf.update(
         "outbox-relay": {"task": "pipelineos.system.relay_outbox", "schedule": 5.0},
         "reconcile-sends": {"task": "pipelineos.system.reconcile_sends", "schedule": 60.0},
         "send-due": {"task": "pipelineos.send.send_due", "schedule": 300.0},
+        "fetch-inbound": {"task": "pipelineos.replies.fetch_inbound", "schedule": 60.0},
+        "reply-sla": {"task": "pipelineos.system.reply_sla", "schedule": 60.0},
     },
 )
 
@@ -39,6 +41,8 @@ def _dispatch(topic: str, payload: dict[str, Any]) -> None:
     log.info("outbox_event", topic=topic, lead_id=payload.get("lead_id"))
     if topic == "lead.discovered":
         process_lead_task.delay(payload["lead_id"])
+    elif topic == "lead.referral_checked":
+        draft_referral_task.delay(payload["lead_id"])
 
 
 @celery_app.task(
@@ -80,3 +84,74 @@ def reconcile_sends() -> int:
     with transaction(DbContext.system(), engine) as conn:
         tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status <> 'offboarded'")).scalars().all()
     return sum(reconcile_stuck_sends(engine, t, settings.sending_reconcile_after_minutes) for t in tenant_ids)
+
+
+def _ctx_for_lead(lead_id: str):  # type: ignore[no-untyped-def]
+    from app.core.crypto import PiiCipher
+    from app.workflows.pipeline import agent_context
+
+    engine = get_engine()
+    with transaction(DbContext(role="operator"), engine) as conn:
+        row = conn.execute(text("SELECT tenant_id, campaign_id FROM leads WHERE id = :l"), {"l": lead_id}).one()
+    return agent_context(engine, settings, PiiCipher(settings.key("pii_master_key")), row.tenant_id, row.campaign_id)
+
+
+@celery_app.task(name="pipelineos.pipeline.draft_referral", autoretry_for=(ConnectionError,), retry_backoff=True)
+def draft_referral_task(lead_id: str) -> str:
+    """Recovery path for referral leads: drafts only if compliance allowed it and no draft exists yet (the inbound
+    handler normally drafts straight after its commit, so this is usually a no-op)."""
+    from app.agents.writer.agent import write_for_lead
+    from app.domain.approvals import service as approvals
+
+    ctx = _ctx_for_lead(lead_id)
+    with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+        state = conn.execute(text("SELECT state FROM leads WHERE id = :l"), {"l": lead_id}).scalar_one()
+        drafted = conn.execute(
+            text("SELECT 1 FROM messages WHERE lead_id = :l AND kind = 'outreach' LIMIT 1"), {"l": lead_id}
+        ).first()
+    if state != "compliance_checked" or drafted:
+        return "skipped"
+    if write_for_lead(ctx, uuid.UUID(lead_id)).status == "pending_approval":
+        with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+            approvals.route(conn, ctx.tenant_id, uuid.UUID(lead_id))
+    return "drafted"
+
+
+@celery_app.task(name="pipelineos.replies.fetch_inbound", autoretry_for=(ConnectionError,), retry_backoff=True)
+def fetch_inbound_task() -> int:
+    """Pulls new replies per tenant mailbox and runs Agent 4. Real mailboxes arrive with the Phase 6 adapters."""
+    from app.adapters.registry import inbox_for, providers_for
+    from app.core.crypto import PiiCipher
+    from app.workflows.pipeline import agent_context, process_inbound
+
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        rows = conn.execute(
+            text("""SELECT t.id, (SELECT c.id FROM campaigns c WHERE c.tenant_id = t.id ORDER BY c.created_at
+              LIMIT 1) AS campaign_id FROM tenants t WHERE t.status = 'active'""")
+        ).all()
+    cipher, handled = PiiCipher(settings.key("pii_master_key")), 0
+    for tenant_id, campaign_id in rows:
+        msgs = inbox_for(settings, tenant_id).fetch_new()
+        if not msgs or campaign_id is None:
+            continue
+        ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
+        handled += len(process_inbound(ctx, msgs, providers_for(settings)))
+    return handled
+
+
+@celery_app.task(name="pipelineos.system.reply_sla")
+def reply_sla_task() -> int:
+    """Target: every reply classified within 5 minutes. Breaches are logged for alerting (no PII in the log)."""
+    from app.workflows.pipeline import reply_sla_breaches
+
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
+    total = 0
+    for t in tenant_ids:
+        n = reply_sla_breaches(engine, t)
+        if n:
+            log.warning("reply_sla_breach", tenant_id=str(t), count=n)
+        total += n
+    return total
