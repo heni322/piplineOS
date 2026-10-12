@@ -86,5 +86,65 @@ def demo_traces(path: Path = DEFAULT_CONFIG) -> None:
     typer.echo(json.dumps(run_traces(get_engine(), s, path), indent=2, default=str))
 
 
+@demo_app.command("seed")
+def demo_seed() -> None:
+    """Create the fictional demo tenant, config, campaign and inbox; enable GB in THIS (dev) database."""
+    from app.demo.seed import seed_demo
+
+    ids = seed_demo(get_engine(), get_settings())
+    out = {"tenant_id": str(ids.tenant_id), "campaign_id": str(ids.campaign_id), "operator_email": ids.operator_email}
+    if ids.operator_password:
+        out |= {
+            "operator_password": ids.operator_password,
+            "operator_totp_uri": pyotp.TOTP(ids.operator_totp_secret or "").provisioning_uri(
+                ids.operator_email, issuer_name="PipelineOS demo"
+            ),
+        }
+        typer.echo("Demo operator created (credentials shown ONCE; dev database only).", err=True)
+    typer.echo(json.dumps(out, indent=2))
+
+
+@demo_app.command("run")
+def demo_run() -> None:
+    """Run Agent 1 -> 2 -> compliance -> 3 for the demo campaign (simulated LLM unless all live keys are on)."""
+    from app.core.crypto import PiiCipher
+    from app.demo.seed import providers, seed_demo
+    from app.workflows.pipeline import agent_context, run_campaign
+
+    s = get_settings()
+    ids = seed_demo(get_engine(), s)
+    ctx = agent_context(get_engine(), s, PiiCipher(s.key("pii_master_key")), ids.tenant_id, ids.campaign_id)
+    run = run_campaign(ctx, providers())
+    h = run.hunt
+    typer.echo(
+        json.dumps(
+            {
+                "signals_fetched": h.fetched,
+                "deduplicated": h.deduplicated,
+                "below_threshold": h.below_threshold,
+                "discovered": h.discovered,
+                "injection_flags": h.injection_flags,
+                "lead_outcomes": run.outcomes,
+            },
+            indent=2,
+        )
+    )
+
+
+@demo_app.command("send")
+def demo_send() -> None:
+    """Send approved demo messages that are due — DRY-RUN unless all three live keys are on."""
+    from app.core.crypto import PiiCipher
+    from app.demo.seed import seed_demo
+    from app.workflows.pipeline import send_due
+
+    s = get_settings()
+    ids = seed_demo(get_engine(), s)
+    res = send_due(get_engine(), s, PiiCipher(s.key("pii_master_key")), ids.tenant_id)
+    typer.echo(
+        json.dumps([{"status": r.status, "mode": r.mode, "reasons": list(r.reason_codes)} for r in res], indent=2)
+    )
+
+
 if __name__ == "__main__":
     app()
