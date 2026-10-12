@@ -10,12 +10,11 @@ test("login page is accessible and never indexed", async ({ page }) => {
   expect(a11y.violations).toEqual([]);
 });
 
-test("operator dashboard is noindex and shows the dry-run banner", async ({ page }) => {
+test("operator dashboard is noindex and sends signed-out visitors to sign in", async ({ page }) => {
   const res = await page.goto("/operator");
   expect(res?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
-  await expect(page.getByRole("status")).toContainText("Dry-run mode");
-  const a11y = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
-  expect(a11y.violations).toEqual([]);
+  await page.waitForURL("**/login");
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 });
 
 test("privacy notice is public and indexable", async ({ page }) => {

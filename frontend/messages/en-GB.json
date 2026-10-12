@@ -1,5 +1,8 @@
 {
-  "app": { "name": "PipelineOS", "skipToContent": "Skip to main content" },
+  "app": {
+    "name": "PipelineOS",
+    "skipToContent": "Skip to main content"
+  },
   "login": {
     "title": "Sign in",
     "email": "Work email",
@@ -23,7 +26,15 @@
     "emptyEscalations": "No escalations. Anything the agents can’t handle safely lands here.",
     "golivePending": "Not signed off. Only you can sign these off, with your authenticator code.",
     "loading": "Loading…",
-    "loadError": "Couldn’t load this section. Refresh to try again."
+    "loadError": "Couldn’t load this section. Refresh to try again.",
+    "byState": "Leads by state",
+    "pendingLink": "Review pending emails",
+    "realSends": "Real emails sent",
+    "dryRunSends": "Dry-run sends",
+    "llmCalls": "AI calls",
+    "altTasks": "Human-only tasks",
+    "openEscalations": "Open escalations",
+    "tenant": "Client"
   },
   "client": {
     "title": "Your results",
@@ -37,5 +48,57 @@
     "why": "Why we contact you",
     "rights": "Your rights, including how to object",
     "objectNow": "You can object at any time by replying “unsubscribe” to any email, or using the unsubscribe link it contains. We will stop contacting you across every campaign."
+  },
+  "nav": {
+    "overview": "Overview",
+    "approvals": "Approvals",
+    "compliance": "Compliance log",
+    "dryRun": "Dry-run log",
+    "signOut": "Sign out",
+    "primary": "Operator navigation"
+  },
+  "approvals": {
+    "title": "Approvals",
+    "queueLabel": "Emails waiting for review",
+    "empty": "Nothing waiting for review. New drafts appear here after the agents run.",
+    "subjectOptions": "Subject options",
+    "followUp": "Follow-up {n}",
+    "footer": "Compliance footer (added automatically at send)",
+    "sources": "Sources",
+    "compliance": "Compliance decision",
+    "quality": "Quality",
+    "critique": "Self-critique",
+    "approve": "Approve",
+    "edit": "Edit",
+    "reject": "Reject",
+    "save": "Save and approve",
+    "cancel": "Cancel",
+    "unmaskReason": "Why do you need to see the name?",
+    "unmaskHint": "Editing shows the prospect's name. The reason is logged.",
+    "showForEdit": "Show name and edit",
+    "rejectReason": "Reason for rejecting",
+    "rejectConfirm": "Reject and disqualify lead",
+    "approved": "Approved. The email will go out in the recipient's business hours (dry-run).",
+    "rejected": "Rejected. The lead is disqualified.",
+    "shortcuts": "Shortcuts: A approve, E edit, R reject",
+    "masked": "Names are masked",
+    "signal": "Signal",
+    "score": "relevance {n}/100"
+  },
+  "logs": {
+    "compliance": "Compliance log",
+    "dryRun": "Dry-run log",
+    "dryRunNote": "Every email that would have been sent. Nothing here left the system.",
+    "when": "When",
+    "company": "Company",
+    "prospect": "Prospect",
+    "stage": "Stage",
+    "outcome": "Outcome",
+    "reasons": "Reasons",
+    "recipient": "Recipient",
+    "subject": "Subject",
+    "effect": "Effect",
+    "emptyCompliance": "No decisions yet.",
+    "emptyDryRun": "No dry-run sends yet. Approve an email and run sending."
   }
 }
