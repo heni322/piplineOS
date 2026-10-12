@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Full-stack browser test, two stages, each on a fresh database:
 #   1) seed + run the demo pipeline -> approval desk spec
-#   2) seed + run + `demo conversations` (Agent 4, booking, DP requests) -> conversations spec
+#   2) seed + run + `demo conversations` + `demo billing` -> conversations, billing and client-portal specs
 # Everything is synthetic and dry-run. Requires a local PostgreSQL 16 (+pgvector) superuser at $TEST_PG_ADMIN_URL.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,7 +15,7 @@ export API_BASE_URL=http://localhost:8100 PUBLIC_BASE_URL=http://localhost:3100
 API_PID="" WEB_PID=""
 trap 'kill $API_PID $WEB_PID 2>/dev/null || true' EXIT
 
-fresh_stack() {  # $1 = extra demo command (optional)
+fresh_stack() {  # args = extra demo commands to run after the pipeline (optional)
   [ -n "$API_PID" ] && kill "$API_PID" 2>/dev/null && wait "$API_PID" 2>/dev/null || true
   psql "$ADMIN" -q -c "DROP DATABASE IF EXISTS $DB WITH (FORCE)" -c "CREATE DATABASE $DB OWNER pipelineos_owner"
   psql "${ADMIN%/*}/$DB" -q -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pgcrypto;"
@@ -24,9 +24,11 @@ fresh_stack() {  # $1 = extra demo command (optional)
   uv run alembic upgrade head >/dev/null
   CREDS="$(uv run pipelineos demo seed 2>/dev/null)"
   uv run pipelineos demo run >/dev/null
-  if [ -n "${1:-}" ]; then uv run pipelineos demo "$1" >/dev/null; fi
+  for extra in "$@"; do uv run pipelineos demo "$extra" >/dev/null; done
   export E2E_EMAIL="$(echo "$CREDS" | python3 -c 'import json,sys; print(json.load(sys.stdin)["operator_email"])')"
   export E2E_PASSWORD="$(echo "$CREDS" | python3 -c 'import json,sys; print(json.load(sys.stdin)["operator_password"])')"
+  export E2E_CLIENT_EMAIL="$(echo "$CREDS" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("client_email",""))')"
+  export E2E_CLIENT_PASSWORD="$(echo "$CREDS" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("client_password",""))')"
   export E2E_TOTP_SECRET="$(echo "$CREDS" | python3 -c 'import json,sys,urllib.parse as u; q=u.urlparse(json.load(sys.stdin)["operator_totp_uri"]).query; print(u.parse_qs(q)["secret"][0])')"
   uv run uvicorn app.main:app --port 8100 --log-level warning & API_PID=$!
   for _ in $(seq 1 60); do curl -sf http://localhost:8100/api/v1/health >/dev/null && break; sleep 1; done
@@ -39,5 +41,5 @@ pnpm exec next start -p 3100 >/dev/null 2>&1 & WEB_PID=$!
 for _ in $(seq 1 60); do curl -sf http://localhost:3100/login >/dev/null && break; sleep 1; done
 cd "$ROOT/frontend" && E2E_STAGE=pipeline pnpm exec playwright test --reporter=line smoke.spec.ts approval.spec.ts
 
-fresh_stack conversations
-cd "$ROOT/frontend" && E2E_STAGE=conversations pnpm exec playwright test --reporter=line conversations.spec.ts
+fresh_stack conversations billing
+cd "$ROOT/frontend" && E2E_STAGE=conversations pnpm exec playwright test --reporter=line conversations.spec.ts billing.spec.ts
