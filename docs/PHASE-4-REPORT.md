@@ -87,7 +87,7 @@ Taken under your delegation, within its limits (legal, ICO, VAT, credentials, sp
 | Lint / types / import contracts / prompt lock | Clean (ruff, mypy --strict on 122 files, eslint, tsc); 2 contracts kept; 7 prompts locked (new test: every shipped prompt must be locked) |
 | Migrations | `0005` up → down to base → up → down to 0004 → up: OK |
 | Dependency audits | Backend: none. Frontend production: none. Dev: 1 high (`braces`, accepted as R12) |
-| Backend on **your Windows PC** | See §5.1 |
+| Backend on **your Windows PC** | **398 passed, 0 failed** (§5.1) |
 | **Baseline** | Phase 3: 324 → Phase 4: **413**. No previously passing test fails |
 
 **Agent 4 eval** (`docs/evals-phase-4.json`, simulator): 75 replies (13 unsubscribe, 6 contact objections, 13 data-protection requests, 5 out-of-office, 4 referrals, 5 negative, 4 not-now, 7 interested, 2 unclear, 16 injection attempts including hidden characters, French and German overrides, fake system tags and quoted threads). Accuracy 100%; injections 14/14 escalated, 0 unsafe actions; the two "unsubscribe + injection" replies still unsubscribed.
@@ -118,7 +118,9 @@ Side effects of the whole run, all dry-run: 10 email sends and 1 calendar event 
 ### 5.1 On your Windows PC
 Synced as branch `phase/4-replies-booking` (git bundle, no history rewritten), migrated to `0005`, tested against your Docker PostgreSQL:
 - First run: **396 passed, 0 failed** (≈184 s).
-- The demo on your existing database exposed **D22**: the database still held the Phase 3 demo configuration (no qualification criteria), and Contoso was asked an empty "qualifying question" in a loop instead of being booked. Fixed (escalate to a person when no criteria exist; re-seeding now stores the current demo configuration as a new version). After the fix: see the final line below.
+- The demo on your existing database exposed **D22**: the database still held the Phase 3 demo configuration (no qualification criteria), and Contoso was asked an empty "qualifying question" in a loop instead of being booked. Fixed (escalate to a person when no criteria exist; re-seeding now stores the current demo configuration as a new version).
+- After the fix: **398 passed, 0 failed** (≈187 s), and the demo on a fresh database on your PC (`pipelineos_demo4`) gives exactly the Linux result: Contoso attended, Adventure Works paused, Woodgrove referral contacted, Proseware and Blue Yonder objected; 10 dry-run emails, 1 dry-run calendar event, 32 simulated AI calls, **0 real sends**.
+- Your existing development database was migrated, not reset (no data deleted). Its Contoso lead is now waiting with a qualifying question from the old configuration; that's harmless demo data.
 
 ## 6. Defects found during this phase (all fixed, with regression tests)
 
