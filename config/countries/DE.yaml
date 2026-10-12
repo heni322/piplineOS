@@ -1,0 +1,16 @@
+country_code: "DE"
+name: Germany
+regime: eu_gdpr
+mode: consent_required
+allowed_channels: [alternative]
+rollout_stage: "restricted"
+languages: [de-DE]
+currency: EUR
+time_zones: [Europe/Berlin]
+holiday_calendars: ["DE"]
+eu_representative_required: true
+notes: >
+  Restricted market: cold B2B email is understood to effectively require prior consent (UWG s.7). Email blocked; alternative channels only.
+source: "To be cited by counsel during legal review."
+verified_by_counsel: false
+last_reviewed: null

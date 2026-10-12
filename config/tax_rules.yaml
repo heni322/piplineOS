@@ -1,0 +1,30 @@
+# NOT TAX ADVICE. verified_by_accountant must stay false here; an accountant's sign-off is recorded in the dashboard.
+settings:
+  uk_vat_registered: false
+  uk_vat_number: null
+  # UK VAT registration threshold. Set from HMRC guidance and confirm with your accountant.
+  # (GBP 90,000 from 1 April 2024 per HMRC at the time of writing — verify before relying on it.)
+  uk_vat_registration_threshold_minor: 9000000
+  threshold_currency: GBP
+  warn_at_pct: [80, 90]
+  source: "HMRC VAT registration guidance (verify current value)."
+  verified_by_accountant: false
+rules:
+  - code: uk_not_vat_registered
+    applies_when: { supplier_vat_registered: false }
+    rate_bps: 0
+    invoice_wording: "Not registered for VAT."
+    source: "Placeholder until VAT registration."
+    verified_by_accountant: false
+  - code: uk_vat_standard_b2b_uk
+    applies_when: { supplier_vat_registered: true, customer_country: GB }
+    rate_bps: 2000
+    invoice_wording: "VAT at 20%."
+    source: "HMRC standard rate (verify)."
+    verified_by_accountant: false
+  - code: eu_b2b_reverse_charge
+    applies_when: { supplier_vat_registered: true, customer_in_eu: true, customer_is_business: true }
+    rate_bps: 0
+    invoice_wording: "Reverse charge: customer to account for VAT (outside the scope of UK VAT). Wording to be confirmed by accountant."
+    source: "General place-of-supply rule for B2B services (verify)."
+    verified_by_accountant: false

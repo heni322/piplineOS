@@ -1,0 +1,16 @@
+country_code: "AT"
+name: Austria
+regime: eu_gdpr
+mode: consent_required
+allowed_channels: [alternative]
+rollout_stage: "restricted"
+languages: [de-AT]
+currency: EUR
+time_zones: [Europe/Vienna]
+holiday_calendars: ["AT"]
+eu_representative_required: true
+notes: >
+  Restricted market: cold email effectively requires prior consent (TKG). Email blocked; alternative channels only.
+source: "To be cited by counsel during legal review."
+verified_by_counsel: false
+last_reviewed: null

@@ -1,0 +1,20 @@
+# Deterministically rendered and appended after generation (Agent 3 never writes it). PLACEHOLDER wording
+# pending solicitor review. {placeholders} are filled from tenant + message data.
+locale: en-GB
+template: |
+  --
+  {sender_name}, {sender_title} · {company_legal_name}
+  Registered in {registration_jurisdiction} No. {company_number} · {registered_office_address}
+
+  We found your professional details via {data_source_summary} and are contacting you about {purpose}
+  because it relates to your role. You can object at any time: reply "unsubscribe" or use this link:
+  {unsubscribe_url}
+  Privacy notice and your rights: {privacy_url}
+required_placeholders:
+  - sender_name
+  - company_legal_name
+  - company_number
+  - registered_office_address
+  - unsubscribe_url
+  - privacy_url
+  - data_source_summary

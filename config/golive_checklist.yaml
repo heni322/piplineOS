@@ -1,0 +1,22 @@
+# Code creates these items; ONLY the operator signs them off in the dashboard (MFA required).
+items:
+  - key: uk.ico_fee
+    scope: uk
+    title: ICO data protection fee registration confirmed
+    description: Registration number recorded and fee paid.
+  - key: uk.solicitor_review
+    scope: uk
+    title: UK solicitor review completed
+    description: Compliance config, email footer, privacy notice, LIA template and DPA reviewed and approved.
+  - key: uk.transfer_documents
+    scope: uk
+    title: Transfer documents for non-UK operator access
+    description: UK IDTA / EU SCCs and transfer risk assessment in place for access from Tunisia.
+  - key: uk.vat_setup
+    scope: uk
+    title: VAT setup confirmed by an accountant
+    description: VAT status, invoice wording and threshold monitoring confirmed.
+  - key: uk.deliverability
+    scope: uk
+    title: Deliverability ready
+    description: Sending domains warmed; SPF, DKIM and DMARC verified for every sending domain.

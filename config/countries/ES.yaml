@@ -1,0 +1,16 @@
+country_code: "ES"
+name: Spain
+regime: eu_gdpr
+mode: restricted_review
+allowed_channels: [email, alternative]
+rollout_stage: "4"
+languages: [es-ES]
+currency: EUR
+time_zones: [Europe/Madrid]
+holiday_calendars: ["ES"]
+eu_representative_required: true
+notes: >
+  Stage 4: only after local legal review.
+source: "To be cited by counsel during legal review."
+verified_by_counsel: false
+last_reviewed: null

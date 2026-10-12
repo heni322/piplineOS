@@ -1,0 +1,16 @@
+country_code: "FR"
+name: France
+regime: eu_gdpr
+mode: restricted_review
+allowed_channels: [email, alternative]
+rollout_stage: "3"
+languages: [fr-FR]
+currency: EUR
+time_zones: [Europe/Paris]
+holiday_calendars: ["FR"]
+eu_representative_required: true
+notes: >
+  Stage 3: native French copy, formal 'vous'. B2B opt-out regime is commonly cited (CNIL) and must be verified by counsel.
+source: "To be cited by counsel during legal review."
+verified_by_counsel: false
+last_reviewed: null

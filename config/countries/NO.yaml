@@ -1,0 +1,16 @@
+country_code: "NO"
+name: Norway
+regime: eu_gdpr
+mode: restricted_review
+allowed_channels: [email, alternative]
+rollout_stage: "2"
+languages: [nb-NO, en]
+currency: NOK
+time_zones: [Europe/Oslo]
+holiday_calendars: ["NO"]
+eu_representative_required: true
+notes: >
+  EEA (GDPR applies via EEA Agreement). Stage 2 candidate; local review required.
+source: "To be cited by counsel during legal review."
+verified_by_counsel: false
+last_reviewed: null

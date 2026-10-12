@@ -1,0 +1,16 @@
+country_code: "BE"
+name: Belgium
+regime: eu_gdpr
+mode: restricted_review
+allowed_channels: [email, alternative]
+rollout_stage: "4"
+languages: [fr-BE, nl-BE]
+currency: EUR
+time_zones: [Europe/Brussels]
+holiday_calendars: ["BE"]
+eu_representative_required: true
+notes: >
+  Stage 4: only after local legal review.
+source: "To be cited by counsel during legal review."
+verified_by_counsel: false
+last_reviewed: null

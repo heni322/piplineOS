@@ -1,0 +1,6 @@
+# Prices per million tokens, in GBP micros. Leave null until copied from Anthropic's official pricing page
+# and converted at a recorded FX rate. While null, cost_micros_gbp is stored as NULL (never invented).
+fx_note: null
+models:
+  claude-sonnet-5-5: { input_per_mtok_micros_gbp: null, output_per_mtok_micros_gbp: null }
+  claude-opus-5-5: { input_per_mtok_micros_gbp: null, output_per_mtok_micros_gbp: null }

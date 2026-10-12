@@ -1,0 +1,31 @@
+country_code: "GB"
+name: United Kingdom
+regime: uk_gdpr
+mode: permitted_with_opt_out        # applies to CORPORATE subscribers only (see subscriber_rules)
+allowed_channels: [email, alternative]
+subscriber_rules:
+  corporate: permitted_with_opt_out  # limited companies, LLPs, public bodies
+  individual: consent_required       # sole traders, non-LLP partnerships -> email blocked
+  unknown: restricted_review         # cannot determine -> block and flag
+required_message_elements:
+  - sender_name
+  - company_legal_name
+  - company_registration_number
+  - registered_office_address
+  - article_14_notice_with_privacy_link
+  - one_click_unsubscribe
+rollout_stage: "1"
+languages: [en-GB]
+currency: GBP
+time_zones: [Europe/London]
+holiday_calendars: [GB-ENG, GB-WLS, GB-SCT, GB-NIR]   # England & Wales share a calendar; Scotland and NI differ
+eu_representative_required: false
+notes: >
+  Engineering summary, not legal advice. UK GDPR + DPA 2018 as amended by the Data (Use and Access) Act 2025;
+  PECR as amended (higher fining powers -> treat as high severity). B2B email to corporate subscribers is
+  understood to be permitted when relevant to the recipient's role, the sender is identified and every
+  message has a valid opt-out. Legitimate interest still needs a documented LIA, transparency (Art. 14 notice
+  at the latest with the first communication) and an easy right to object.
+source: "ICO guidance on PECR and direct marketing; DUAA 2025. Exact citations to be added by counsel."
+verified_by_counsel: false
+last_reviewed: null

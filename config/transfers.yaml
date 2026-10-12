@@ -1,0 +1,29 @@
+# NOT LEGAL ADVICE. verified_by_counsel must stay false here.
+mechanisms:
+  - key: eu_to_uk_adequacy
+    kind: eu_uk_adequacy
+    description: "EU Commission adequacy decision for the UK (renewed Dec 2025). Expiry tracked; warning 12 months before."
+    counterparty: "EU/EEA data subjects processed in the UK"
+    valid_until: 2031-12-27
+    verified_by_counsel: false
+  - key: uk_to_tunisia_operator_access
+    kind: none
+    description: "Operator/developer access from Tunisia to PRODUCTION data. No mechanism in place yet: requires UK IDTA (and EU SCCs for EU data) plus a transfer risk assessment before any production access. Dev/staging use synthetic data only."
+    counterparty: "PipelineOS operators located in Tunisia"
+    valid_until: null
+    verified_by_counsel: false
+sub_processors:
+  - key: anthropic
+    name: Anthropic
+    purpose: "LLM processing for research, drafting and reply classification"
+    data_categories: [professional_contact_data, email_content, public_professional_content]
+    location: "To confirm (provider region options)"
+    transfer_mechanism_key: null
+    status: proposed
+  - key: hosting_uk
+    name: "UK hosting provider (TBD in Phase 6)"
+    purpose: "Application and database hosting"
+    data_categories: [all_processed_data]
+    location: United Kingdom
+    transfer_mechanism_key: null
+    status: proposed

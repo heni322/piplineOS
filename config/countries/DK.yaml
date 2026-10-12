@@ -1,0 +1,16 @@
+country_code: "DK"
+name: Denmark
+regime: eu_gdpr
+mode: restricted_review
+allowed_channels: [email, alternative]
+rollout_stage: "2"
+languages: [da-DK, en]
+currency: EUR
+time_zones: [Europe/Copenhagen]
+holiday_calendars: ["DK"]
+eu_representative_required: true
+notes: >
+  Rollout Stage 2 candidate (English outreach first). Requires local ePrivacy review before enabling.
+source: "To be cited by counsel during legal review."
+verified_by_counsel: false
+last_reviewed: null
