@@ -152,3 +152,10 @@ def test_prompt_lock_detects_changes_to_released_prompts(tmp_path: Path) -> None
 
 def test_repository_prompt_lock_is_clean() -> None:
     assert check_lock() == []
+
+
+def test_every_shipped_prompt_is_locked_and_unchanged() -> None:
+    """A new prompt must be added to LOCK.json; a locked prompt may never be edited (create v2 instead)."""
+    lock = json.loads((PROMPTS_DIR / "LOCK.json").read_text())
+    assert check_lock() == []
+    assert set(compute_lock()) == set(lock)
