@@ -1,0 +1,38 @@
+[importlinter]
+root_package = app
+include_external_packages = True
+
+[importlinter:contract:outbound-only]
+name = Side-effecting adapters (email, calendar, crm) may only be imported by the outbound gateway
+type = forbidden
+source_modules =
+    app.api
+    app.agents
+    app.workflows
+    app.llm
+    app.core
+    app.db
+    app.demo
+    app.cli
+    app.config_sync
+    app.domain.compliance
+    app.domain.suppression
+    app.domain.leads
+    app.domain.deliverability
+    app.domain.golive
+forbidden_modules =
+    app.adapters.email
+    app.adapters.calendar
+    app.adapters.crm
+allow_indirect_imports = True
+
+[importlinter:contract:engine-pure]
+name = The compliance engine is pure (no database, network or adapters)
+type = forbidden
+source_modules =
+    app.domain.compliance.engine
+forbidden_modules =
+    sqlalchemy
+    httpx
+    app.adapters
+    app.db
