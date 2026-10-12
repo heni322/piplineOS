@@ -80,3 +80,15 @@ def next_business_start(at: datetime, country: str, subdivision: str | None = No
             return datetime.combine(day, WINDOW_START, tzinfo=zone).astimezone(UTC)
         day += timedelta(days=1)
     raise RuntimeError("no business day found within 30 days")
+
+
+def add_business_days(start: datetime, days: int, country: str, subdivision: str | None = None) -> datetime:
+    """``days`` recipient-local business days after ``start``, at the opening of the business window."""
+    zone = tz_for(country)
+    day = start.astimezone(zone).date()
+    added = 0
+    while added < days:
+        day += timedelta(days=1)
+        if day.weekday() < 5 and not is_holiday(day, country, subdivision):
+            added += 1
+    return datetime.combine(day, WINDOW_START, tzinfo=zone).astimezone(UTC)

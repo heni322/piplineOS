@@ -163,6 +163,13 @@ class OutboundGateway:
             .one()
         )
 
+        if m["sequence_step"] > 0 and row["state"] != "contacted":
+            # Follow-ups only while the lead is still 'contacted' (no reply, objection, booking or suppression).
+            conn.execute(
+                text("UPDATE messages SET status = 'cancelled', last_error = :e WHERE id = :id"),
+                {"e": f"lead is {row['state']}", "id": message_id},
+            )
+            return SendOutcome("skipped", (f"FOLLOW_UP_CANCELLED_LEAD_{str(row['state']).upper()}",))
         if row["email_enc"] is None:
             return self._block(conn, tenant_id, m, None, ("PROSPECT_HAS_NO_EMAIL",))
         email = self.cipher.decrypt(conn, tenant_id, "prospects.email", row["email_enc"])
