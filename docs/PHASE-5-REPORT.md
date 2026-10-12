@@ -77,6 +77,7 @@ No new dependencies. No paid services.
 | Migrations | 0006 up → base → up → 0005 → up: OK |
 | Dependency audits | Backend: none. Frontend production: none (dev-only `braces`, R12, unchanged) |
 | Agent 4 eval | Unchanged from Phase 4 (75 replies, 100% safety recall) |
+| Backend on **your Windows PC** | **447 passed, 0 failed** (§5.1) |
 | **Baseline** | Phase 4: 413 → Phase 5: **464**. No previously passing test fails |
 
 **Demo** (fresh database, `demo seed` → `run` → `conversations` → `billing`, `docs/demo-run-phase-5.json`):
@@ -108,7 +109,9 @@ The draft can't be issued yet. It shows exactly why:
 - every AI call was `simulated`
 
 ### 5.1 On your Windows PC
-_Filled in after the sync below._
+Synced as branch `phase/5-billing-portal` (git bundle, no history rewritten). Your development database was migrated to `0006` (nothing deleted).
+- Backend against your Docker PostgreSQL: **447 passed, 0 failed** (≈306 s).
+- Demo on a fresh database on your PC (`pipelineos_demo5`): the same October draft. Set-up £250, retainer £500, Contoso meeting £300, total £1,050.00, with the same three reasons it can't be issued.
 
 ## 6. Defects found during this phase (all fixed, with tests)
 
