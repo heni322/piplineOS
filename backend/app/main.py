@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from fastapi import FastAPI, Request, Response
 
 from app.api import public
-from app.api.v1 import auth, conversations, governance, leads, operations
+from app.api.v1 import auth, billing, clients, conversations, governance, leads, operations
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, correlation_id_var
 from app.settings import get_settings
@@ -22,7 +22,7 @@ def create_app() -> FastAPI:
     prod = settings.environment in ("staging", "prod")
     app = FastAPI(
         title="PipelineOS API",
-        version="0.4.0",
+        version="0.5.0",
         docs_url=None if prod else "/api/docs",
         redoc_url=None,
         openapi_url=None if prod else "/api/v1/openapi.json",
@@ -60,6 +60,8 @@ def create_app() -> FastAPI:
     app.include_router(governance.router, prefix="/api/v1")
     app.include_router(operations.router, prefix="/api/v1")
     app.include_router(conversations.router, prefix="/api/v1")
+    app.include_router(billing.router, prefix="/api/v1")
+    app.include_router(clients.router, prefix="/api/v1")
     app.include_router(public.router)
     return app
 
