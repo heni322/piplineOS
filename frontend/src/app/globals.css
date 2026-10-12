@@ -1,0 +1,30 @@
+:root {
+  --bg: #fbfaf7; --surface: #ffffff; --ink: #1c1b19; --muted: #5e5a52; --line: #e4e0d8;
+  --accent: #1f4f46; --accent-ink: #ffffff; --warn-bg: #fff4d6; --warn-ink: #5c4300; --danger: #a12a1f;
+  --radius: 10px; --focus: 0 0 0 3px #8fb8ad;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #151413; --surface: #1e1d1b; --ink: #f1eee8; --muted: #b3ada2; --line: #34312c;
+    --accent: #7fc0b1; --accent-ink: #0f1a17; --warn-bg: #3a2f10; --warn-ink: #ffe3a3; --danger: #ff8a7a; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+:focus-visible { outline: none; box-shadow: var(--focus); border-radius: 4px; }
+.skip { position: absolute; left: -9999px; } .skip:focus { left: 16px; top: 16px; background: var(--surface); padding: 8px 12px; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+.narrow { max-width: 420px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: var(--radius); padding: 12px 16px; margin: 0 0 20px; }
+.muted { color: var(--muted); }
+h1 { font-size: 1.75rem; line-height: 1.2; margin: 8px 0 20px; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; margin: 0 0 8px; }
+label { display: block; font-weight: 600; margin: 14px 0 6px; }
+input { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.hint { font-size: 0.875rem; color: var(--muted); margin: 4px 0 0; }
+button { font: inherit; font-weight: 600; margin-top: 20px; padding: 10px 18px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+button[disabled] { opacity: 0.6; cursor: progress; }
+.error { color: var(--danger); margin-top: 12px; }

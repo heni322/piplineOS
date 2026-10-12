@@ -1,0 +1,16 @@
+import type { Metadata } from "next";
+import { LoginForm } from "@/components/LoginForm";
+import { getMessages } from "@/lib/i18n";
+
+const t = getMessages();
+export const metadata: Metadata = { title: t.login.title };
+
+export default function LoginPage() {
+  return (
+    <main id="main" className="container narrow">
+      <p className="muted">{t.app.name}</p>
+      <h1>{t.login.title}</h1>
+      <div className="card"><LoginForm /></div>
+    </main>
+  );
+}

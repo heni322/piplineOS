@@ -1,0 +1,41 @@
+{
+  "app": { "name": "PipelineOS", "skipToContent": "Skip to main content" },
+  "login": {
+    "title": "Sign in",
+    "email": "Work email",
+    "password": "Password",
+    "totp": "Authenticator code",
+    "totpHint": "Required for operators. Six digits from your authenticator app.",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "error": "Those details didn’t work. Check them and try again.",
+    "locked": "Too many attempts. Wait a few minutes and try again."
+  },
+  "operator": {
+    "title": "Operator overview",
+    "dryRunBanner": "Dry-run mode: no real emails, bookings or CRM writes can leave the system.",
+    "pipeline": "Pipeline by state",
+    "approvalQueue": "Approval queue",
+    "escalations": "Escalations",
+    "golive": "Go-live checklist",
+    "emptyPipeline": "No leads yet. They will appear here once the first campaign runs.",
+    "emptyQueue": "Nothing waiting for approval.",
+    "emptyEscalations": "No escalations. Anything the agents can’t handle safely lands here.",
+    "golivePending": "Not signed off. Only you can sign these off, with your authenticator code.",
+    "loading": "Loading…",
+    "loadError": "Couldn’t load this section. Refresh to try again."
+  },
+  "client": {
+    "title": "Your results",
+    "emptyMeetings": "No meetings booked yet. Upcoming meetings and their briefs will appear here."
+  },
+  "privacy": {
+    "title": "Privacy notice",
+    "draftBanner": "Draft pending legal review. This text is a placeholder and is not yet the final notice.",
+    "whoWeAre": "Who we are",
+    "whatData": "What data we use and where it comes from",
+    "why": "Why we contact you",
+    "rights": "Your rights, including how to object",
+    "objectNow": "You can object at any time by replying “unsubscribe” to any email, or using the unsubscribe link it contains. We will stop contacting you across every campaign."
+  }
+}
