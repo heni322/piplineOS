@@ -61,10 +61,15 @@ Branch `phase/6.3-crm` (from `phase/6.2-live-data`).
 | Lint / types / import contracts | Clean; 3 contracts kept (the HubSpot adapter is only reachable through the outbound layer) |
 | Sample-lead traces (`docs/traces-phase-6.3.json`, fresh database) | Identical decisions to 6.2 |
 | Secret scan | No leaks (tree) |
-| On your PC | See §4.1 |
+| On your PC | **564 passed, 0 failed, 0 skipped** (§4.1) |
 
 ### 4.1 On your PC
-_Filled in after the sync._
+- Synced as branch `phase/6.3-crm` (git bundle, no history rewritten).
+- Your development database and the demo database were migrated to `0010`; nothing was deleted.
+- Backend against your Docker PostgreSQL: **564 passed, 0 failed, 0 skipped** (≈467 s).
+- The local demo app was restarted on the new code:
+  - the demo client's "Your CRM" page shows the fictional HubSpot connection
+  - one sync recorded "HubSpot: Introductory call - Contoso Managed IT Ltd → attended" in the dry-run log
 
 **No external side effects:** every HubSpot call in the tests goes to an in-process fake or the in-memory mock; no HubSpot token exists anywhere except the demo's fictional one; all demo CRM updates are in the dry-run log.
 
