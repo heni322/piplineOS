@@ -85,7 +85,7 @@ Commits on `phase/6-production-readiness` (branched from `phase/5-billing-portal
 | Migrations | 0007 up → 0006 → up: OK |
 | Dependency audits | Backend: none. Frontend production: none |
 | Secret scan | gitleaks: no leaks in the full history or the working tree |
-| Backend on **your Windows PC** | See §5.4 |
+| Backend on **your Windows PC** | **495 passed, 0 failed, 0 skipped** (§5.4) |
 | **Baseline** | Phase 5: 464 → Phase 6: **516**. No previously passing test fails |
 
 ### 5.1 Demo and the required sample-lead traces (fresh database)
@@ -119,7 +119,9 @@ The Phase 5 report said 11 email sends. Running the Phase 5 code on a fresh data
 Backup → encrypt → restore into a new database → compare: **52 of 52 tables** matched row counts. All 17 encrypted prospect emails decrypted correctly from the restored copy.
 
 ### 5.4 On your Windows PC
-_Filled in after the sync below._
+Synced as branch `phase/6-production-readiness` (git bundle, no history rewritten). Your development database was migrated to `0007` (nothing deleted).
+- Docker Desktop wasn't running, so I started it and the dev `postgres` and `valkey` containers.
+- Backend against your Docker PostgreSQL: **495 passed, 0 failed, 0 skipped** (≈367 s, JUnit report in `.sync\p6-junit.xml`).
 
 ## 6. Defects found during this phase (all fixed, with tests)
 
