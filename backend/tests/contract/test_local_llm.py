@@ -1,0 +1,92 @@
+"""The free local model backend (Ollama): only this machine's address is accepted, answers are constrained to the
+schema, costs are zero, and LLM_ADAPTER_MODE=sandbox selects it whatever the live keys say."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import httpx
+import pytest
+
+from app.llm.backends import OllamaBackend
+from app.llm.factory import PRICES, select_backend
+from app.llm.pricing import load_pricer
+from app.llm.simulator import SimulatedBackend
+
+SCHEMA = {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}
+
+
+def test_request_shape_and_response_mapping() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req)
+        return httpx.Response(
+            200,
+            json={
+                "message": {"role": "assistant", "content": '{"ok": true}'},
+                "prompt_eval_count": 812,
+                "eval_count": 9,
+                "done_reason": "stop",
+            },
+        )
+
+    b = OllamaBackend("http://127.0.0.1:11434", "qwen2.5:7b", transport=httpx.MockTransport(handler))
+    out = b.complete(
+        model="claude-sonnet-5-5",
+        system="SYS",
+        messages=[{"role": "user", "content": "hi"}],
+        max_tokens=300,
+        json_schema=SCHEMA,
+        timeout=60,
+    )
+    body = json.loads(seen[0].content)
+    assert seen[0].url.path == "/api/chat"
+    assert body["model"] == "qwen2.5:7b" and body["stream"] is False and body["format"] == SCHEMA
+    assert body["messages"][0] == {"role": "system", "content": "SYS"} and body["messages"][1]["content"] == "hi"
+    assert body["options"]["temperature"] == 0 and body["options"]["num_predict"] == 300
+    assert (out.text, out.input_tokens, out.output_tokens, out.stop_reason, out.model) == (
+        '{"ok": true}',
+        812,
+        9,
+        "end_turn",
+        "local:qwen2.5:7b",
+    )
+
+
+def test_truncation_and_timeout_are_reported() -> None:
+    cut = OllamaBackend(
+        "http://localhost:11434",
+        "m",
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(200, json={"message": {"content": "{"}, "done_reason": "length"})
+        ),
+    )
+    assert (
+        cut.complete(model="x", system="", messages=[], max_tokens=5, json_schema={}, timeout=1).stop_reason
+        == "max_tokens"
+    )
+
+    def slow(req: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("slow", request=req)
+
+    with pytest.raises(TimeoutError):
+        OllamaBackend("http://127.0.0.1:11434", "m", transport=httpx.MockTransport(slow)).complete(
+            model="x", system="", messages=[], max_tokens=5, json_schema={}, timeout=1
+        )
+
+
+@pytest.mark.parametrize("url", ["https://api.example.com", "http://10.0.0.5:11434", "http://ollama.evil.example"])
+def test_only_this_machine_is_accepted(url: str) -> None:
+    with pytest.raises(ValueError, match="this machine"):
+        OllamaBackend(url, "m")
+
+
+def test_local_calls_cost_nothing_and_sandbox_selects_the_local_model(settings) -> None:  # type: ignore[no-untyped-def]
+    assert load_pricer(Path(PRICES))("local:qwen2.5:7b", 10_000, 10_000) == 0
+    s = settings.model_copy(update={"llm_adapter_mode": "sandbox"})
+    assert isinstance(select_backend(s, tenant_live=False, golive_complete=False), OllamaBackend)
+    assert isinstance(select_backend(settings, tenant_live=True, golive_complete=True), SimulatedBackend)
+    live_no_keys = settings.model_copy(update={"llm_adapter_mode": "live"})
+    assert isinstance(select_backend(live_no_keys, tenant_live=False, golive_complete=False), SimulatedBackend)

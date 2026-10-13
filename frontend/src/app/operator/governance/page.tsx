@@ -138,7 +138,7 @@ export default function GovernancePage() {
     { name: t.srcEnrichment, mode: mode("enrichment"), text: paid(mode("enrichment")) },
     { name: t.srcVerifier, mode: mode("verifier"), text: paid(mode("verifier")) },
     { name: t.srcRegistry, mode: mode("companies_house"), text: mode("companies_house") === "mock" ? t.srcRegistryMock : t.srcRegistryReal },
-    { name: t.srcLlm, mode: mode("llm"), text: mode("llm") === "live" ? t.srcLlmReal : t.srcLlmMock },
+    { name: t.srcLlm, mode: mode("llm"), text: mode("llm") === "live" ? t.srcLlmReal : mode("llm") === "sandbox" ? t.srcLlmLocal : t.srcLlmMock },
   ];
 
   return (

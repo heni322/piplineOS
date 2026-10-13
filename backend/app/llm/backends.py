@@ -93,3 +93,64 @@ class AnthropicBackend:
             stop_reason=str(resp.stop_reason),
             model=model,
         )
+
+
+LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]", "host.docker.internal", "ollama"})
+
+
+class OllamaBackend:
+    """A free, open-weights model running on this machine through Ollama (https://ollama.com), for testing the agents
+    with a real model at no cost. Only a local address is accepted, so prompts (synthetic test data only) never leave
+    the machine. Output is constrained to the schema with Ollama's structured outputs (`format` = JSON schema).
+
+    Costs are recorded as zero (model name `local:<model>`)."""
+
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        *,
+        transport: Any = None,
+        min_timeout: float = 600.0,
+        num_ctx: int = 8192,
+    ) -> None:
+        import httpx
+
+        host = httpx.URL(base_url).host
+        if host not in LOCAL_HOSTS:
+            raise ValueError(f"local model URL must point at this machine (got host {host!r})")
+        self.model, self.min_timeout, self.num_ctx = model, min_timeout, num_ctx
+        self._http = httpx.Client(base_url=base_url, transport=transport, follow_redirects=False)
+
+    def complete(
+        self,
+        *,
+        model: str,
+        system: str,
+        messages: list[dict[str, str]],
+        max_tokens: int,
+        json_schema: dict[str, Any],
+        timeout: float,
+    ) -> BackendResponse:
+        import httpx
+
+        body = {
+            "model": self.model,
+            "messages": [{"role": "system", "content": system}, *messages],
+            "format": json_schema,
+            "stream": False,
+            "options": {"temperature": 0, "num_predict": max_tokens, "num_ctx": self.num_ctx},
+        }
+        try:
+            resp = self._http.post("/api/chat", json=body, timeout=max(timeout, self.min_timeout))
+        except httpx.TimeoutException as exc:
+            raise TimeoutError("local model timed out") from exc
+        resp.raise_for_status()
+        data = resp.json()
+        return BackendResponse(
+            text=str((data.get("message") or {}).get("content") or ""),
+            input_tokens=int(data.get("prompt_eval_count") or 0),
+            output_tokens=int(data.get("eval_count") or 0),
+            stop_reason="max_tokens" if data.get("done_reason") == "length" else "end_turn",
+            model=f"local:{self.model}",
+        )

@@ -508,7 +508,8 @@
     "srcRegistryReal": "Companies House (free, read-only)",
     "srcLlm": "AI writing and scoring",
     "srcLlmMock": "Simulated AI (no cost)",
-    "srcLlmReal": "Claude (paid per call)"
+    "srcLlmReal": "Claude (paid per call)",
+    "srcLlmLocal": "Free open model on this computer (Ollama, test only)"
   },
   "leads": {
     "title": "Leads",

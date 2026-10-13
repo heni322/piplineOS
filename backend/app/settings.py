@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     llm_model_volume: str = "claude-sonnet-5-5"
     llm_model_reasoning: str = "claude-opus-5-5"
     llm_timeout_seconds: float = 60.0
+    # LLM_ADAPTER_MODE=sandbox: a free local model through Ollama (this machine only), for testing
+    local_llm_url: str = "http://127.0.0.1:11434"
+    local_llm_model: str = "qwen2.5:7b"
     llm_log_bodies: bool = True
 
     session_idle_hours_tenant: int = 12

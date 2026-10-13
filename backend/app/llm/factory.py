@@ -1,5 +1,6 @@
 """Chooses the LLM backend. Paid model calls follow the same three-key rule as sending (brief: DRY-RUN everywhere):
-adapter mode live + tenant live + GLOBAL_GO_LIVE with the go-live checklist signed. Otherwise: the simulator."""
+adapter mode live + tenant live + GLOBAL_GO_LIVE with the go-live checklist signed. Adapter mode "sandbox" = a free
+open-weights model on this machine (Ollama), for testing with a real model at no cost. Otherwise: the simulator."""
 
 from __future__ import annotations
 
@@ -9,7 +10,7 @@ from sqlalchemy.engine import Engine
 
 from app.core.crypto import PiiCipher
 from app.domain.outbound.modes import resolve_mode
-from app.llm.backends import AnthropicBackend
+from app.llm.backends import AnthropicBackend, OllamaBackend
 from app.llm.client import LLMBackend, LLMClient
 from app.llm.pricing import load_pricer
 from app.llm.recorder import db_recorder
@@ -28,6 +29,8 @@ def select_backend(settings: Settings, *, tenant_live: bool, golive_complete: bo
     )
     if mode == "live" and settings.anthropic_api_key is not None:
         return AnthropicBackend(settings.anthropic_api_key.get_secret_value())
+    if mode == "sandbox":
+        return OllamaBackend(settings.local_llm_url, settings.local_llm_model)
     return SimulatedBackend()
 
 

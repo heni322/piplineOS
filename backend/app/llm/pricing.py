@@ -26,6 +26,8 @@ def load_pricer(path: Path) -> Callable[[str, int, int], int | None]:
         return int(Decimal(str(usd)) * Decimal(str(fx)) * 1_000_000)
 
     def price(model: str, tokens_in: int, tokens_out: int) -> int | None:
+        if model.startswith("local:"):  # a free model on this machine
+            return 0
         p = models.get(model) or {}
         pin, pout = per_mtok_micros(p, "input"), per_mtok_micros(p, "output")
         if pin is None or pout is None:
