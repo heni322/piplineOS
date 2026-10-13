@@ -33,6 +33,7 @@ celery_app.conf.update(
         "send-due": {"task": "pipelineos.send.send_due", "schedule": 300.0},
         "fetch-inbound": {"task": "pipelineos.replies.fetch_inbound", "schedule": 60.0},
         "reply-sla": {"task": "pipelineos.system.reply_sla", "schedule": 60.0},
+        "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
     },
 )
 
@@ -155,3 +156,41 @@ def reply_sla_task() -> int:
             log.warning("reply_sla_breach", tenant_id=str(t), count=n)
         total += n
     return total
+
+
+@celery_app.task(
+    name="pipelineos.replies.graph_message", autoretry_for=(ConnectionError,), retry_backoff=True, max_retries=8
+)
+def graph_message_task(mailbox: str, message_id: str) -> str:
+    """Fetches one inbound message from Microsoft Graph and runs Agent 4 on it (idempotent by message id)."""
+    from app.adapters.inbound.msgraph import GraphInbox
+    from app.adapters.registry import providers_for
+    from app.core.crypto import PiiCipher
+    from app.domain.outbound.providers import calendar_gateway, graph_credentials
+    from app.workflows.pipeline import agent_context, process_inbound
+
+    engine = get_engine()
+    with transaction(DbContext(role="operator"), engine) as conn:
+        row = conn.execute(
+            text("""SELECT i.tenant_id, (SELECT c.id FROM campaigns c WHERE c.tenant_id = i.tenant_id
+              ORDER BY c.created_at LIMIT 1) AS campaign_id FROM inboxes i WHERE lower(i.address) = lower(:a)"""),
+            {"a": mailbox},
+        ).first()
+    if row is None or row.campaign_id is None:
+        log.warning("graph_message_unknown_mailbox")
+        return "ignored"
+    msg = GraphInbox(graph_credentials(settings), mailbox).fetch_message(message_id)
+    cipher = PiiCipher(settings.key("pii_master_key"))
+    ctx = agent_context(engine, settings, cipher, row.tenant_id, row.campaign_id)
+    out = process_inbound(ctx, [msg], providers_for(settings), calendar_gateway(settings, cipher, mailbox))[0]
+    return out.classification
+
+
+@celery_app.task(name="pipelineos.replies.renew_graph_subscriptions")
+def renew_graph_subscriptions_task() -> int:
+    if settings.email_adapter_mode == "mock" or not settings.msgraph_client_id:
+        return 0
+    from app.adapters.inbound.msgraph import renew_all
+    from app.domain.outbound.providers import graph_credentials
+
+    return renew_all(graph_credentials(settings))

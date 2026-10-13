@@ -12,13 +12,20 @@ from app.settings import Settings
 
 
 def providers_for(settings: Settings):  # type: ignore[no-untyped-def]
-    for name in ("signals", "enrichment", "verifier", "companies_house"):
+    for name in ("signals", "enrichment", "verifier"):
         mode = getattr(settings, f"{name}_adapter_mode")
-        if mode != "mock":
-            raise AdapterNotConfigured(f"{name} adapter mode {mode!r} is not implemented until Phase 6")
+        if mode != "mock":  # the provider is a commercial choice still open (see PHASE-6-REPORT)
+            raise AdapterNotConfigured(f"{name} adapter mode {mode!r}: no provider chosen yet")
     from app.demo.seed import providers  # mock providers backed by the synthetic demo dataset
 
-    return providers()
+    p = providers()
+    if settings.companies_house_adapter_mode != "mock":  # read-only public register; free API key
+        if settings.companies_house_api_key is None:
+            raise AdapterNotConfigured("COMPANIES_HOUSE_API_KEY is not set")
+        from app.adapters.companies_house.live import CompaniesHouseRegistry
+
+        p.registry = CompaniesHouseRegistry(settings.companies_house_api_key.get_secret_value())
+    return p
 
 
 def inbox_for(settings: Settings, tenant_id: uuid.UUID) -> Inbox:

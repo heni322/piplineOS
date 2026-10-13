@@ -57,6 +57,16 @@ class Settings(BaseSettings):
     companies_house_adapter_mode: AdapterMode = "mock"
     llm_adapter_mode: AdapterMode = "mock"
 
+    # Real providers (Phase 6). Unused unless the matching adapter mode is sandbox/live.
+    companies_house_api_key: SecretStr | None = None
+    msgraph_tenant_id: str | None = None
+    msgraph_client_id: str | None = None
+    msgraph_client_secret: SecretStr | None = None
+    msgraph_webhook_secret: SecretStr | None = None  # derives a per-mailbox clientState for change notifications
+    sandbox_smtp_host: str = "mailpit"
+    sandbox_smtp_port: int = 1025
+    metrics_token: SecretStr | None = None  # bearer token for /metrics (Prometheus); unset = endpoint disabled
+
     anthropic_api_key: SecretStr | None = None
     llm_model_volume: str = "claude-sonnet-5-5"
     llm_model_reasoning: str = "claude-opus-5-5"

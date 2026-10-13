@@ -29,6 +29,7 @@ from app.domain.deliverability.hours import add_business_days
 from app.domain.meetings import service as meetings
 from app.domain.outbound.calendar import CalendarGateway
 from app.domain.outbound.gateway import OutboundGateway, SendOutcome
+from app.domain.outbound.providers import email_senders
 from app.domain.replies import service as replies
 from app.domain.tenants.config import load_config
 from app.llm.client import LLMBackend
@@ -171,7 +172,10 @@ def send_due(
     """Send approved messages that are due (dry-run unless all live keys are on). Schedules follow-ups."""
     at = now or datetime.now(UTC)
     queue_due_reminders(engine, settings, cipher, tenant_id, at)
-    gw = gateway or OutboundGateway(settings, engine, cipher, clock=lambda: at)
+    if gateway is None:
+        live, sandbox = email_senders(settings)
+        gateway = OutboundGateway(settings, engine, cipher, live_sender=live, sandbox_sender=sandbox, clock=lambda: at)
+    gw = gateway
     with transaction(DbContext.system(tenant_id), engine) as conn:
         due = (
             conn.execute(
