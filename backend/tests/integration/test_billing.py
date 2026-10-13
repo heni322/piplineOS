@@ -162,6 +162,8 @@ def test_issue_assigns_gapless_numbers_bills_the_lead_and_freezes_the_invoice(wo
     with op(world, clean_db) as conn:
         number = billing.issue(conn, invoice_id=res.invoice_id, user_id=world.operator_id, today=TODAY)  # type: ignore[arg-type]
     assert number == "INV-2026-0001"
+    notices = q(clean_db, "SELECT idempotency_key FROM dry_run_log WHERE idempotency_key LIKE 'system:invoice:%'")
+    assert len(notices) == 1  # the client's admin is told (dry-run) that the invoice is ready
     m = contoso_meeting(clean_db)
     assert q(clean_db, "SELECT state FROM leads WHERE id = :l", l=m.lead_id)[0].state == "billed"
     inv = q(clean_db, "SELECT supplier_snapshot, due_date, issue_date FROM invoices WHERE id = :i", i=res.invoice_id)[0]

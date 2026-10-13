@@ -17,6 +17,7 @@ export default function ClientsPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [devLink, setDevLink] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api<Client[]>("/api/v1/clients").then(setClients).catch(() => setError(getMessages().operator.loadError));
@@ -41,9 +42,10 @@ export default function ClientsPage() {
     if (kind === "lia") await api(`/api/v1/clients/${id}/lia`, { method: "POST", body: JSON.stringify({ reference: fields.a, approved_on: fields.b }) });
     if (kind === "dpa") await api(`/api/v1/clients/${id}/dpa`, { method: "POST", body: JSON.stringify({ version: fields.a, signed_on: fields.b }) });
     if (kind === "user") {
-      const r = await api<{ email: string; one_time_password: string }>(`/api/v1/clients/${id}/users`, { method: "POST", body: JSON.stringify({ email: fields.a }) });
+      const r = await api<{ email: string; dev_invite_link?: string }>(`/api/v1/clients/${id}/users`, { method: "POST", body: JSON.stringify({ email: fields.a }) });
       setForm({ id: "", kind: null });
-      return t.oneTime.replace("{e}", r.email).replace("{p}", r.one_time_password);
+      setDevLink(r.dev_invite_link ?? null);
+      return t.invited.replace("{e}", r.email);
     }
     setForm({ id: "", kind: null });
   });
@@ -53,6 +55,7 @@ export default function ClientsPage() {
     <>
       <h1>{t.title}</h1>
       {status && <p className="status" role="status">{status}</p>}
+      {devLink && <p className="hint">{t.devLink}: <a href={devLink}>{devLink}</a></p>}
       {error && <p role="alert" className="error">{error}</p>}
       {!adding ? <button type="button" className="secondary" onClick={() => setAdding(true)}>{t.add}</button> : (
         <div className="panel" role="dialog" aria-labelledby="add-title" style={{ maxWidth: 560 }}>

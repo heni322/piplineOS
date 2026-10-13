@@ -150,3 +150,44 @@ def me(user: Annotated[CurrentUser, Depends(current_user)]) -> MeOut:
         role=user.role,
         mfa_verified=user.mfa_verified,
     )
+
+
+# ------------------------------------------------------------------------------------------- invites and resets
+class ForgotIn(BaseModel):
+    email: EmailStr
+
+
+class SetPasswordIn(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    password: str = Field(min_length=12, max_length=256)
+
+
+@router.post("/forgot-password", status_code=204)
+def forgot_password(
+    body: ForgotIn,
+    request: Request,
+    settings: Annotated[Settings, Depends(settings_dep)],
+    cipher: Annotated[PiiCipher, Depends(cipher_dep)],
+) -> Response:
+    """Always 204, whether or not the address has an account (no account enumeration)."""
+    bucket = _ip_buckets.setdefault("reset:" + _client_ip(request), TokenBucket(rate_per_sec=0.05, capacity=5))
+    if not bucket.try_acquire():
+        raise ProblemError(429, "Too many requests")
+    from app.domain.tenants import accounts
+
+    accounts.request_reset(get_engine(), settings, cipher, email=body.email)
+    return Response(status_code=204)
+
+
+@router.post("/set-password", status_code=204)
+def set_password(body: SetPasswordIn, request: Request) -> Response:
+    bucket = _ip_buckets.setdefault("setpw:" + _client_ip(request), TokenBucket(rate_per_sec=0.1, capacity=10))
+    if not bucket.try_acquire():
+        raise ProblemError(429, "Too many requests")
+    from app.domain.tenants import accounts
+
+    with transaction(DbContext(), get_engine()) as conn:
+        uid = accounts.set_password(conn, raw_token=body.token, password=body.password)
+    if uid is None:
+        raise ProblemError(400, "This link is no longer valid", "Ask for a new one from the sign-in page.")
+    return Response(status_code=204)

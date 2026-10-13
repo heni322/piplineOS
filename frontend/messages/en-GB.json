@@ -12,7 +12,8 @@
     "submit": "Sign in",
     "submitting": "Signing in…",
     "error": "Those details didn’t work. Check them and try again.",
-    "locked": "Too many attempts. Wait a few minutes and try again."
+    "locked": "Too many attempts. Wait a few minutes and try again.",
+    "forgot": "Forgot your password?"
   },
   "operator": {
     "title": "Operator overview",
@@ -350,7 +351,9 @@
     "user": "Create client login",
     "email": "Email",
     "oneTime": "One-time password for {e}: {p}. Pass it on securely; it won't be shown again.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "invited": "Invite sent to {e}. They choose their own password from the link.",
+    "devLink": "Development only: invite link"
   },
   "reports": {
     "title": "Reports",
@@ -372,5 +375,24 @@
     "blocks": "Blocked by compliance",
     "escalations": "Escalations",
     "none": "None"
+  },
+  "account": {
+    "forgotTitle": "Reset your password",
+    "forgotIntro": "Enter your work email. If it has an account, we'll email you a link to choose a new password.",
+    "send": "Email me a link",
+    "sent": "If that address has an account, a link is on its way. It works once and expires in an hour.",
+    "setTitle": "Choose your password",
+    "setIntro": "Use at least 12 characters. A short sentence is easy to remember and hard to guess.",
+    "password": "New password",
+    "confirm": "Type it again",
+    "mismatch": "The two passwords don't match.",
+    "tooShort": "Use at least 12 characters.",
+    "save": "Save password",
+    "saved": "Password saved. You can sign in now.",
+    "signIn": "Go to sign in",
+    "invalid": "This link is no longer valid. Ask for a new one.",
+    "missing": "This page needs the link from your email.",
+    "back": "Back to sign in",
+    "error": "That didn't work. Try again in a moment."
   }
 }

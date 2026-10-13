@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import secrets
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, Literal
@@ -13,12 +12,12 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, cipher_dep, require, settings_dep
-from app.core.crypto import PiiCipher, blind_index
+from app.core.crypto import PiiCipher
 from app.core.errors import ProblemError
-from app.core.security import Permission, hash_password
+from app.core.security import Permission
 from app.db.session import get_engine, transaction
 from app.domain.reporting.metrics import metrics
-from app.domain.tenants import onboarding, signoffs
+from app.domain.tenants import accounts, onboarding, signoffs
 from app.domain.tenants.config import load_config
 from app.settings import Settings
 
@@ -154,24 +153,19 @@ def client_user(
     cipher: Annotated[PiiCipher, Depends(cipher_dep)],
     settings: Annotated[Settings, Depends(settings_dep)],
 ) -> dict[str, str]:
-    """Creates the client's login and returns a one-time password to pass on securely (invite emails: Phase 6)."""
-    password = secrets.token_urlsafe(14)
+    """Creates the client's login and emails them a single-use link to choose a password (dry-run until live).
+    No password is ever generated for, shown to or sent by the operator."""
     try:
         with transaction(user.db_context(tenant_id), get_engine()) as conn:
-            conn.execute(
-                text("""INSERT INTO users (tenant_id, email_bidx, email_enc, password_hash, role)
-                  VALUES (:t, :b, :e, :p, :r)"""),
-                {
-                    "t": tenant_id,
-                    "b": blind_index(settings.key("blind_index_key"), body.email, None),
-                    "e": cipher.encrypt(conn, None, "users.email", body.email),
-                    "p": hash_password(password),
-                    "r": body.role,
-                },
+            _, url = accounts.invite(
+                conn, settings, cipher, tenant_id=tenant_id, email=body.email, role=body.role, invited_by=user.id
             )
     except IntegrityError as exc:
         raise ProblemError(409, "That email already has an account") from exc
-    return {"email": body.email, "one_time_password": password}
+    out = {"email": body.email, "status": "invited"}
+    if settings.environment in ("dev", "test"):  # convenience for demos; never shown in staging/prod
+        out["dev_invite_link"] = url
+    return out
 
 
 class RecordTermsIn(BaseModel):

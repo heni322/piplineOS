@@ -423,6 +423,7 @@ def issue(conn: Connection, *, invoice_id: uuid.UUID, user_id: uuid.UUID, today:
             transition(
                 conn, lead_id, State.BILLED, actor_type="user", actor_id=str(user_id), reason=f"invoice {number}"
             )
+    _notify_issued(conn, inv, number, today + timedelta(days=terms))
     write_audit(
         conn,
         action="invoice.issued",
@@ -669,3 +670,34 @@ def record_accountant_verification(
         after={"code": code, "accountant": accountant},
     )
     return rid
+
+
+def _notify_issued(conn: Connection, inv: RowMapping, number: str, due: date) -> None:
+    """Tells the client's admins the invoice is ready in the portal (dry-run until live, like every email)."""
+    from app.core.crypto import PiiCipher
+    from app.domain.outbound import system_mail
+    from app.settings import get_settings
+
+    settings = get_settings()
+    cipher = PiiCipher(settings.key("pii_master_key"))
+    for uid, enc in conn.execute(
+        text("SELECT id, email_enc FROM users WHERE tenant_id = :t AND role = 'tenant_admin' AND status = 'active'"),
+        {"t": inv["tenant_id"]},
+    ):
+        system_mail.send(
+            conn,
+            settings,
+            cipher,
+            tenant_id=inv["tenant_id"],
+            kind="invoice_issued",
+            to_email=cipher.decrypt(conn, None, "users.email", enc),
+            subject=f"Invoice {number} is ready",
+            body=(
+                f"Hello,\n\nInvoice {number} for {money(inv['total_minor'], inv['currency'])} is ready in your "
+                f"PipelineOS portal:\n{settings.public_base_url}/client/invoices\n\nPayment is due by "
+                f"{due:%d %B %Y}. Each meeting on it shows the evidence it was billed on; you can dispute any "
+                "line from the portal."
+            ),
+            idempotency_key=f"invoice:{inv['id']}:{uid}",
+            entity_id=inv["id"],
+        )

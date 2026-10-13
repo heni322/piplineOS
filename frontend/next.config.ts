@@ -23,7 +23,7 @@ const config: NextConfig = {
     return [
       { source: "/:path*", headers: securityHeaders },
       // Dashboards and auth pages are never indexed. Only /privacy/* is public and indexable.
-      ...["/operator/:path*", "/operator", "/client/:path*", "/client", "/login"].map((source) => ({
+      ...["/operator/:path*", "/operator", "/client/:path*", "/client", "/login", "/set-password", "/forgot-password"].map((source) => ({
         source,
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       })),

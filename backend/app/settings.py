@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     msgraph_client_id: str | None = None
     msgraph_client_secret: SecretStr | None = None
     msgraph_webhook_secret: SecretStr | None = None  # derives a per-mailbox clientState for change notifications
+    system_mail_from: str = "no-reply@pipelineos.example"  # a Graph mailbox in live mode
+    system_mail_name: str = "PipelineOS"
     sandbox_smtp_host: str = "mailpit"
     sandbox_smtp_port: int = 1025
     metrics_token: SecretStr | None = None  # bearer token for /metrics (Prometheus); unset = endpoint disabled

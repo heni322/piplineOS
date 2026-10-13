@@ -167,7 +167,8 @@ def test_onboarding_endpoints(world) -> None:  # type: ignore[no-untyped-def]
         == 204
     )
     u = op.post(f"/api/v1/clients/{c['id']}/users", json={"email": "admin@tailspin.example"})
-    assert u.status_code == 201 and len(u.json()["one_time_password"]) >= 16
+    assert u.status_code == 201 and u.json()["status"] == "invited" and "one_time_password" not in u.json()
+    assert u.json()["dev_invite_link"].startswith("http://localhost:3000/set-password?token=")
     clients = {x["slug"]: x for x in op.get("/api/v1/clients").json()}
     items = {i["key"]: i["done"] for i in clients["tailspin-msp"]["checklist"]}
     assert items["lia"] and items["client_user"] and not items["dpa"]
