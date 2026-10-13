@@ -1,5 +1,6 @@
 """Provider webhooks. Microsoft Graph change notifications: validation handshake, then each notification is
-authenticated by its per-mailbox clientState and handed to a worker (the webhook itself does no processing)."""
+authenticated by its per-mailbox clientState and handed to a worker (the webhook itself does no processing).
+Gmail (via Pub/Sub push): the request carries a Google-signed OIDC token, verified before anything is queued."""
 
 from __future__ import annotations
 
@@ -9,6 +10,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy import text
 
+from app.adapters.google_auth import GoogleAuthError, PushVerifier
+from app.adapters.inbound.gmail import parse_push
 from app.adapters.inbound.msgraph import mailbox_for
 from app.api.deps import settings_dep
 from app.core.audit import write_audit
@@ -63,3 +66,66 @@ async def msgraph(request: Request, settings: Annotated[Settings, Depends(settin
             )
         log.warning("msgraph_notifications_rejected", count=rejected)
     return Response(status_code=202)
+
+
+_verifiers: dict[tuple[str, str], PushVerifier] = {}
+
+
+def _verifier(settings: Settings) -> PushVerifier | None:
+    if not (settings.google_push_audience and settings.google_push_service_account):
+        return None
+    key = (settings.google_push_audience, settings.google_push_service_account)
+    if key not in _verifiers:  # keeps Google's signing keys cached between requests
+        _verifiers[key] = PushVerifier(*key)
+    return _verifiers[key]
+
+
+def _enqueue_gmail(mailbox: str, history_id: int) -> None:  # separated so tests can observe it
+    from app.workflows.celery_app import gmail_history_task
+
+    gmail_history_task.delay(mailbox, history_id)
+
+
+def _reject(reason: str) -> None:
+    with transaction(DbContext.system(), get_engine()) as conn:
+        write_audit(
+            conn,
+            action="webhook.gmail.rejected",
+            actor_type="system",
+            actor_id="webhook",
+            tenant_id=None,
+            after={"reason": reason},
+        )
+    log.warning("gmail_push_rejected", reason=reason)
+
+
+@router.post("/webhooks/google", include_in_schema=False)
+async def gmail_push(request: Request, settings: Annotated[Settings, Depends(settings_dep)]) -> Response:
+    verifier = _verifier(settings)
+    if verifier is None:
+        return Response(status_code=404)
+    if len(await request.body()) > 64_000:
+        return Response(status_code=413)
+    try:
+        verifier.verify(request.headers.get("authorization"))
+    except GoogleAuthError as exc:
+        _reject(str(exc))
+        return Response(status_code=403)
+    try:
+        payload: dict[str, Any] = await request.json()
+    except ValueError:
+        return Response(status_code=400)
+    parsed = parse_push(payload)
+    if parsed is None:
+        _reject("not a gmail notification")
+        return Response(status_code=204)  # acknowledged so Pub/Sub doesn't retry it forever
+    mailbox, history_id = parsed
+    with transaction(DbContext(role="operator"), get_engine()) as conn:
+        known = conn.execute(
+            text("SELECT 1 FROM inboxes WHERE provider = 'google' AND lower(address) = lower(:a)"), {"a": mailbox}
+        ).first()
+    if known is None:
+        _reject("unknown mailbox")
+        return Response(status_code=204)
+    _enqueue_gmail(mailbox, history_id)
+    return Response(status_code=204)

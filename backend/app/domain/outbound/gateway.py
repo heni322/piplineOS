@@ -149,7 +149,7 @@ class OutboundGateway:
                    p.subdivision_code, p.subscriber_type, p.email_verification, p.role_relevance,
                    c.country_code AS c_country, t.live_mode, t.legal_name, t.slug,
                    i.address AS inbox_address, i.display_name, i.status AS inbox_status, i.daily_cap AS inbox_cap,
-                   i.oauth_status, cp.daily_cap AS campaign_cap
+                   i.oauth_status, i.provider AS inbox_provider, cp.daily_cap AS campaign_cap
             FROM leads l
             JOIN prospects p ON p.id = l.prospect_id
             JOIN companies c ON c.id = l.company_id
@@ -265,6 +265,7 @@ class OutboundGateway:
             body_text=final_body,
             idempotency_key=m["idempotency_key"],
             headers={"List-Unsubscribe": f"<{unsub_url}>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"},
+            provider=row["inbox_provider"] or "mock",
         )
 
         # 5) at-most-once: mark 'sending' and commit BEFORE calling any provider

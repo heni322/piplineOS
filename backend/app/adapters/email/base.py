@@ -13,6 +13,7 @@ class EmailPayload:
     body_text: str
     idempotency_key: str
     headers: dict[str, str] = field(default_factory=dict)
+    provider: str = "mock"  # the sending inbox's provider (msgraph / google): picks the live sender
 
 
 @dataclass(frozen=True)

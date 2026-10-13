@@ -35,6 +35,7 @@ celery_app.conf.update(
         "reply-sla": {"task": "pipelineos.system.reply_sla", "schedule": 60.0},
         "deliverability-kill-switch": {"task": "pipelineos.system.deliverability", "schedule": 900.0},
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
+        "renew-gmail-watches": {"task": "pipelineos.replies.renew_gmail_watches", "schedule": 24 * 3600.0},
     },
 )
 
@@ -183,7 +184,9 @@ def graph_message_task(mailbox: str, message_id: str) -> str:
     msg = GraphInbox(graph_credentials(settings), mailbox).fetch_message(message_id)
     cipher = PiiCipher(settings.key("pii_master_key"))
     ctx = agent_context(engine, settings, cipher, row.tenant_id, row.campaign_id)
-    out = process_inbound(ctx, [msg], providers_for(settings), calendar_gateway(settings, cipher, mailbox))[0]
+    out = process_inbound(ctx, [msg], providers_for(settings), calendar_gateway(settings, cipher, mailbox, "msgraph"))[
+        0
+    ]
     return out.classification
 
 
@@ -195,6 +198,68 @@ def renew_graph_subscriptions_task() -> int:
     from app.domain.outbound.providers import graph_credentials
 
     return renew_all(graph_credentials(settings))
+
+
+@celery_app.task(
+    name="pipelineos.replies.gmail_history", autoretry_for=(ConnectionError,), retry_backoff=True, max_retries=8
+)
+def gmail_history_task(mailbox: str, history_id: int) -> int:
+    """Fetches what arrived in a Google Workspace inbox since the last processed historyId and runs Agent 4 on each
+    reply (idempotent by Message-ID). The cursor only moves forward."""
+    from app.adapters.inbound.base import InboundEmail
+    from app.adapters.inbound.gmail import GmailInbox
+    from app.adapters.registry import providers_for
+    from app.core.crypto import PiiCipher
+    from app.domain.outbound.providers import calendar_gateway, google_credentials
+    from app.workflows.pipeline import agent_context, process_inbound
+
+    engine = get_engine()
+    with transaction(DbContext(role="operator"), engine) as conn:
+        row = conn.execute(
+            text("""SELECT i.id, i.tenant_id, i.history_id,
+                (SELECT c.id FROM campaigns c WHERE c.tenant_id = i.tenant_id
+                 ORDER BY c.created_at LIMIT 1) AS campaign_id
+              FROM inboxes i
+              WHERE i.provider = 'google' AND lower(i.address) = lower(:a)"""),
+            {"a": mailbox},
+        ).first()
+    if row is None or row.campaign_id is None:
+        log.warning("gmail_unknown_mailbox")
+        return 0
+    msgs: list[InboundEmail] = []
+    newest = history_id
+    if row.history_id is None:  # first notification after the watch started: nothing older is processed
+        pass
+    else:
+        msgs, newest = GmailInbox(google_credentials(settings), mailbox).fetch_since(int(row.history_id))
+    if msgs:
+        cipher = PiiCipher(settings.key("pii_master_key"))
+        ctx = agent_context(engine, settings, cipher, row.tenant_id, row.campaign_id)
+        process_inbound(ctx, msgs, providers_for(settings), calendar_gateway(settings, cipher, mailbox, "google"))
+    with transaction(DbContext(role="operator"), engine) as conn:
+        conn.execute(
+            text("UPDATE inboxes SET history_id = greatest(coalesce(history_id, 0), :h) WHERE id = :i"),
+            {"h": max(newest, history_id), "i": row.id},
+        )
+    return len(msgs)
+
+
+@celery_app.task(name="pipelineos.replies.renew_gmail_watches")
+def renew_gmail_watches_task() -> int:
+    """Gmail watches expire after 7 days; renewing daily keeps push notifications flowing."""
+    if settings.email_adapter_mode == "mock" or not (
+        settings.google_service_account_json and settings.google_pubsub_topic
+    ):
+        return 0
+    from app.adapters.inbound.gmail import watch
+    from app.domain.outbound.providers import google_credentials
+
+    creds = google_credentials(settings)
+    with transaction(DbContext(role="operator"), get_engine()) as conn:
+        boxes = list(conn.execute(text("SELECT address FROM inboxes WHERE provider = 'google'")).scalars())
+    for mb in boxes:
+        watch(creds, mb, settings.google_pubsub_topic)
+    return len(boxes)
 
 
 @celery_app.task(name="pipelineos.system.deliverability")

@@ -24,6 +24,11 @@ Go-live is the owner's decision and action. Nothing in this repository turns on 
    - an app registration with Mail.Send, Mail.Read and Calendars.ReadWrite application permissions
    - an **Exchange application access policy** restricting it to the sending mailboxes only
    - its tenant ID, client ID and secret put in `.env.prod`
+
+   **Or Google Workspace,** for a client who sends from Google:
+   - a service account with domain-wide delegation, authorised in the Workspace admin console for `gmail.send`, `gmail.readonly`, `calendar.events` and `calendar.freebusy` only
+   - a Pub/Sub topic that Gmail may publish to, and a push subscription to `https://APP_DOMAIN/webhooks/google` with authentication turned on
+   - the key and those names in `.env.prod` (`GOOGLE_*`); set each Google inbox's provider to `google`
 7. **Sending domains:**
    - separate from your main domain
    - SPF, DKIM and DMARC published and verified

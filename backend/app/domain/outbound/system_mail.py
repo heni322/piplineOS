@@ -51,6 +51,7 @@ def send(
         body_text=body,
         idempotency_key=f"system:{idempotency_key}",
         headers={"Auto-Submitted": "auto-generated"},
+        provider=settings.system_mail_provider,
     )
     if mode == "dry_run" or (tenant_id is None and mode != "sandbox"):
         # Operator accounts have no tenant: their emails stay dry-run until a system-level live switch exists.

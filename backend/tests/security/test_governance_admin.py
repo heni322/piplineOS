@@ -61,7 +61,9 @@ def test_country_needs_counsel_review_then_mfa_to_enable(world) -> None:  # type
 
     today = datetime.now(UTC).date()
     review = {"solicitor": "A. Solicitor, Example LLP", "reviewed_on": today.isoformat()}
-    assert op.post("/api/v1/countries/IE/counsel-verification", json=review | {"totp_code": "000000"}).status_code == 403
+    assert (
+        op.post("/api/v1/countries/IE/counsel-verification", json=review | {"totp_code": "000000"}).status_code == 403
+    )
     future = review | {"reviewed_on": (today + timedelta(days=2)).isoformat(), "totp_code": totp.now()}
     assert op.post("/api/v1/countries/IE/counsel-verification", json=future).status_code == 422
     r = op.post("/api/v1/countries/IE/counsel-verification", json=review | {"totp_code": totp.now()})

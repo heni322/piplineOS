@@ -63,7 +63,13 @@ class Settings(BaseSettings):
     msgraph_client_id: str | None = None
     msgraph_client_secret: SecretStr | None = None
     msgraph_webhook_secret: SecretStr | None = None  # derives a per-mailbox clientState for change notifications
-    system_mail_from: str = "no-reply@pipelineos.example"  # a Graph mailbox in live mode
+    # Google Workspace: a service account with domain-wide delegation, authorised for the Gmail/Calendar scopes only
+    google_service_account_json: SecretStr | None = None  # the key file's contents
+    google_pubsub_topic: str | None = None  # projects/<project>/topics/<topic> that Gmail publishes new-mail events to
+    google_push_audience: str | None = None  # the push subscription's OIDC audience (our webhook URL)
+    google_push_service_account: str | None = None  # the service account Pub/Sub signs push requests as
+    system_mail_from: str = "no-reply@pipelineos.example"  # a mailbox of system_mail_provider in live mode
+    system_mail_provider: Literal["msgraph", "google"] = "msgraph"
     system_mail_name: str = "PipelineOS"
     sandbox_smtp_host: str = "mailpit"
     sandbox_smtp_port: int = 1025
