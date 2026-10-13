@@ -123,6 +123,10 @@ erDiagram
 
 **attendance_events** [T] — `id, tenant_id, meeting_id, source (calendar|crm|tenant_confirmation|operator), status (attended|no_show|cancelled), recorded_by, recorded_at, evidence jsonb`.
 
+**crm_connections** [T] (Phase 6.3) — `id, tenant_id (unique), provider (hubspot), token_enc, pipeline_id, stage_map jsonb (booked|confirmed|attended|no_show|cancelled → the client's stage ids), status (connected|disconnected), connected_by, disconnected_reason, last_sync_at`. The token is write-only (never returned by the API). Written by the client's admin or the operator; never deleted.
+
+**crm_links** [T] (Phase 6.3) — `id, tenant_id, meeting_id (unique), provider, company_ext_id, contact_ext_id, deal_ext_id, synced_status, synced_mode (dry_run|live), state (pending|creating|ok|skipped|error), attempts, last_error, synced_at`. CRM object ids only, no personal data; written by the system only.
+
 **disputes** [T] — `id, tenant_id, meeting_id, invoice_line_id NULL, raised_by, reason, status (open|upheld|rejected), resolution_note, resolved_by, resolved_at`.
 
 ### 3.6 Billing & tax

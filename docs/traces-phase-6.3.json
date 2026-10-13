@@ -1,0 +1,91 @@
+[
+  {
+    "lead": "1. UK corporate (permitted)",
+    "subscriber_type": "corporate",
+    "prospect_country": "GB",
+    "company_country": "GB",
+    "queue_decision": "allow",
+    "queue_reasons": [
+      "OK"
+    ],
+    "rules_applied": {
+      "GB": "64785e06-a49b-4064-b124-504dccf6f181@v1"
+    },
+    "send_status": "dry_run_sent",
+    "send_reasons": [
+      "OK"
+    ],
+    "mode": "dry_run",
+    "final_state": "contacted",
+    "dry_run_log_rows": 1,
+    "alternative_tasks": 0
+  },
+  {
+    "lead": "2. UK sole trader (blocked)",
+    "subscriber_type": "individual",
+    "prospect_country": "GB",
+    "company_country": "GB",
+    "queue_decision": "alternative_channel",
+    "queue_reasons": [
+      "INDIVIDUAL_SUBSCRIBER"
+    ],
+    "rules_applied": {
+      "GB": "64785e06-a49b-4064-b124-504dccf6f181@v1"
+    },
+    "final_state": "alternative_channel",
+    "dry_run_log_rows": 0,
+    "alternative_tasks": 1
+  },
+  {
+    "lead": "3. German prospect at UK company (consent_required)",
+    "subscriber_type": "corporate",
+    "prospect_country": "DE",
+    "company_country": "GB",
+    "queue_decision": "alternative_channel",
+    "queue_reasons": [
+      "CONSENT_REQUIRED"
+    ],
+    "rules_applied": {
+      "DE": "60f88ff6-0ea6-420a-a47e-39f2c995b109@v1",
+      "GB": "64785e06-a49b-4064-b124-504dccf6f181@v1"
+    },
+    "final_state": "alternative_channel",
+    "dry_run_log_rows": 0,
+    "alternative_tasks": 1
+  },
+  {
+    "lead": "4. Globally suppressed person",
+    "subscriber_type": "corporate",
+    "prospect_country": "GB",
+    "company_country": "GB",
+    "queue_decision": "block",
+    "queue_reasons": [
+      "SUPPRESSED_GLOBAL"
+    ],
+    "rules_applied": {},
+    "final_state": "suppressed",
+    "dry_run_log_rows": 0,
+    "alternative_tasks": 0
+  },
+  {
+    "lead": "5. Suppressed AFTER approval (send-time block)",
+    "subscriber_type": "corporate",
+    "prospect_country": "GB",
+    "company_country": "GB",
+    "queue_decision": "allow",
+    "queue_reasons": [
+      "OK"
+    ],
+    "rules_applied": {
+      "GB": "64785e06-a49b-4064-b124-504dccf6f181@v1"
+    },
+    "send_status": "blocked",
+    "send_reasons": [
+      "SUPPRESSED_GLOBAL"
+    ],
+    "mode": null,
+    "final_state": "suppressed",
+    "dry_run_log_rows": 0,
+    "alternative_tasks": 0
+  }
+]

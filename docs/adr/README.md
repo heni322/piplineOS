@@ -19,3 +19,4 @@ Status values: Proposed · Accepted · Superseded. All are **Proposed** until th
 | [0012](0012-phase-4-replies-booking.md) | Phase 4 reply handling, data-protection requests, booking and show rate | Proposed |
 | [0013](0013-phase-5-billing-portal.md) | Phase 5 billing, client sign-offs, portal and reporting | Proposed |
 | [0014](0014-phase-6-production-readiness.md) | Phase 6 real adapters, accounts, deliverability, hosting, backups | Proposed |
+| [0015](0015-live-data-and-client-crm.md) | Real data sources and the client's CRM (Phases 6.2–6.3) | Proposed |
