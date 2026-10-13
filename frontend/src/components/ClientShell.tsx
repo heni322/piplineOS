@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/client/meetings", label: t.nav.clientMeetings },
   { href: "/client/invoices", label: t.nav.clientInvoices },
   { href: "/client/terms", label: t.nav.clientTerms },
+  { href: "/client/crm", label: t.nav.clientCrm },
 ];
 
 export type Me = { role: string; tenant_id: string | null };

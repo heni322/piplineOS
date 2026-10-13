@@ -101,6 +101,8 @@ def run_conversations(
     providers: Providers,
     operator_id: uuid.UUID,
     start: datetime = datetime(2026, 10, 13, 9, 0, tzinfo=UTC),
+    *,
+    attend: bool = True,
 ) -> ConversationRun:
     engine, settings, cipher, t = ctx.engine, ctx.settings, ctx.cipher, ctx.tenant_id
     cal = CalendarGateway(settings, cipher)
@@ -171,7 +173,7 @@ def run_conversations(
             if mt:
                 run.meeting_id = mt.id
                 meetings.confirm(conn, t, mt.id)  # prospect accepts the invite
-        if mt:
+        if mt and attend:
             send_due(engine, settings, cipher, t, now=mt.starts_at - timedelta(minutes=1430))  # 24h reminder
             send_due(engine, settings, cipher, t, now=mt.starts_at - timedelta(minutes=55))  # 1h reminder
             with transaction(DbContext.system(t), engine) as conn:

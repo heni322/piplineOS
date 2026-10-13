@@ -574,6 +574,7 @@ def record_attendance(
     source: str,
     user_id: uuid.UUID | None,
     now: datetime,
+    evidence: dict[str, str | None] | None = None,
 ) -> str:
     m = (
         conn.execute(text("SELECT lead_id, status, ends_at FROM meetings WHERE id = :m FOR UPDATE"), {"m": meeting_id})
@@ -583,9 +584,9 @@ def record_attendance(
     if status in ("attended", "no_show") and m["ends_at"] > now:
         raise ValueError("attendance can only be recorded after the meeting has ended")
     conn.execute(
-        text("""INSERT INTO attendance_events (tenant_id, meeting_id, source, status, recorded_by)
-          VALUES (:t, :m, :s, :st, :u)"""),
-        {"t": tenant_id, "m": meeting_id, "s": source, "st": status, "u": user_id},
+        text("""INSERT INTO attendance_events (tenant_id, meeting_id, source, status, recorded_by, evidence)
+          VALUES (:t, :m, :s, :st, :u, CAST(:ev AS jsonb))"""),
+        {"t": tenant_id, "m": meeting_id, "s": source, "st": status, "u": user_id, "ev": json.dumps(evidence or {})},
     )
     conn.execute(text("UPDATE meetings SET status = :st WHERE id = :m"), {"st": status, "m": meeting_id})
     conn.execute(

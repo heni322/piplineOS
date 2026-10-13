@@ -67,3 +67,7 @@ export type Inbox = { id: string; tenant_id: string; tenant_name: string; addres
   hard_bounce_rate: number | null; complaint_rate: number | null; max_hard_bounce_rate: number; max_complaint_rate: number; min_sent: number;
   last_paused_at: string | null; last_pause_reason: string[] };
 export type Campaign = { id: string; tenant_id: string; tenant_name: string; name: string; status: string; daily_cap: number; target_countries: string[] };
+export type CrmStatus = "booked" | "confirmed" | "attended" | "no_show" | "cancelled";
+export type CrmConnection = { connected: boolean; provider: string | null; pipeline_id: string | null;
+  stages: Record<CrmStatus, string> | null; status: string | null; connected_at: string | null; last_sync_at: string | null;
+  disconnected_reason: string | null; meetings_synced: number; meetings_waiting: number; meetings_failed: number };

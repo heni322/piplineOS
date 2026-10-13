@@ -83,6 +83,7 @@ class Permission(StrEnum):
     SIGN_TERMS = "sign_terms"  # client accepts qualification criteria / pricing (tenant_admin only, in the portal)
     VIEW_BILLING = "view_billing"
     MANAGE_BILLING = "manage_billing"
+    MANAGE_INTEGRATIONS = "manage_integrations"  # connect the client's own CRM (client admin, or the operator)
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
@@ -97,6 +98,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Permission]] = {
             Permission.UNMASK_PII,
             Permission.VIEW_COMPLIANCE_LOG,
             Permission.SIGN_TERMS,
+            Permission.MANAGE_INTEGRATIONS,
             Permission.VIEW_BILLING,
         }
     ),

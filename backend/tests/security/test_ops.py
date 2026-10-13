@@ -54,7 +54,13 @@ def test_readiness_reports_each_dependency(world) -> None:  # type: ignore[no-un
     c, _, _ = world
     r = TestClient(c.app).get("/api/v1/ready")
     body = r.json()
-    assert body["database"] == "ok" and body["schema"] == "0009"
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    from tests.conftest import BACKEND
+
+    head = ScriptDirectory.from_config(Config(str(BACKEND / "alembic.ini"))).get_current_head()
+    assert body["database"] == "ok" and body["schema"] == head
     assert r.status_code == (200 if body["valkey"] == "ok" else 503) and body["ready"] == (r.status_code == 200)
 
 

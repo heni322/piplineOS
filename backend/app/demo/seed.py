@@ -25,6 +25,7 @@ from app.core.security import hash_password, new_totp_secret
 from app.db.session import DbContext, transaction
 from app.demo import dataset
 from app.domain.compliance.repository import enable_country
+from app.domain.outbound import crm
 from app.domain.suppression.service import RecipientHashes, suppress_email
 from app.domain.tenants import signoffs
 from app.domain.tenants.config import TenantConfig, save_config
@@ -128,6 +129,16 @@ def seed_demo(engine: Engine, settings: Settings, operator_email: str = "operato
     return DemoIds(tenant_id, campaign_id, op_id, operator_email, password, totp, client_password=client_password)
 
 
+# HubSpot's default sales pipeline stage ids (the client picks their own when connecting)
+DEMO_CRM_STAGES = {
+    "booked": "appointmentscheduled",
+    "confirmed": "qualifiedtobuy",
+    "attended": "presentationscheduled",
+    "no_show": "closedlost",
+    "cancelled": "closedlost",
+}
+
+
 def _demo_client(engine: Engine, settings: Settings, cipher: PiiCipher, tenant_id: uuid.UUID) -> str | None:
     """A fictional client admin who signs the demo's qualification criteria and pricing in the portal."""
     email = "client@northwind-demo.example"
@@ -153,4 +164,15 @@ def _demo_client(engine: Engine, settings: Settings, cipher: PiiCipher, tenant_i
         for kind in ("qualification_criteria", "pricing"):
             if not signoffs.current_is_signed(conn, tenant_id, kind):
                 signoffs.sign(conn, tenant_id=tenant_id, kind=kind, user_id=uid, method="portal")
+        if crm.connection_status(conn, tenant_id) is None:  # the client connected their (fictional) HubSpot
+            crm.connect(
+                conn,
+                cipher,
+                tenant_id=tenant_id,
+                provider="hubspot",
+                token="demo-token-not-a-real-hubspot-token",
+                pipeline_id="default",
+                stage_map=DEMO_CRM_STAGES,
+                user_id=uid,
+            )
     return password

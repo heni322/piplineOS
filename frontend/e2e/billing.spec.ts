@@ -78,3 +78,35 @@ test("client sees results, accepted terms and billable meetings, and can dispute
   await expect(page.getByRole("status")).toContainText("Dispute sent");
   await expect(row).toContainText("Dispute open");
 });
+
+test("client connects their own CRM; the token is never shown back; disconnecting needs a reason", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Work email").fill(CLIENT!);
+  await page.getByLabel("Password").fill(CLIENT_PW!);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL("**/client");
+  await page.getByRole("link", { name: "Your CRM" }).click();
+  await expect(page.getByRole("heading", { name: /Connected to HubSpot/ })).toBeVisible(); // the demo client's
+  await expect(page.getByText("Nothing is written to your CRM until your account is switched to live.", { exact: false })).toBeVisible();
+  await accessible(page, "client-crm");
+
+  await page.getByRole("button", { name: "Replace connection" }).click();
+  await expect(page.getByLabel("Private app access token")).toBeFocused();
+  await page.getByLabel("Private app access token").fill("pat-eu1-e2e-0000-not-real");
+  await page.getByLabel("Meeting attended").fill("contractsent");
+  await accessible(page, "client-crm-connect");
+  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Connected.");
+  await expect(page.getByText("contractsent")).toBeVisible();
+  await expect(page.getByText("pat-eu1-e2e-0000-not-real")).toHaveCount(0);
+  expect(await page.content()).not.toContain("pat-eu1-e2e-0000-not-real");
+
+  await page.getByRole("button", { name: "Disconnect" }).click();
+  await page.getByLabel(/Why are you disconnecting/).fill("short");
+  await page.getByRole("button", { name: "Disconnect HubSpot" }).click();
+  await expect(page.getByRole("heading", { name: /Connected to HubSpot/ })).toBeVisible(); // too short: refused
+  await page.getByLabel(/Why are you disconnecting/).fill("Switching to a different CRM next quarter");
+  await page.getByRole("button", { name: "Disconnect HubSpot" }).click();
+  await expect(page.getByRole("heading", { name: "Disconnected" })).toBeVisible();
+  await expect(page.getByText(/Reason: Switching/)).toBeVisible();
+});

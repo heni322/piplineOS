@@ -122,7 +122,8 @@
     "clientTerms": "Terms",
     "governance": "Go-live",
     "leads": "Leads",
-    "inboxes": "Inboxes"
+    "inboxes": "Inboxes",
+    "clientCrm": "Your CRM"
   },
   "approvals": {
     "title": "Approvals",
@@ -564,5 +565,43 @@
     "paused": "{a} paused",
     "resumed": "{a} resumed",
     "empty": "No inboxes yet."
+  },
+  "crm": {
+    "title": "Your CRM",
+    "intro": "Each meeting we book for you can appear in your HubSpot: the company, the contact, and a deal that moves through your pipeline as the meeting is confirmed, attended or cancelled. If you move a deal to your \"attended\" stage, that counts as proof the meeting happened.",
+    "safety": "Nothing is written to your CRM until your account is switched to live. Until then, every update we would make is recorded in our dry-run log instead.",
+    "connected": "Connected to HubSpot",
+    "disconnected": "Disconnected",
+    "notConnected": "Not connected",
+    "since": "since {d}",
+    "lastSync": "Last checked {d}",
+    "neverSynced": "Not checked yet",
+    "counts": "{synced} meeting(s) up to date, {waiting} waiting, {failed} need attention",
+    "pipeline": "Pipeline",
+    "stage": "Stage id",
+    "stages": {
+      "booked": "Meeting booked",
+      "confirmed": "Meeting confirmed",
+      "attended": "Meeting attended",
+      "no_show": "No-show",
+      "cancelled": "Cancelled"
+    },
+    "connectTitle": "Connect HubSpot",
+    "replaceTitle": "Replace the connection",
+    "tokenLabel": "Private app access token",
+    "tokenHint": "In HubSpot: Settings > Integrations > Private apps > Create. Give it read and write access to contacts, companies and deals, then paste its access token here. We store it encrypted and never show it again.",
+    "pipelineLabel": "Pipeline id",
+    "pipelineHint": "\"default\" for HubSpot's standard sales pipeline. Other pipelines show their id in Settings > Objects > Deals > Pipelines.",
+    "stagesLegend": "Which deal stage should each meeting status use?",
+    "stagesHint": "Use the stage ids from the same settings page. HubSpot's standard pipeline is filled in for you.",
+    "save": "Connect",
+    "saved": "Connected. Meetings will appear in HubSpot once your account is live.",
+    "disconnect": "Disconnect",
+    "disconnectReason": "Why are you disconnecting? (at least 10 characters)",
+    "disconnectConfirm": "Disconnect HubSpot",
+    "disconnectedNotice": "Disconnected. Nothing more will be written to your CRM.",
+    "reasonWas": "Reason: {r}",
+    "cancel": "Cancel",
+    "change": "Replace connection"
   }
 }

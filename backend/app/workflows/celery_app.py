@@ -34,6 +34,7 @@ celery_app.conf.update(
         "fetch-inbound": {"task": "pipelineos.replies.fetch_inbound", "schedule": 60.0},
         "reply-sla": {"task": "pipelineos.system.reply_sla", "schedule": 60.0},
         "deliverability-kill-switch": {"task": "pipelineos.system.deliverability", "schedule": 900.0},
+        "crm-sync": {"task": "pipelineos.system.crm_sync", "schedule": 300.0},
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
         "renew-gmail-watches": {"task": "pipelineos.replies.renew_gmail_watches", "schedule": 24 * 3600.0},
         **(
@@ -76,6 +77,26 @@ def hunt_task() -> dict[str, int]:
     from app.workflows.pipeline import hunt_active_campaigns
 
     return hunt_active_campaigns(get_engine(), settings, PiiCipher(settings.key("pii_master_key")))
+
+
+@celery_app.task(name="pipelineos.system.crm_sync")
+def crm_sync_task() -> int:
+    """Clients' CRMs: write booked meetings (dry-run unless all three keys are on), read back attendance."""
+    from datetime import UTC, datetime
+
+    from app.core.crypto import PiiCipher
+    from app.domain.outbound.crm import sync_tenant
+
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
+    cipher = PiiCipher(settings.key("pii_master_key"))
+    now = datetime.now(UTC)
+    done = 0
+    for t in tenant_ids:
+        r = sync_tenant(engine, settings, cipher, t, now=now)
+        done += r.recorded + r.written + r.attendance
+    return done
 
 
 @celery_app.task(name="pipelineos.send.send_due")
