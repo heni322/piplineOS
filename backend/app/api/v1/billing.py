@@ -253,8 +253,9 @@ def billable_meetings(user: Viewer, tenant_id: uuid.UUID | None = None) -> list[
             .all()
         )
         out = []
+        facts = billing.meeting_facts_bulk(conn, t, list(rows), cfg.pricing)
         for m in rows:
-            ok, reasons = eligibility(billing.meeting_facts(conn, t, m, cfg.pricing))
+            ok, reasons = eligibility(facts[m["id"]])
             out.append(
                 EligibilityOut(
                     meeting_id=str(m["id"]),

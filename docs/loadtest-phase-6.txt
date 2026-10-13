@@ -1,0 +1,22 @@
+endpoint                                                  p50 ms   p95 ms  status
+operator /api/v1/pipeline/summary                             77      108  200
+operator /api/v1/approvals                                   154      173  200
+operator /api/v1/compliance/log                              404      487  200
+operator /api/v1/dry-run                                       6        7  200
+operator /api/v1/meetings                                    180      209  200
+operator /api/v1/escalations                                   6        8  200
+operator /api/v1/data-protection-requests                      6        7  200
+operator /api/v1/leads                                       274      328  200
+operator /api/v1/invoices?tenant_id=34ece9f9-3c51-4871-8c1d-d3dd8d983a20        5        6  200
+operator /api/v1/reports/metrics?tenant_id=34ece9f9-3c51-4871-8c1d-d3dd8d983a20      278      288  200
+operator /api/v1/clients                                       9       10  200
+operator /api/v1/billing/meetings?tenant_id=34ece9f9-3c51-4871-8c1d-d3dd8d983a20       19       20  200
+client /api/v1/reports/metrics                               305      332  200
+client /api/v1/billing/meetings                               21       24  200
+client /api/v1/meetings                                      205      257  200
+client /api/v1/terms                                           6        7  200
+client /api/v1/invoices                                        4        5  200
+client /api/v1/pipeline/summary                               98      124  200
+worst p95: 487 ms (target < 2000 ms)
+3 concurrent users: 36 requests in 3.0s; p50 222 ms, p95 530 ms, errors 0
+10 concurrent users: 120 requests in 9.7s; p50 785 ms, p95 1621 ms, errors 0

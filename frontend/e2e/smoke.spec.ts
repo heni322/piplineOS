@@ -30,3 +30,16 @@ test("robots.txt disallows dashboards", async ({ request }) => {
   expect(body).toContain("Disallow: /operator");
   expect(body).toContain("Allow: /privacy/");
 });
+
+test("account pages are accessible, never indexed, and keep the token out of the address bar", async ({ page }) => {
+  for (const path of ["/forgot-password", "/set-password"]) {
+    const res = await page.goto(path);
+    expect(res?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+    const a11y = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(a11y.violations).toEqual([]);
+  }
+  await expect(page.getByText("This page needs the link from your email.")).toBeVisible();
+  await page.goto("/set-password?token=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG");
+  await expect(page.getByLabel("New password")).toBeVisible();
+  await expect(page).toHaveURL(/\/set-password$/);
+});

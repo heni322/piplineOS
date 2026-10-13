@@ -63,38 +63,73 @@ def _criteria_hash(conn: Connection, config_id: uuid.UUID | None) -> str | None:
     return signoffs.terms_hash(content) if content else None
 
 
-def meeting_facts(conn: Connection, tenant_id: uuid.UUID, meeting: RowMapping, pricing: Pricing | None) -> MeetingFacts:
-    att = conn.execute(
-        text("SELECT status, source FROM attendance_events WHERE meeting_id = :m ORDER BY recorded_at DESC LIMIT 1"),
-        {"m": meeting["id"]},
-    ).first()
-    q = conn.execute(
-        text("SELECT overall_met, criteria_config_id FROM qualifications WHERE lead_id = :l"), {"l": meeting["lead_id"]}
-    ).first()
-    billed = conn.execute(
-        text("""SELECT 1 FROM invoice_lines l JOIN invoices i ON i.id = l.invoice_id
-          WHERE l.meeting_id = :m AND l.kind = 'meeting' AND l.voided_at IS NULL
+def meeting_facts_bulk(
+    conn: Connection, tenant_id: uuid.UUID, meetings: list[RowMapping], pricing: Pricing | None
+) -> dict[uuid.UUID, MeetingFacts]:
+    """Facts for many meetings in a constant number of queries (no per-meeting round trips)."""
+    if not meetings:
+        return {}
+    mids = [m["id"] for m in meetings]
+    lids = [m["lead_id"] for m in meetings]
+    att = {
+        r.meeting_id: r
+        for r in conn.execute(
+            text("""SELECT DISTINCT ON (meeting_id) meeting_id, status, source FROM attendance_events
+          WHERE meeting_id = ANY(:m) ORDER BY meeting_id, recorded_at DESC"""),
+            {"m": mids},
+        )
+    }
+    quals = {
+        r.lead_id: r
+        for r in conn.execute(
+            text("SELECT lead_id, overall_met, criteria_config_id FROM qualifications WHERE lead_id = ANY(:l)"),
+            {"l": lids},
+        )
+    }
+    billed = set(
+        conn.execute(
+            text("""SELECT l.meeting_id FROM invoice_lines l JOIN invoices i ON i.id = l.invoice_id
+          WHERE l.meeting_id = ANY(:m) AND l.kind = 'meeting' AND l.voided_at IS NULL
             AND i.status IN ('issued','paid')"""),
-        {"m": meeting["id"]},
-    ).first()
-    dispute = conn.execute(
-        text("SELECT status FROM disputes WHERE meeting_id = :m ORDER BY created_at DESC LIMIT 1"),
-        {"m": meeting["id"]},
-    ).scalar()
-    return MeetingFacts(
-        booked_by_system=bool(meeting["booked_by_system"]),
-        meeting_status=meeting["status"],
-        attendance_status=att.status if att else None,
-        attendance_source=att.source if att else None,
-        qualification_met=q.overall_met if q else None,
-        criteria_hash=_criteria_hash(conn, q.criteria_config_id) if q else None,
-        booked_at=meeting["created_at"],
-        signed_criteria=signoffs.signed(conn, tenant_id, "qualification_criteria"),
-        already_billed=billed is not None,
-        per_meeting_minor=pricing.per_meeting_minor if pricing else 0,
-        pricing_signed=signoffs.current_is_signed(conn, tenant_id, "pricing"),
-        dispute_status=dispute,
+            {"m": mids},
+        ).scalars()
     )
+    disputes: dict[uuid.UUID, str] = {
+        r.meeting_id: r.status
+        for r in conn.execute(
+            text("""SELECT DISTINCT ON (meeting_id) meeting_id, status FROM disputes WHERE meeting_id = ANY(:m)
+          ORDER BY meeting_id, created_at DESC"""),
+            {"m": mids},
+        )
+    }
+    hashes: dict[uuid.UUID, str | None] = {}
+    for qrow in quals.values():
+        if qrow.criteria_config_id not in hashes:
+            hashes[qrow.criteria_config_id] = _criteria_hash(conn, qrow.criteria_config_id)
+    signed = signoffs.signed(conn, tenant_id, "qualification_criteria")
+    pricing_signed = signoffs.current_is_signed(conn, tenant_id, "pricing")
+    out = {}
+    for m in meetings:
+        a, q = att.get(m["id"]), quals.get(m["lead_id"])
+        out[m["id"]] = MeetingFacts(
+            booked_by_system=bool(m["booked_by_system"]),
+            meeting_status=m["status"],
+            attendance_status=a.status if a else None,
+            attendance_source=a.source if a else None,
+            qualification_met=q.overall_met if q else None,
+            criteria_hash=hashes.get(q.criteria_config_id) if q else None,
+            booked_at=m["created_at"],
+            signed_criteria=signed,
+            already_billed=m["id"] in billed,
+            per_meeting_minor=pricing.per_meeting_minor if pricing else 0,
+            pricing_signed=pricing_signed,
+            dispute_status=disputes.get(m["id"]),
+        )
+    return out
+
+
+def meeting_facts(conn: Connection, tenant_id: uuid.UUID, meeting: RowMapping, pricing: Pricing | None) -> MeetingFacts:
+    return meeting_facts_bulk(conn, tenant_id, [meeting], pricing)[meeting["id"]]
 
 
 def evidence_chain(conn: Connection, meeting_id: uuid.UUID, lead_id: uuid.UUID) -> dict[str, Any]:
@@ -244,9 +279,9 @@ def refresh_draft(
         .mappings()
         .all()
     )
+    all_facts = meeting_facts_bulk(conn, tenant_id, list(meetings), pricing)
     for m in meetings:
-        facts = meeting_facts(conn, tenant_id, m, pricing)
-        ok, reasons = eligibility(facts)
+        ok, reasons = eligibility(all_facts[m["id"]])
         label = f"{m['company'] or 'Sole trader'}, {m['starts_at']:%d %b %Y}"
         if not ok:
             if "ALREADY_BILLED" not in reasons:

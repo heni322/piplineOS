@@ -1,6 +1,15 @@
-# Prices per million tokens, in GBP micros. Leave null until copied from Anthropic's official pricing page
-# and converted at a recorded FX rate. While null, cost_micros_gbp is stored as NULL (never invented).
-fx_note: null
+# AI prices per million tokens. USD list prices copied from Anthropic's official pricing page
+# (https://platform.claude.com/docs/en/about-claude/pricing, read 2026-10-13). Base rates only: no batch or
+# prompt-caching discounts are assumed, so recorded costs are an upper bound.
+#
+# Costs are stored in GBP. Set fx_usd_gbp (GBP per 1 USD, e.g. from your bank or the Bank of England rate) and
+# fx_date yourself; while it is null, cost_micros_gbp stays NULL rather than using a rate nobody chose.
+source: https://platform.claude.com/docs/en/about-claude/pricing
+read_on: 2026-10-13
+fx_usd_gbp: null
+fx_date: null
 models:
-  claude-sonnet-5-5: { input_per_mtok_micros_gbp: null, output_per_mtok_micros_gbp: null }
-  claude-opus-5-5: { input_per_mtok_micros_gbp: null, output_per_mtok_micros_gbp: null }
+  claude-sonnet-5-5: { input_per_mtok_usd: 2.00, output_per_mtok_usd: 10.00 }
+  claude-opus-5-5: { input_per_mtok_usd: 4.00, output_per_mtok_usd: 20.00 }
+  # Haiku is tiered by prompt size (<=100k tokens shown); not used by PipelineOS today.
+  claude-haiku-5-5: { input_per_mtok_usd: 0.10, output_per_mtok_usd: 0.50 }
