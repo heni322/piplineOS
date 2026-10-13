@@ -66,8 +66,21 @@ def unsubscribe_confirm(token: str, settings: Annotated[Settings, Depends(settin
     )
 
 
+def _limited(request: Request, settings: Settings, what: str) -> bool:
+    from app.core import ratelimit
+
+    ip = request.client.host if request.client else "unknown"
+    prefix = "test:" if settings.environment == "test" else ""
+    return not ratelimit.allow(f"{prefix}{what}:{ip}", rate_per_sec=0.5, capacity=30, redis_url=settings.redis_url)
+
+
+TOO_MANY = "<p>Too many requests from your network. Wait a minute and try again.</p>"
+
+
 @router.post("/u/{token}", response_class=HTMLResponse)
-def unsubscribe_do(token: str, settings: Annotated[Settings, Depends(settings_dep)]) -> HTMLResponse:
+def unsubscribe_do(token: str, request: Request, settings: Annotated[Settings, Depends(settings_dep)]) -> HTMLResponse:
+    if _limited(request, settings, "unsub"):
+        return _page("Please wait", TOO_MANY, 429)
     engine = get_engine()
     try:
         token_id = unsubscribe.verify(settings.key("unsubscribe_signing_key"), token)
@@ -164,9 +177,12 @@ def _reschedule_context(
 @router.get("/r/{token}", response_class=HTMLResponse)
 def reschedule_page(
     token: str,
+    request: Request,
     settings: Annotated[Settings, Depends(settings_dep)],
     cipher: Annotated[PiiCipher, Depends(cipher_dep)],
 ) -> HTMLResponse:
+    if _limited(request, settings, "resched"):
+        return _page("Please wait", TOO_MANY, 429)
     ctx = _reschedule_context(token, settings, cipher, datetime.now(UTC))
     if ctx is None:
         return _page("Link not valid", RESCHEDULE_INVALID, 400)
@@ -193,6 +209,8 @@ async def reschedule_do(
     cipher: Annotated[PiiCipher, Depends(cipher_dep)],
 ) -> HTMLResponse:
     """Parses the tiny urlencoded form itself (no multipart dependency), then does the DB work off the event loop."""
+    if _limited(request, settings, "resched"):
+        return _page("Please wait", TOO_MANY, 429)
     raw = await request.body()
     if len(raw) > 200:
         return _page("Time not available", "<p>That request was not understood.</p>", 400)

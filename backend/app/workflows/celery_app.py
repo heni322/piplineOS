@@ -33,6 +33,7 @@ celery_app.conf.update(
         "send-due": {"task": "pipelineos.send.send_due", "schedule": 300.0},
         "fetch-inbound": {"task": "pipelineos.replies.fetch_inbound", "schedule": 60.0},
         "reply-sla": {"task": "pipelineos.system.reply_sla", "schedule": 60.0},
+        "deliverability-kill-switch": {"task": "pipelineos.system.deliverability", "schedule": 900.0},
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
     },
 )
@@ -194,3 +195,24 @@ def renew_graph_subscriptions_task() -> int:
     from app.domain.outbound.providers import graph_credentials
 
     return renew_all(graph_credentials(settings))
+
+
+@celery_app.task(name="pipelineos.system.deliverability")
+def deliverability_task() -> int:
+    """Pauses any inbox whose live bounce/complaint rate crosses the limits in config/deliverability.yaml."""
+    from datetime import UTC, datetime
+
+    from app.config_paths import config_root
+    from app.domain.deliverability.killswitch import Thresholds, evaluate
+
+    th = Thresholds.load(config_root())
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
+    paused = 0
+    for t in tenant_ids:
+        with transaction(DbContext.system(t), engine) as conn:
+            paused += sum(1 for r in evaluate(conn, t, datetime.now(UTC), th) if r["paused"])
+    if paused:
+        log.warning("inboxes_paused", count=paused)
+    return paused

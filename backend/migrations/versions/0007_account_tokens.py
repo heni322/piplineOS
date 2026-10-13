@@ -71,11 +71,14 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION auth_set_password(bytea, text), auth_issue_reset(bytea, bytea, timestamptz) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION auth_set_password(bytea, text), auth_issue_reset(bytea, bytea, timestamptz) TO {APP_ROLE};
+-- readiness probe: the app may read which schema revision it is running against (no data in this table)
+GRANT SELECT ON alembic_version TO {APP_ROLE};
 """)
 
 
 def downgrade() -> None:
     op.execute("""
+REVOKE SELECT ON alembic_version FROM pipelineos_app;
 DROP FUNCTION IF EXISTS auth_issue_reset(bytea, bytea, timestamptz);
 DROP FUNCTION IF EXISTS auth_set_password(bytea, text);
 DROP TABLE IF EXISTS account_tokens;

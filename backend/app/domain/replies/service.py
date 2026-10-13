@@ -38,6 +38,7 @@ from app.db.session import DbContext, transaction
 from app.domain.compliance.gate import run_gate
 from app.domain.compliance.jurisdiction import parse_location
 from app.domain.compliance.subscriber import classify_subscriber
+from app.domain.deliverability import killswitch
 from app.domain.deliverability.hours import add_business_days
 from app.domain.dpr import service as dpr
 from app.domain.leads.state_machine import TERMINAL, State, TransitionError, get_lead, record_objection, transition
@@ -245,6 +246,12 @@ def handle(
     at = now or datetime.now(UTC)
     cal = calendar or CalendarGateway(ctx.settings, ctx.cipher)
     cfg = ctx.config
+    if killswitch.is_bounce(msg):  # delivery reports never reach Agent 4 (no tokens spent, no misclassification)
+        with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+            actions = killswitch.handle_bounce(
+                conn, ctx.settings.key("suppression_hash_key"), ctx.cipher, ctx.tenant_id, msg
+            )
+        return Outcome(None, "bounce", actions)
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
         reply_id, lead_id, is_new = ingest(conn, ctx, msg)
         if reply_id is None or lead_id is None:

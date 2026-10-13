@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import text
 
-from app.adapters.base import TokenBucket
 from app.api.deps import CSRF_COOKIE, SESSION_COOKIE, CurrentUser, cipher_dep, current_user, settings_dep
 from app.core.audit import write_audit
 from app.core.crypto import PiiCipher, blind_index
@@ -24,7 +23,6 @@ from app.db.session import DbContext, get_engine, transaction
 from app.settings import Settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-_ip_buckets: dict[str, TokenBucket] = {}
 GENERIC = "Invalid credentials"
 
 
@@ -41,6 +39,26 @@ class MeOut(BaseModel):
     mfa_verified: bool
 
 
+class _Buckets(dict[str, object]):
+    """Kept for tests that reset limits between cases; the limiter itself lives in app.core.ratelimit."""
+
+    def clear(self) -> None:
+        from app.core import ratelimit
+
+        ratelimit.reset_local()
+        super().clear()
+
+
+_ip_buckets = _Buckets()
+
+
+def _limit(settings: Settings, key: str, rate: float, capacity: int) -> bool:
+    from app.core import ratelimit
+
+    prefix = "test:" if settings.environment == "test" else ""
+    return ratelimit.allow(prefix + key, rate_per_sec=rate, capacity=capacity, redis_url=settings.redis_url)
+
+
 def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
@@ -53,8 +71,7 @@ def login(
     settings: Annotated[Settings, Depends(settings_dep)],
     cipher: Annotated[PiiCipher, Depends(cipher_dep)],
 ) -> MeOut:
-    bucket = _ip_buckets.setdefault(_client_ip(request), TokenBucket(rate_per_sec=0.2, capacity=10))
-    if not bucket.try_acquire():
+    if not _limit(settings, "login:" + _client_ip(request), 0.2, 10):
         raise ProblemError(429, "Too many login attempts")
     engine = get_engine()
     bidx = blind_index(settings.key("blind_index_key"), body.email, None)
@@ -170,8 +187,7 @@ def forgot_password(
     cipher: Annotated[PiiCipher, Depends(cipher_dep)],
 ) -> Response:
     """Always 204, whether or not the address has an account (no account enumeration)."""
-    bucket = _ip_buckets.setdefault("reset:" + _client_ip(request), TokenBucket(rate_per_sec=0.05, capacity=5))
-    if not bucket.try_acquire():
+    if not _limit(settings, "reset:" + _client_ip(request), 0.05, 5):
         raise ProblemError(429, "Too many requests")
     from app.domain.tenants import accounts
 
@@ -180,9 +196,10 @@ def forgot_password(
 
 
 @router.post("/set-password", status_code=204)
-def set_password(body: SetPasswordIn, request: Request) -> Response:
-    bucket = _ip_buckets.setdefault("setpw:" + _client_ip(request), TokenBucket(rate_per_sec=0.1, capacity=10))
-    if not bucket.try_acquire():
+def set_password(
+    body: SetPasswordIn, request: Request, settings: Annotated[Settings, Depends(settings_dep)]
+) -> Response:
+    if not _limit(settings, "setpw:" + _client_ip(request), 0.1, 10):
         raise ProblemError(429, "Too many requests")
     from app.domain.tenants import accounts
 

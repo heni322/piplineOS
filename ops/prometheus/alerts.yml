@@ -1,0 +1,58 @@
+# Prometheus alert rules for PipelineOS. Every metric is an aggregate gauge from GET /metrics (bearer token).
+groups:
+  - name: pipelineos-safety
+    rules:
+      - alert: GoLiveSwitchedOn
+        expr: pipelineos_global_go_live == 1
+        labels: { severity: page }
+        annotations: { summary: "GLOBAL_GO_LIVE is on: real emails can leave for live clients." }
+      - alert: LiveSendWithoutGoLive
+        expr: sum(pipelineos_sends_last_hour{mode="live"}) > 0 and pipelineos_golive_complete == 0
+        labels: { severity: page }
+        annotations: { summary: "Live sends while the go-live checklist is incomplete. This should be impossible: investigate now." }
+      - alert: InboxPaused
+        expr: pipelineos_inboxes_paused > 0
+        for: 5m
+        labels: { severity: warn }
+        annotations: { summary: "An inbox was paused by the deliverability kill switch (or an operator)." }
+      - alert: SendsNeedReconciliation
+        expr: pipelineos_needs_reconciliation > 0
+        for: 10m
+        labels: { severity: warn }
+        annotations: { summary: "Sends with an unknown provider outcome; reconcile before any retry." }
+  - name: pipelineos-legal
+    rules:
+      - alert: DataProtectionRequestOverdue
+        expr: pipelineos_dpr_overdue > 0
+        labels: { severity: page }
+        annotations: { summary: "A data-protection request is past its one-month deadline." }
+      - alert: DataProtectionRequestDueSoon
+        expr: pipelineos_dpr_due_7d > 0
+        for: 1h
+        labels: { severity: warn }
+        annotations: { summary: "A data-protection request is due within 7 days." }
+      - alert: VatThresholdApproaching
+        expr: pipelineos_vat_threshold_pct >= 80
+        labels: { severity: warn }
+        annotations: { summary: "Rolling 12-month turnover is at {{ $value }}% of the VAT registration threshold. Talk to your accountant." }
+  - name: pipelineos-operations
+    rules:
+      - alert: ReplySlaBreached
+        expr: pipelineos_reply_sla_breaches > 0
+        for: 5m
+        labels: { severity: warn }
+        annotations: { summary: "Replies are waiting more than 5 minutes to be classified (workers down or backlogged?)." }
+      - alert: OutboxStuck
+        expr: pipelineos_outbox_oldest_seconds > 300
+        for: 5m
+        labels: { severity: warn }
+        annotations: { summary: "Outbox events older than 5 minutes are not being dispatched." }
+      - alert: AiFailures
+        expr: sum(pipelineos_llm_calls_last_hour{outcome=~"error|timeout|refusal"}) > 10
+        labels: { severity: warn }
+        annotations: { summary: "More than 10 failed AI calls in the last hour." }
+      - alert: ApprovalBacklog
+        expr: pipelineos_pending_approvals > 100
+        for: 4h
+        labels: { severity: info }
+        annotations: { summary: "Over 100 emails waiting for review for 4 hours." }

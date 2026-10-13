@@ -1,0 +1,8 @@
+# Deliverability kill switch (operational thresholds, not legal rules). An inbox that crosses either rate over the
+# rolling window, with at least min_sent live sends, is paused automatically; only an operator can resume it.
+# Google and Yahoo's bulk-sender guidance asks for spam complaints well under 0.3%; we stop at 0.3% and warn earlier.
+window_days: 7
+min_sent: 50
+max_hard_bounce_rate: 0.03
+max_complaint_rate: 0.003
+warn_complaint_rate: 0.001
