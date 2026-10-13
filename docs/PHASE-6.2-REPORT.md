@@ -77,10 +77,13 @@ Branch `phase/6.2-live-data` (from `phase/6.1-completion`).
 | Lint / types / import contracts | Clean; **3 contracts kept** |
 | Dependencies | None added (the HTTP client was already in use) |
 | Sample-lead traces (`docs/traces-phase-6.2.json`, fresh database) | Identical decisions to 6.1. UK corporate → dry-run sent; sole trader and German prospect → alternative channel; suppressed → blocked; suppressed after approval → blocked at send |
-| On your PC | See §5.1 |
+| On your PC | **553 passed, 0 failed, 0 skipped** (§5.1) |
 
 ### 5.1 On your PC
-_Filled in after the sync._
+- Synced as branch `phase/6.2-live-data` (git bundle, no history rewritten).
+- Your development database and the demo database were migrated to `0009`; nothing was deleted.
+- Backend against your Docker PostgreSQL: **553 passed, 0 failed, 0 skipped** (≈331 s).
+- The local demo app was restarted on the new code. The go-live page shows the new data-sources list, all on demo data.
 
 **No external side effects:**
 - Every test request to Hunter, Contracts Finder, Find a Tender and Companies House goes to an in-process fake.
