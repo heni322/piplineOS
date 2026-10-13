@@ -23,8 +23,14 @@ test("governance: keys off, checklist unsigned, a country needs a solicitor's re
   await signInOperator(page, EMAIL!, PASSWORD!, SECRET!);
   await page.getByRole("link", { name: "Go-live" }).click();
   await expect(page.getByRole("heading", { name: "Go-live and governance" })).toBeVisible();
-  await expect(page.locator(".keys li")).toHaveCount(3);
-  await expect(page.locator(".keys .key-state").filter({ hasText: "On" })).toHaveCount(0);
+  const keys = page.locator("section[aria-labelledby='keys-h'] .keys li");
+  await expect(keys).toHaveCount(3);
+  await expect(keys.locator(".key-state").filter({ hasText: "On" })).toHaveCount(0);
+  // where the data comes from: everything is demo data in this environment, nothing paid
+  const sources = page.locator("section[aria-labelledby='sources-h'] .keys li");
+  await expect(sources).toHaveCount(5);
+  await expect(sources.locator(".key-state").filter({ hasText: "Demo" })).toHaveCount(5);
+  await expect(page.getByText("Fictional demo companies")).toBeVisible();
   await expect(page.getByText(/0 of \d+ checklist items signed off/)).toBeVisible();
 
   const ireland = page.getByRole("row", { name: /Ireland/ });

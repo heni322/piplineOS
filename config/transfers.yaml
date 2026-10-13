@@ -27,3 +27,10 @@ sub_processors:
     location: United Kingdom
     transfer_mechanism_key: null
     status: proposed
+  - key: hunter
+    name: "Hunter.io (legal entity to confirm in its DPA)"
+    purpose: "Finding a decision-maker's work email from public web sources, and verifying email addresses"
+    data_categories: [professional_contact_data]
+    location: "To confirm in Hunter's DPA (EU-based provider)"
+    transfer_mechanism_key: null
+    status: proposed

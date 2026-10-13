@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from sqlalchemy import text
+from sqlalchemy import Connection, text
 
 from app.adapters.base import RateLimited, TokenBucket
 from app.adapters.signals.base import RawSignal, SignalSource
@@ -67,6 +68,24 @@ def hunt(ctx: AgentContext, bindings: list[SourceBinding], since: datetime) -> H
     return stats
 
 
+def _existing_company(conn: Connection, domain: str | None, name: str, number: str | None) -> uuid.UUID | None:
+    """The tenant's existing record for this company: by domain; for sources without a domain (procurement notices),
+    by Companies House number, then by exact name (case-insensitive)."""
+    if domain:
+        by_domain = conn.execute(text("SELECT id FROM companies WHERE domain_normalised = :d"), {"d": domain}).scalar()
+        return uuid.UUID(str(by_domain)) if by_domain else None
+    if number:
+        found = conn.execute(
+            text("SELECT id FROM companies WHERE company_number = :n ORDER BY created_at LIMIT 1"), {"n": number}
+        ).scalar()
+        if found:
+            return uuid.UUID(str(found))
+    by_name = conn.execute(
+        text("SELECT id FROM companies WHERE lower(name) = lower(:n) ORDER BY created_at LIMIT 1"), {"n": name}
+    ).scalar()
+    return uuid.UUID(str(by_name)) if by_name else None
+
+
 def _process(
     ctx: AgentContext,
     prompt: PromptFile,
@@ -80,7 +99,7 @@ def _process(
     domain = normalise_domain(s.domain) if s.domain else None
     loc = parse_location(s.country_hint)
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
-        company_id = conn.execute(text("SELECT id FROM companies WHERE domain_normalised = :d"), {"d": domain}).scalar()
+        company_id = _existing_company(conn, domain, s.company_name, s.company_number)
         if company_id is not None:
             recent = conn.execute(
                 text("SELECT count(*) FROM signals WHERE company_id = :c AND detected_at > :since"),
@@ -131,14 +150,17 @@ def _process(
         f"{domain or s.company_name.lower()}|{_bucket(s.detected_at, window_days)}".encode()
     ).hexdigest()
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
-        company_id = conn.execute(
-            text("""
-            INSERT INTO companies (tenant_id, name, domain, domain_normalised, country_code, industry_codes)
-            VALUES (:t, :n, :d, :d, :c, '{}')
-            ON CONFLICT (tenant_id, domain_normalised) WHERE domain_normalised IS NOT NULL
-            DO UPDATE SET updated_at = now() RETURNING id"""),
-            {"t": ctx.tenant_id, "n": s.company_name, "d": domain, "c": loc.country},
-        ).scalar_one()
+        company_id = _existing_company(conn, domain, s.company_name, s.company_number) if domain is None else None
+        if company_id is None:
+            company_id = conn.execute(
+                text("""
+                INSERT INTO companies (tenant_id, name, domain, domain_normalised, country_code, industry_codes,
+                  company_number)
+                VALUES (:t, :n, :d, :d, :c, '{}', :cn)
+                ON CONFLICT (tenant_id, domain_normalised) WHERE domain_normalised IS NOT NULL
+                DO UPDATE SET updated_at = now() RETURNING id"""),
+                {"t": ctx.tenant_id, "n": s.company_name, "d": domain, "c": loc.country, "cn": s.company_number},
+            ).scalar_one()
         signal_id = conn.execute(
             text("""
             INSERT INTO signals (tenant_id, company_id, campaign_id, source_adapter, source_url, signal_type,

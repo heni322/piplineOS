@@ -11,5 +11,9 @@ class MockCompaniesHouse:
     def __init__(self, records: dict[str, RegistryCompany] | None = None) -> None:
         self.records = {k.lower(): v for k, v in (records or {}).items()}
 
-    def lookup(self, company_name: str, domain: str | None = None) -> RegistryCompany | None:
+    def lookup(
+        self, company_name: str, domain: str | None = None, company_number: str | None = None
+    ) -> RegistryCompany | None:
+        if company_number:
+            return next((r for r in self.records.values() if r.company_number == company_number), None)
         return self.records.get(company_name.lower())

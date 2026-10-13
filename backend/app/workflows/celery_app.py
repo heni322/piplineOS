@@ -36,6 +36,11 @@ celery_app.conf.update(
         "deliverability-kill-switch": {"task": "pipelineos.system.deliverability", "schedule": 900.0},
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
         "renew-gmail-watches": {"task": "pipelineos.replies.renew_gmail_watches", "schedule": 24 * 3600.0},
+        **(
+            {"hunt": {"task": "pipelineos.pipeline.hunt", "schedule": settings.hunt_interval_hours * 3600.0}}
+            if settings.hunt_interval_hours > 0
+            else {}
+        ),
     },
 )
 
@@ -61,7 +66,16 @@ def process_lead_task(lead_id: str) -> str:
     with transaction(DbContext(role="operator"), engine) as conn:  # resolve tenant/campaign of the lead
         row = conn.execute(text("SELECT tenant_id, campaign_id FROM leads WHERE id = :l"), {"l": lead_id}).one()
     ctx = agent_context(engine, settings, PiiCipher(settings.key("pii_master_key")), row.tenant_id, row.campaign_id)
-    return process_lead(ctx, uuid.UUID(lead_id), providers_for(settings))
+    return process_lead(ctx, uuid.UUID(lead_id), providers_for(settings, ctx))
+
+
+@celery_app.task(name="pipelineos.pipeline.hunt")
+def hunt_task() -> dict[str, int]:
+    """Agent 1 for every active campaign, then Agents 2-3 for waiting leads (paid lookups via the three-key gate)."""
+    from app.core.crypto import PiiCipher
+    from app.workflows.pipeline import hunt_active_campaigns
+
+    return hunt_active_campaigns(get_engine(), settings, PiiCipher(settings.key("pii_master_key")))
 
 
 @celery_app.task(name="pipelineos.send.send_due")
@@ -139,7 +153,7 @@ def fetch_inbound_task() -> int:
         if not msgs or campaign_id is None:
             continue
         ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
-        handled += len(process_inbound(ctx, msgs, providers_for(settings)))
+        handled += len(process_inbound(ctx, msgs, providers_for(settings, ctx)))
     return handled
 
 
@@ -184,9 +198,9 @@ def graph_message_task(mailbox: str, message_id: str) -> str:
     msg = GraphInbox(graph_credentials(settings), mailbox).fetch_message(message_id)
     cipher = PiiCipher(settings.key("pii_master_key"))
     ctx = agent_context(engine, settings, cipher, row.tenant_id, row.campaign_id)
-    out = process_inbound(ctx, [msg], providers_for(settings), calendar_gateway(settings, cipher, mailbox, "msgraph"))[
-        0
-    ]
+    out = process_inbound(
+        ctx, [msg], providers_for(settings, ctx), calendar_gateway(settings, cipher, mailbox, "msgraph")
+    )[0]
     return out.classification
 
 
@@ -235,7 +249,7 @@ def gmail_history_task(mailbox: str, history_id: int) -> int:
     if msgs:
         cipher = PiiCipher(settings.key("pii_master_key"))
         ctx = agent_context(engine, settings, cipher, row.tenant_id, row.campaign_id)
-        process_inbound(ctx, msgs, providers_for(settings), calendar_gateway(settings, cipher, mailbox, "google"))
+        process_inbound(ctx, msgs, providers_for(settings, ctx), calendar_gateway(settings, cipher, mailbox, "google"))
     with transaction(DbContext(role="operator"), engine) as conn:
         conn.execute(
             text("UPDATE inboxes SET history_id = greatest(coalesce(history_id, 0), :h) WHERE id = :i"),

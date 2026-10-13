@@ -57,8 +57,16 @@ class CompaniesHouseRegistry:
             raise ValueError("Companies House API key missing")
         self._http = client(base_url, transport, auth=(api_key, ""))
 
-    def lookup(self, company_name: str, domain: str | None = None) -> RegistryCompany | None:
-        """Exact (normalised) name match only; several equally good matches -> None (ambiguous = unknown)."""
+    def lookup(
+        self, company_name: str, domain: str | None = None, company_number: str | None = None
+    ) -> RegistryCompany | None:
+        """By company number when known (exact). Otherwise an exact (normalised) name match only; several equally
+        good matches -> None (ambiguous = unknown)."""
+        if company_number:
+            resp = self._http.get(f"/company/{company_number}")
+            if resp.status_code == 404:
+                return None
+            return self._profile(company_number, check(resp).json(), company_name)
         items = check(self._http.get("/search/companies", params={"q": company_name, "items_per_page": 10})).json()
         want = normalise_name(company_name)
         matches = [i for i in items.get("items", []) if normalise_name(i.get("title", "")) == want]
@@ -66,10 +74,15 @@ class CompaniesHouseRegistry:
         if len(active) != 1:
             return None
         number = active[0]["company_number"]
-        profile = check(self._http.get(f"/company/{number}")).json()
+        return self._profile(
+            number, check(self._http.get(f"/company/{number}")).json(), active[0].get("title", company_name)
+        )
+
+    @staticmethod
+    def _profile(number: str, profile: dict[str, str], fallback_name: str) -> RegistryCompany:
         return RegistryCompany(
             company_number=number,
-            name=profile.get("company_name", active[0].get("title", company_name)),
+            name=profile.get("company_name", fallback_name),
             legal_form=TYPE_MAP.get(profile.get("type", ""), "unknown"),
             status=profile.get("company_status", "unknown"),
             registered_country=JURISDICTION_COUNTRY.get(profile.get("jurisdiction", ""), "unknown"),

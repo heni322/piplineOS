@@ -200,8 +200,9 @@ def complete_erasure(
     run("meetings", "UPDATE meetings SET brief_enc = NULL WHERE lead_id = ANY(:ls)", {"ls": list(lead_ids)})
     run(
         "dry_run_log",
-        "UPDATE dry_run_log SET payload_enc = NULL, recipient_bidx = NULL WHERE entity_id IN "
-        "(SELECT id FROM messages WHERE lead_id = ANY(:ls) UNION SELECT id FROM meetings WHERE lead_id = ANY(:ls))",
+        "UPDATE dry_run_log SET payload_enc = NULL, recipient_bidx = NULL WHERE entity_id = ANY(:ls) "
+        "OR entity_id IN (SELECT id FROM messages WHERE lead_id = ANY(:ls) "
+        "UNION SELECT id FROM meetings WHERE lead_id = ANY(:ls))",
         {"ls": list(lead_ids)},
     )
     run(

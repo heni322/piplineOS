@@ -450,11 +450,11 @@ def run_pipeline(
     """Runs the campaign synchronously. Demo/dev scale only; production uses the Celery workers."""
     if settings.environment in ("staging", "prod"):
         raise ProblemError(409, "Use the workers in this environment")
-    from app.demo.seed import providers
+    from app.adapters.registry import providers_for
     from app.workflows.pipeline import agent_context, run_campaign
 
     ctx = agent_context(get_engine(), settings, cipher, body.tenant_id, body.campaign_id)
-    run = run_campaign(ctx, providers())
+    run = run_campaign(ctx, providers_for(settings, ctx))
     return {"discovered": run.hunt.discovered, "deduplicated": run.hunt.deduplicated, "outcomes": run.outcomes}
 
 

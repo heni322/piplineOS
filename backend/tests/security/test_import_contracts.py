@@ -12,4 +12,4 @@ def test_import_contracts_hold() -> None:
     exe = shutil.which("lint-imports") or str(Path(sys.executable).parent / "lint-imports")
     r = subprocess.run([exe], cwd=BACKEND, capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "2 kept, 0 broken" in r.stdout
+    assert "3 kept, 0 broken" in r.stdout

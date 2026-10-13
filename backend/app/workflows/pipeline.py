@@ -5,6 +5,7 @@ Each step is idempotent (state-checked), so retries and duplicate events are har
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
@@ -110,6 +111,40 @@ def run_campaign(ctx: AgentContext, providers: Providers, since: datetime | None
         run.outcomes[final] = run.outcomes.get(final, 0) + 1
     log.info("campaign_run", tenant_id=str(ctx.tenant_id), discovered=stats.discovered, outcomes=run.outcomes)
     return run
+
+
+def hunt_active_campaigns(
+    engine: Engine,
+    settings: Settings,
+    cipher: PiiCipher,
+    *,
+    now: datetime | None = None,
+    providers_factory: Callable[[Settings, AgentContext], Providers] | None = None,
+) -> dict[str, int]:
+    """The scheduled run: every active campaign of every active client hunts for new triggers (looking back
+    HUNT_LOOKBACK_DAYS; duplicates are ignored) and then processes its waiting leads, including any whose paid
+    lookup was deferred earlier. Real sources and paid providers are chosen by adapter mode (adapters.registry)."""
+    from app.adapters.registry import providers_for
+
+    factory = providers_factory or providers_for
+    since = (now or datetime.now(UTC)) - timedelta(days=settings.hunt_lookback_days)
+    totals = {"campaigns": 0, "discovered": 0, "processed": 0}
+    with transaction(DbContext.system(), engine) as conn:
+        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
+    for tenant_id in tenant_ids:
+        with transaction(DbContext.system(tenant_id), engine) as conn:
+            campaign_ids = (
+                conn.execute(text("SELECT id FROM campaigns WHERE status = 'active' ORDER BY created_at"))
+                .scalars()
+                .all()
+            )
+        for campaign_id in campaign_ids:
+            ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
+            run = run_campaign(ctx, factory(settings, ctx), since=since)
+            totals["campaigns"] += 1
+            totals["discovered"] += run.hunt.discovered
+            totals["processed"] += sum(run.outcomes.values())
+    return totals
 
 
 def queue_due_reminders(

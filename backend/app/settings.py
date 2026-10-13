@@ -59,6 +59,9 @@ class Settings(BaseSettings):
 
     # Real providers (Phase 6). Unused unless the matching adapter mode is sandbox/live.
     companies_house_api_key: SecretStr | None = None
+    hunter_api_key: SecretStr | None = None  # paid: used only when enrichment/verifier calls pass the three-key gate
+    hunt_interval_hours: int = Field(default=6, ge=0, le=168)  # automatic trigger hunting; 0 = off
+    hunt_lookback_days: int = Field(default=2, ge=1, le=30)
     msgraph_tenant_id: str | None = None
     msgraph_client_id: str | None = None
     msgraph_client_secret: SecretStr | None = None

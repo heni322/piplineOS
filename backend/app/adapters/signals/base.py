@@ -16,6 +16,7 @@ class RawSignal:
     source_url: str
     detected_at: datetime
     source_record_id: str
+    company_number: str | None = None  # Companies House number when the source states it (exact registry match)
 
 
 class SignalSource(Protocol):

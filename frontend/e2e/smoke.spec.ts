@@ -39,7 +39,7 @@ test("account pages are accessible, never indexed, and keep the token out of the
     expect(a11y.violations).toEqual([]);
   }
   await expect(page.getByText("This page needs the link from your email.")).toBeVisible();
-  await page.goto("/set-password?token=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG");
+  await page.goto("/set-password?token=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"); // gitleaks:allow (synthetic)
   await expect(page.getByLabel("New password")).toBeVisible();
   await expect(page).toHaveURL(/\/set-password$/);
 });

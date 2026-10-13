@@ -4,5 +4,5 @@ useDefault = true
 
 [allowlist]
 description = "Development-only placeholders that are documented as such"
-regexes = ['''owner_dev_only''', '''app_dev_only''', '''postgres_dev_only''', '''postgres_ci_only''', '''CHANGE_ME''']
+regexes = ['''owner_dev_only''', '''app_dev_only''', '''postgres_dev_only''', '''postgres_ci_only''', '''CHANGE_ME''', '''abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG''']
 paths = ['''docs/.*\.json''', '''(^|/)\.next/''', '''(^|/)node_modules/''']

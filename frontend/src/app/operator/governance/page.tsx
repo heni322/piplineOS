@@ -130,6 +130,17 @@ export default function GovernancePage() {
       text: status.golive_complete ? t.keyGoliveOn : fill(t.keyGoliveOff, { signed: status.golive_signed, total: status.golive_items }) },
   ];
 
+  const modeName = (m: string) => (m === "live" ? t.modeLive : m === "sandbox" ? t.modeSandbox : t.modeMock);
+  const paid = (m: string) => (m === "live" ? t.srcPaidLive : m === "sandbox" ? t.srcPaidSandbox : t.srcPaidMock);
+  const mode = (k: string) => modes[k] ?? "mock";
+  const sources = [
+    { name: t.srcSignals, mode: mode("signals"), text: mode("signals") === "mock" ? t.srcSignalsMock : t.srcSignalsReal },
+    { name: t.srcEnrichment, mode: mode("enrichment"), text: paid(mode("enrichment")) },
+    { name: t.srcVerifier, mode: mode("verifier"), text: paid(mode("verifier")) },
+    { name: t.srcRegistry, mode: mode("companies_house"), text: mode("companies_house") === "mock" ? t.srcRegistryMock : t.srcRegistryReal },
+    { name: t.srcLlm, mode: mode("llm"), text: mode("llm") === "live" ? t.srcLlmReal : t.srcLlmMock },
+  ];
+
   return (
     <>
       <h1>{t.title}</h1>
@@ -149,6 +160,20 @@ export default function GovernancePage() {
           ))}
         </ol>
         <p className="hint">{t.globalFlag}: <strong>{status.global_go_live ? t.on : t.off}</strong></p>
+      </section>
+
+      <section aria-labelledby="sources-h">
+        <h2 id="sources-h" style={{ marginTop: 32 }}>{t.sourcesTitle}</h2>
+        <p className="muted" style={{ maxWidth: "70ch" }}>{t.sourcesIntro}</p>
+        <ul className="keys">
+          {sources.map((x) => (
+            <li key={x.name} data-on={x.mode === "live"}>
+              <span className="key-state">{modeName(x.mode)}</span>
+              <strong>{x.name}</strong>
+              <span className="muted">{x.text}</span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="check-h">
