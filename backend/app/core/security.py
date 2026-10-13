@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import secrets
+from datetime import UTC, datetime
 from enum import StrEnum
 
 import pyotp
@@ -41,6 +43,20 @@ def new_totp_secret() -> str:
 
 def verify_totp(secret: str, code: str) -> bool:
     return bool(code) and pyotp.TOTP(secret).verify(code.strip(), valid_window=1)
+
+
+def totp_step(secret: str, code: str, at: datetime | None = None) -> int | None:
+    """The 30-second step a valid code belongs to (current step +/- 1), so a used step can be refused next time."""
+    code = (code or "").strip()
+    if not code:
+        return None
+    totp = pyotp.TOTP(secret)
+    now = at or datetime.now(UTC)
+    current = totp.timecode(now)
+    for step in (current - 1, current, current + 1):
+        if hmac.compare_digest(totp.generate_otp(step), code):
+            return step
+    return None
 
 
 def new_session_token() -> tuple[str, bytes]:

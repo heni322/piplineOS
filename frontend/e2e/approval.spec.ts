@@ -1,18 +1,13 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { totp } from "./totp";
+import { signInOperator } from "./totp";
 
 // Full stack: needs the API + seeded demo database (run via scripts/e2e-fullstack.sh).
 const EMAIL = process.env.E2E_EMAIL, PASSWORD = process.env.E2E_PASSWORD, SECRET = process.env.E2E_TOTP_SECRET;
 test.skip(!EMAIL || !PASSWORD || !SECRET, "full-stack e2e: run scripts/e2e-fullstack.sh");
 
 test("operator reviews the queue: approve, reject and edit, all dry-run", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByLabel("Work email").fill(EMAIL!);
-  await page.getByLabel("Password").fill(PASSWORD!);
-  await page.getByLabel("Authenticator code").fill(totp(SECRET!));
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("**/operator");
+  await signInOperator(page, EMAIL!, PASSWORD!, SECRET!);
   await expect(page.getByRole("heading", { name: "Operator overview" })).toBeVisible();
 
   await page.getByRole("link", { name: "Approvals", exact: true }).click();

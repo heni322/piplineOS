@@ -476,4 +476,42 @@ def run_send(
     return {"results": counts, "modes": sorted({r.mode for r in res if r.mode})}
 
 
+class CampaignOut(BaseModel):
+    id: str
+    tenant_id: str
+    tenant_name: str
+    name: str
+    status: str
+    daily_cap: int
+    target_countries: list[str]
+
+
+@router.get("/campaigns", response_model=list[CampaignOut])
+def campaigns(
+    user: Annotated[CurrentUser, Depends(require(Permission.VIEW_ALL_TENANTS))], tenant_id: uuid.UUID | None = None
+) -> list[CampaignOut]:
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        rows = (
+            conn.execute(
+                text("""SELECT c.*, t.legal_name FROM campaigns c JOIN tenants t ON t.id = c.tenant_id
+              WHERE CAST(:t AS uuid) IS NULL OR c.tenant_id = :t ORDER BY t.legal_name, c.name"""),
+                {"t": tenant_id},
+            )
+            .mappings()
+            .all()
+        )
+    return [
+        CampaignOut(
+            id=str(r["id"]),
+            tenant_id=str(r["tenant_id"]),
+            tenant_name=r["legal_name"],
+            name=r["name"],
+            status=r["status"],
+            daily_cap=r["daily_cap"],
+            target_countries=list(r["target_countries"]),
+        )
+        for r in rows
+    ]
+
+
 __all__ = ["mask_email", "router"]

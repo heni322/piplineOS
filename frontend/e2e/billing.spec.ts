@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { totp } from "./totp";
+import { signInOperator, totp } from "./totp";
 
 // Full stack after `demo conversations` + `demo billing` (scripts/e2e-fullstack.sh, stage 2).
 const EMAIL = process.env.E2E_EMAIL, PASSWORD = process.env.E2E_PASSWORD, SECRET = process.env.E2E_TOTP_SECRET;
@@ -22,12 +22,7 @@ async function accessible(page: Page, name: string) {
 }
 
 test("operator drafts the invoice; issuing is blocked until the owner's sign-offs", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByLabel("Work email").fill(EMAIL!);
-  await page.getByLabel("Password").fill(PASSWORD!);
-  await page.getByLabel("Authenticator code").fill(totp(SECRET!));
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("**/operator");
+  await signInOperator(page, EMAIL!, PASSWORD!, SECRET!);
 
   await page.getByRole("link", { name: "Billing" }).click();
   await expect(page.getByRole("heading", { name: "Billing" })).toBeVisible();

@@ -54,7 +54,7 @@ def test_readiness_reports_each_dependency(world) -> None:  # type: ignore[no-un
     c, _, _ = world
     r = TestClient(c.app).get("/api/v1/ready")
     body = r.json()
-    assert body["database"] == "ok" and body["schema"] == "0007"
+    assert body["database"] == "ok" and body["schema"] == "0008"
     assert r.status_code == (200 if body["valkey"] == "ok" else 503) and body["ready"] == (r.status_code == 200)
 
 

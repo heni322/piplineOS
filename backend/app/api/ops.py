@@ -229,27 +229,118 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
 class InboxOut(BaseModel):
     id: str
     tenant_id: str
+    tenant_name: str
     address: str
     status: str
     provider: str
     daily_cap: int
+    warmup_day: int
+    sent_today: int
+    window_days: int
+    live_sent: int
+    hard_bounces: int
+    complaints: int
+    hard_bounce_rate: float | None
+    complaint_rate: float | None
+    max_hard_bounce_rate: float
+    max_complaint_rate: float
+    min_sent: int
+    last_paused_at: datetime | None
+    last_pause_reason: list[str]
 
 
 @router.get("/api/v1/inboxes", response_model=list[InboxOut])
 def inboxes(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_ALL_TENANTS))]) -> list[InboxOut]:
+    """Read-only health view: the kill switch itself runs in the deliverability task, not here."""
+    from app.config_paths import config_root
+    from app.domain.deliverability.killswitch import Thresholds
+
+    th = Thresholds.load(config_root())
+    now = datetime.now(UTC)
     with transaction(user.db_context(), get_engine()) as conn:
-        rows = conn.execute(text("SELECT * FROM inboxes ORDER BY address")).mappings().all()
-    return [
-        InboxOut(
-            id=str(r["id"]),
-            tenant_id=str(r["tenant_id"]),
-            address=r["address"],
-            status=r["status"],
-            provider=r["provider"],
-            daily_cap=r["daily_cap"],
+        rows = (
+            conn.execute(
+                text("""SELECT i.*, t.legal_name,
+                (SELECT count(*) FROM messages m WHERE m.inbox_id = i.id AND m.sent_at >= date_trunc('day', :now)
+                   AND m.status IN ('sent','dry_run_sent','bounced','complained')) AS sent_today,
+                (SELECT count(*) FROM messages m WHERE m.inbox_id = i.id AND m.sent_at >= :since
+                   AND m.mode_at_send = 'live' AND m.status IN ('sent','bounced','complained')) AS live_sent,
+                (SELECT count(*) FROM messages m WHERE m.inbox_id = i.id AND m.sent_at >= :since
+                   AND m.mode_at_send = 'live' AND m.status = 'bounced' AND m.last_error LIKE 'hard_bounce%') AS hard,
+                (SELECT count(*) FROM messages m WHERE m.inbox_id = i.id AND m.sent_at >= :since
+                   AND m.mode_at_send = 'live' AND m.status = 'complained') AS complained,
+                (SELECT a.created_at FROM audit_log a WHERE a.entity_type = 'inbox' AND a.entity_id = i.id::text
+                   AND a.action IN ('deliverability.inbox_paused','deliverability.inbox_paused_manually')
+                   ORDER BY a.created_at DESC LIMIT 1) AS paused_at,
+                (SELECT a.after FROM audit_log a WHERE a.entity_type = 'inbox' AND a.entity_id = i.id::text
+                   AND a.action IN ('deliverability.inbox_paused','deliverability.inbox_paused_manually')
+                   ORDER BY a.created_at DESC LIMIT 1) AS paused_after
+              FROM inboxes i JOIN tenants t ON t.id = i.tenant_id ORDER BY t.legal_name, i.address"""),
+                {"now": now, "since": now - timedelta(days=th.window_days)},
+            )
+            .mappings()
+            .all()
         )
-        for r in rows
-    ]
+    out = []
+    for r in rows:
+        sent = int(r["live_sent"])
+        after = r["paused_after"] or {}
+        reasons = after.get("reasons") or ([after["reason"]] if after.get("reason") else [])
+        out.append(
+            InboxOut(
+                id=str(r["id"]),
+                tenant_id=str(r["tenant_id"]),
+                tenant_name=r["legal_name"],
+                address=r["address"],
+                status=r["status"],
+                provider=r["provider"],
+                daily_cap=r["daily_cap"],
+                warmup_day=r["warmup_day"],
+                sent_today=int(r["sent_today"]),
+                window_days=th.window_days,
+                live_sent=sent,
+                hard_bounces=int(r["hard"]),
+                complaints=int(r["complained"]),
+                hard_bounce_rate=round(int(r["hard"]) / sent, 4) if sent else None,
+                complaint_rate=round(int(r["complained"]) / sent, 4) if sent else None,
+                max_hard_bounce_rate=th.max_hard_bounce_rate,
+                max_complaint_rate=th.max_complaint_rate,
+                min_sent=th.min_sent,
+                last_paused_at=r["paused_at"] if r["status"] == "paused" else None,
+                last_pause_reason=[str(x) for x in reasons] if r["status"] == "paused" else [],
+            )
+        )
+    return out
+
+
+class PauseIn(BaseModel):
+    reason: str = Field(min_length=10, max_length=1000)
+
+
+@router.post("/api/v1/inboxes/{inbox_id}/pause", status_code=204)
+def pause(
+    inbox_id: uuid.UUID, body: PauseIn, user: Annotated[CurrentUser, Depends(require(Permission.MANAGE_COMPLIANCE))]
+) -> None:
+    """Manual pause: nothing more is sent from this inbox until it is resumed with a written reason."""
+    if user.role != "operator":
+        raise ProblemError(403, "Forbidden")
+    with transaction(user.db_context(), get_engine()) as conn:
+        t = conn.execute(
+            text("UPDATE inboxes SET status = 'paused' WHERE id = :i AND status <> 'paused' RETURNING tenant_id"),
+            {"i": inbox_id},
+        ).scalar()
+        if t is None:
+            raise ProblemError(409, "Inbox is already paused or doesn't exist")
+        write_audit(
+            conn,
+            action="deliverability.inbox_paused_manually",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=t,
+            entity_type="inbox",
+            entity_id=inbox_id,
+            after={"reason": body.reason},
+        )
 
 
 class ResumeIn(BaseModel):

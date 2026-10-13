@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { totp } from "./totp";
+import { signInOperator } from "./totp";
 
 // Full stack after `pipelineos demo conversations` (scripts/e2e-fullstack.sh runs it as a second stage).
 const EMAIL = process.env.E2E_EMAIL, PASSWORD = process.env.E2E_PASSWORD, SECRET = process.env.E2E_TOTP_SECRET;
@@ -8,12 +8,7 @@ test.skip(!EMAIL || !PASSWORD || !SECRET || process.env.E2E_STAGE !== "conversat
   "full-stack conversations stage: run scripts/e2e-fullstack.sh");
 
 async function signIn(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel("Work email").fill(EMAIL!);
-  await page.getByLabel("Password").fill(PASSWORD!);
-  await page.getByLabel("Authenticator code").fill(totp(SECRET!));
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("**/operator");
+  await signInOperator(page, EMAIL!, PASSWORD!, SECRET!);
 }
 
 async function accessible(page: Page, name: string) {

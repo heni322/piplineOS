@@ -16,8 +16,8 @@ from app.core.security import (
     burn_password_check,
     hash_session_token,
     new_session_token,
+    totp_step,
     verify_password,
-    verify_totp,
 )
 from app.db.session import DbContext, get_engine, transaction
 from app.settings import Settings
@@ -88,7 +88,11 @@ def login(
                 ok = False  # operators must have MFA enrolled
             else:
                 secret = cipher.decrypt(conn, None, "users.mfa_secret", u["mfa_secret_enc"])
-                mfa_ok = verify_totp(secret, body.totp_code or "")
+                step = totp_step(secret, body.totp_code or "")
+                # single-use: a step already used to sign in (or an older one) is refused
+                mfa_ok = step is not None and bool(
+                    conn.execute(text("SELECT auth_consume_totp_step(:u, :s)"), {"u": u["id"], "s": step}).scalar()
+                )
                 ok = mfa_ok
         conn.execute(text("SELECT auth_record_login(:id, :ok)"), {"id": u["id"], "ok": ok})
         write_audit(

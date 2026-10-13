@@ -9,12 +9,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import text
+from sqlalchemy.engine import Connection
 
-from app.api.deps import CurrentUser, cipher_dep, require
+from app.api.deps import CurrentUser, cipher_dep, require, settings_dep
+from app.core.audit import write_audit
 from app.core.crypto import PiiCipher
 from app.core.errors import ProblemError
 from app.core.security import Permission, verify_totp
 from app.db.session import get_engine, transaction
+from app.domain.compliance.repository import enable_country
+from app.settings import Settings
 
 router = APIRouter(tags=["governance"])
 
@@ -133,3 +137,229 @@ def adequacy(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_ALL_TE
         remaining, warn = adequacy_status(today, r["valid_until"])
         out.append(AdequacyOut(key=r["key"], valid_until=r["valid_until"], days_remaining=remaining, warning=warn))
     return out
+
+
+# ------------------------------------------------------------------------------------------- status
+class GovernanceStatus(BaseModel):
+    global_go_live: bool
+    golive_items: int
+    golive_signed: int
+    golive_complete: bool
+    enabled_countries: list[str]
+    live_clients: int
+    adapter_modes: dict[str, str]
+
+
+@router.get("/governance/status", response_model=GovernanceStatus)
+def governance_status(
+    user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))],
+    settings: Annotated[Settings, Depends(settings_dep)],
+) -> GovernanceStatus:
+    """The three live keys at a glance. Read-only: nothing here can switch anything on."""
+    with transaction(user.db_context(), get_engine()) as conn:
+        total, signed = conn.execute(
+            text("SELECT count(*), count(signed_off_at) FROM golive_checklist_items WHERE scope = 'uk'")
+        ).one()
+        complete = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        enabled = list(
+            conn.execute(text("SELECT country_code FROM current_country_rollout WHERE enabled ORDER BY 1")).scalars()
+        )
+        live = int(conn.execute(text("SELECT count(*) FROM tenants WHERE live_mode")).scalar() or 0)
+    modes = {
+        k: str(getattr(settings, f"{k}_adapter_mode"))
+        for k in ("email", "calendar", "crm", "enrichment", "verifier", "signals", "companies_house", "llm")
+    }
+    return GovernanceStatus(
+        global_go_live=settings.global_go_live,
+        golive_items=int(total),
+        golive_signed=int(signed),
+        golive_complete=complete,
+        enabled_countries=enabled,
+        live_clients=live,
+        adapter_modes=modes,
+    )
+
+
+# ------------------------------------------------------------------------------------------- countries
+class CountryOut(BaseModel):
+    code: str
+    name: str
+    stage: str
+    enabled: bool
+    enabled_at: datetime | None
+    rule_mode: str | None
+    regime: str | None
+    verified_by_counsel: bool
+    last_reviewed: date | None
+    source: str | None
+    can_enable: bool
+    blocked_by: list[str]
+
+
+def _enable_blockers(row: dict[str, object]) -> list[str]:
+    out = []
+    if row["mode"] is None:
+        out.append("NO_RULE")
+    elif not row["verified_by_counsel"]:
+        out.append("RULE_NOT_VERIFIED_BY_COUNSEL")
+    if row["stage"] in ("restricted", "unplanned"):
+        out.append("COUNTRY_NOT_IN_ROLLOUT")
+    return out
+
+
+_COUNTRIES_SQL = """SELECT r.country_code, r.name, r.stage, r.enabled, r.enabled_at, c.mode, c.regime,
+         coalesce(c.verified_by_counsel, false) AS verified_by_counsel, c.last_reviewed, c.source
+  FROM current_country_rollout r LEFT JOIN current_compliance_rules c ON c.country_code = r.country_code"""
+
+
+@router.get("/countries", response_model=list[CountryOut])
+def countries(user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))]) -> list[CountryOut]:
+    with transaction(user.db_context(), get_engine()) as conn:
+        rows = conn.execute(text(_COUNTRIES_SQL + " ORDER BY r.stage, r.country_code")).mappings().all()
+    out = []
+    for r in rows:
+        blockers = [] if r["enabled"] else _enable_blockers(dict(r))
+        out.append(
+            CountryOut(
+                code=r["country_code"],
+                name=r["name"],
+                stage=r["stage"],
+                enabled=r["enabled"],
+                enabled_at=r["enabled_at"],
+                rule_mode=r["mode"],
+                regime=r["regime"],
+                verified_by_counsel=r["verified_by_counsel"],
+                last_reviewed=r["last_reviewed"],
+                source=r["source"],
+                can_enable=not r["enabled"] and not blockers,
+                blocked_by=blockers,
+            )
+        )
+    return out
+
+
+def _operator_mfa(conn: Connection, cipher: PiiCipher, user: CurrentUser, code: str) -> None:
+    if user.role != "operator":
+        raise ProblemError(403, "Forbidden")
+    enc = conn.execute(text("SELECT mfa_secret_enc FROM users WHERE id = :id"), {"id": user.id}).scalar()
+    if not enc or not verify_totp(cipher.decrypt(conn, None, "users.mfa_secret", enc), code):
+        raise ProblemError(403, "MFA verification failed")
+
+
+class CounselIn(BaseModel):
+    totp_code: str = Field(min_length=6, max_length=10)
+    solicitor: str = Field(min_length=3, max_length=200)  # name and firm of the solicitor who reviewed the rule
+    reviewed_on: date
+
+
+@router.post("/countries/{code}/counsel-verification", status_code=201)
+def record_counsel_verification(
+    code: str,
+    body: CounselIn,
+    user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))],
+    cipher: Annotated[PiiCipher, Depends(cipher_dep)],
+) -> dict[str, str]:
+    """The owner records that their solicitor reviewed this country's rule: a new, verified version of the same
+    content. Changing the rule in config later creates a fresh unverified version, so the review never carries over."""
+    code = code.upper()
+    if body.reviewed_on > datetime.now(UTC).date():
+        raise ProblemError(422, "The review date can't be in the future")
+    with transaction(user.db_context(), get_engine()) as conn:
+        _operator_mfa(conn, cipher, user, body.totp_code)
+        cur = (
+            conn.execute(
+                text("SELECT * FROM compliance_rules WHERE country_code = :c ORDER BY version DESC LIMIT 1"),
+                {"c": code},
+            )
+            .mappings()
+            .first()
+        )
+        if cur is None:
+            raise ProblemError(404, "No rule for this country")
+        if cur["verified_by_counsel"]:
+            raise ProblemError(409, "Already verified by counsel")
+        rid = conn.execute(
+            text("""INSERT INTO compliance_rules (country_code, version, content_hash, mode, allowed_channels,
+                subscriber_rules, required_message_elements, regime, notes, source, verified_by_counsel, verified_by,
+                verified_at, last_reviewed, effective_from)
+              SELECT country_code, version + 1, content_hash, mode, allowed_channels, subscriber_rules,
+                required_message_elements, regime, notes, :src, true, :u, now(), :d, now()
+              FROM compliance_rules WHERE id = :id RETURNING id"""),
+            {
+                "id": cur["id"],
+                "u": user.id,
+                "d": body.reviewed_on,
+                "src": f"{cur['source'] or 'config'} | reviewed by {body.solicitor} on {body.reviewed_on.isoformat()}",
+            },
+        ).scalar_one()
+        write_audit(
+            conn,
+            action="compliance_rule.counsel_verified",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=None,
+            entity_type="compliance_rule",
+            entity_id=rid,
+            after={"country": code, "solicitor": body.solicitor, "reviewed_on": body.reviewed_on.isoformat()},
+        )
+    return {"id": str(rid), "status": "verified"}
+
+
+class EnableIn(BaseModel):
+    totp_code: str = Field(min_length=6, max_length=10)
+
+
+@router.post("/countries/{code}/enable", status_code=204)
+def enable(
+    code: str,
+    body: EnableIn,
+    user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))],
+    cipher: Annotated[PiiCipher, Depends(cipher_dep)],
+) -> None:
+    """Enabling lets the compliance engine consider prospects in this country. It never sends anything by itself:
+    sending still needs the three live keys."""
+    code = code.upper()
+    with transaction(user.db_context(), get_engine()) as conn:
+        _operator_mfa(conn, cipher, user, body.totp_code)
+        row = conn.execute(text(_COUNTRIES_SQL + " WHERE r.country_code = :c"), {"c": code}).mappings().first()
+        if row is None:
+            raise ProblemError(404, "Unknown country")
+        if row["enabled"]:
+            raise ProblemError(409, "Already enabled")
+        blockers = _enable_blockers(dict(row))
+        if blockers:
+            raise ProblemError(409, "Country can't be enabled yet", detail=", ".join(blockers))
+        enable_country(conn, code, user.id, True)
+
+
+class DisableIn(BaseModel):
+    reason: str = Field(min_length=10, max_length=1000)
+
+
+@router.post("/countries/{code}/disable", status_code=204)
+def disable(
+    code: str, body: DisableIn, user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))]
+) -> None:
+    """Disabling is the safe direction, so it needs no authenticator code: only a written reason."""
+    if user.role != "operator":
+        raise ProblemError(403, "Forbidden")
+    code = code.upper()
+    with transaction(user.db_context(), get_engine()) as conn:
+        enabled = conn.execute(
+            text("SELECT enabled FROM current_country_rollout WHERE country_code = :c"), {"c": code}
+        ).scalar()
+        if enabled is None:
+            raise ProblemError(404, "Unknown country")
+        if not enabled:
+            raise ProblemError(409, "Already disabled")
+        enable_country(conn, code, user.id, False)
+        write_audit(
+            conn,
+            action="country.disable_reason",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=None,
+            entity_type="country",
+            entity_id=code,
+            after={"reason": body.reason},
+        )
