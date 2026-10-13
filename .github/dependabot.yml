@@ -1,0 +1,19 @@
+# Weekly dependency updates; security updates arrive as soon as advisories are published.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /backend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups: { minor-and-patch: { update-types: [minor, patch] } }
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups: { minor-and-patch: { update-types: [minor, patch] } }
+  - package-ecosystem: docker
+    directories: [/backend, /frontend, /deploy]
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

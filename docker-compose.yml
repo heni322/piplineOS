@@ -67,6 +67,12 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }
 
+  worker-replies:
+    <<: *backend
+    command: ["celery", "-A", "app.workflows.celery_app", "worker", "-Q", "replies", "-c", "2", "-l", "INFO"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
   beat:
     <<: *backend
     command: ["celery", "-A", "app.workflows.celery_app", "beat", "-l", "INFO"]

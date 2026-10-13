@@ -1,0 +1,136 @@
+# PipelineOS production stack for a single UK host (see docs/DEPLOYMENT.md).
+# Secrets come from .env.prod (never committed; populate it from your secret manager). Only Caddy publishes ports.
+# Even here, nothing real is sent until EMAIL_ADAPTER_MODE=live, a client is live AND GLOBAL_GO_LIVE=true with the
+# go-live checklist signed off by the owner.
+name: pipelineos-prod
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: ["ALL"]
+  logging: { driver: json-file, options: { max-size: "20m", max-file: "10" } }
+
+x-backend: &backend
+  <<: *hardening
+  image: ${REGISTRY:-pipelineos}/backend:${VERSION:?set VERSION to the image tag}
+  env_file: .env.prod
+  environment:
+    ENVIRONMENT: prod
+    PIPELINEOS_CONFIG: /config
+    COOKIE_SECURE: "true"
+  read_only: true
+  tmpfs: ["/tmp"]
+  volumes: ["./config:/config:ro"]
+  networks: [internal]
+  depends_on:
+    postgres: { condition: service_healthy }
+    valkey: { condition: service_healthy }
+
+services:
+  postgres:
+    <<: *hardening
+    image: pgvector/pgvector:pg16
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"]
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_superuser
+      PIPELINEOS_OWNER_PASSWORD_FILE: /run/secrets/pipelineos_owner
+      PIPELINEOS_APP_PASSWORD_FILE: /run/secrets/pipelineos_app
+      PIPELINEOS_BACKUP_PASSWORD_FILE: /run/secrets/pipelineos_backup
+    secrets: [postgres_superuser, pipelineos_owner, pipelineos_app, pipelineos_backup]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
+    shm_size: 256mb
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U postgres -d pipelineos"], interval: 10s, retries: 30 }
+    deploy: { resources: { limits: { memory: 2g } } }
+
+  valkey:
+    <<: *hardening
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--appendonly", "yes", "--requirepass", "${VALKEY_PASSWORD:?set VALKEY_PASSWORD}"]
+    volumes: ["valkeydata:/data"]
+    networks: [internal]
+    healthcheck: { test: ["CMD-SHELL", "valkey-cli -a \"$$VALKEY_PASSWORD\" ping | grep PONG"], interval: 10s, retries: 30 }
+    environment: { VALKEY_PASSWORD: "${VALKEY_PASSWORD}" }
+    deploy: { resources: { limits: { memory: 512m } } }
+
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["sh", "-c", "alembic upgrade head && pipelineos config sync --path /config"]
+
+  api:
+    <<: *backend
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2",
+              "--proxy-headers", "--forwarded-allow-ips", "*"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    healthcheck: { test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/ready').status == 200 else 1)"], interval: 15s, retries: 5 }
+    deploy: { resources: { limits: { memory: 1g } } }
+
+  worker-default:
+    <<: *backend
+    command: ["celery", "-A", "app.workflows.celery_app", "worker", "-Q", "default", "-c", "2", "-l", "INFO"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  worker-send:
+    <<: *backend
+    command: ["celery", "-A", "app.workflows.celery_app", "worker", "-Q", "send", "-c", "1", "-l", "INFO"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  worker-replies:
+    <<: *backend
+    command: ["celery", "-A", "app.workflows.celery_app", "worker", "-Q", "replies", "-c", "2", "-l", "INFO"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "app.workflows.celery_app", "beat", "-l", "INFO", "-s", "/tmp/celerybeat-schedule"]
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  web:
+    <<: *hardening
+    image: ${REGISTRY:-pipelineos}/web:${VERSION}
+    environment: { API_BASE_URL: "http://api:8000" }
+    read_only: true
+    tmpfs: ["/tmp"]
+    networks: [internal]
+    depends_on: [api]
+
+  caddy:
+    <<: *hardening
+    image: caddy:2.8-alpine
+    cap_add: ["NET_BIND_SERVICE"]
+    ports: ["80:80", "443:443"]
+    environment: { APP_DOMAIN: "${APP_DOMAIN:?set APP_DOMAIN}", ACME_EMAIL: "${ACME_EMAIL:?set ACME_EMAIL}" }
+    volumes: ["./deploy/Caddyfile:/etc/caddy/Caddyfile:ro", "caddydata:/data", "caddyconfig:/config"]
+    networks: [internal, public]
+    depends_on: [web, api]
+
+  backup:
+    <<: *hardening
+    build: { context: ., dockerfile: deploy/backup.Dockerfile }
+    image: ${REGISTRY:-pipelineos}/backup:${VERSION}
+    command: ["sh", "/scripts/backup-loop.sh"]
+    environment:
+      BACKUP_DIR: /backups
+      BACKUP_PASSPHRASE_FILE: /run/secrets/backup_passphrase
+      BACKUP_HOUR_UTC: "2"
+      DATABASE_BACKUP_URL: ${DATABASE_BACKUP_URL:?set DATABASE_BACKUP_URL (role pipelineos_backup)}
+    secrets: [backup_passphrase]
+    volumes: ["${BACKUP_HOST_DIR:-./backups}:/backups"]
+    networks: [internal]
+    depends_on: { postgres: { condition: service_healthy } }
+
+networks:
+  internal: { internal: true }
+  public: {}
+
+volumes: { pgdata: {}, valkeydata: {}, caddydata: {}, caddyconfig: {} }
+
+secrets:
+  postgres_superuser: { file: ./secrets/postgres_superuser }
+  pipelineos_owner: { file: ./secrets/pipelineos_owner }
+  pipelineos_app: { file: ./secrets/pipelineos_app }
+  pipelineos_backup: { file: ./secrets/pipelineos_backup }
+  backup_passphrase: { file: ./secrets/backup_passphrase }

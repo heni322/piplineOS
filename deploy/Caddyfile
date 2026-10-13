@@ -1,0 +1,28 @@
+# TLS is automatic (Let's Encrypt). One domain: the web app, with the API paths routed to the API.
+{
+	email {$ACME_EMAIL}
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		-Server
+	}
+	# Metrics are for Prometheus on the internal network only, never public.
+	respond /metrics 404
+	@api path /api/* /u/* /r/* /webhooks/*
+	handle @api {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+	log {
+		output stdout
+		format json
+	}
+}
