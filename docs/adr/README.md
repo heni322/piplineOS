@@ -21,3 +21,4 @@ Status values: Proposed · Accepted · Superseded. All are **Proposed** until th
 | [0014](0014-phase-6-production-readiness.md) | Phase 6 real adapters, accounts, deliverability, hosting, backups | Proposed |
 | [0015](0015-live-data-and-client-crm.md) | Real data sources and the client's CRM (Phases 6.2–6.3) | Proposed |
 | [0016](0016-stage-2-nordics.md) | Stage 2 readiness: Norway and Finland, EU/EEA representative check | Proposed |
+| [0017](0017-sweden-denmark-registers.md) | Sweden and Denmark registers (credentials issued free on registration) | Proposed |

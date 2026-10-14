@@ -59,6 +59,13 @@ FREE_MAIL_DOMAINS = frozenset(
         "spray.se",
         "bredband.net",
         "comhem.se",
+        "hotmail.dk",
+        "live.dk",
+        "jubii.dk",
+        "mail.dk",
+        "ofir.dk",
+        "stofanet.dk",
+        "yahoo.dk",
     }
 )
 

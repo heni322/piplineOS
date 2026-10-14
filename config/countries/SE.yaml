@@ -5,7 +5,7 @@ mode: restricted_review
 allowed_channels: [email, alternative]
 rollout_stage: "2"
 languages: [sv-SE, en]
-currency: EUR
+currency: SEK
 time_zones: [Europe/Stockholm]
 holiday_calendars: ["SE"]
 eu_representative_required: true

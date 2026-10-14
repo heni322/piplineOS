@@ -34,6 +34,11 @@ Go-live is the owner's decision and action. Nothing in this repository turns on 
    - SPF, DKIM and DMARC published and verified
    - mailboxes warmed up over 3–4 weeks at low volume (daily caps start at 30)
 8. **Companies House API key** (free) in `.env.prod`. Set `COMPANIES_HOUSE_ADAPTER_MODE=live`; this is read-only.
+   - **Other countries' registers, only when that country is about to be enabled:**
+     - France, Norway and Finland need no key: set `FR_`, `NO_` or `FI_REGISTRY_ADAPTER_MODE=live`.
+     - Sweden: register for Bolagsverket's free API (värdefulla datamängder), then set `BOLAGSVERKET_CLIENT_ID` / `_SECRET`.
+     - Denmark: ask Erhvervsstyrelsen (cvrselvbetjening@erst.dk) for free system-to-system access, then set `CVR_USERNAME` / `CVR_PASSWORD`.
+     - For Sweden and Denmark, first set the mode to `sandbox` and look up one known company. The adapters were built from the published field names and have not yet seen the real service.
 9. **Enrichment and email-verification providers** chosen and contracted. Their adapters are built only after you choose (see the Phase 6 report).
 10. Backups running, a restore drill passed, monitoring and alerts wired, keys stored offline.
 

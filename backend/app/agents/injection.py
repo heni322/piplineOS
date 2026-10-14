@@ -36,9 +36,9 @@ PATTERNS = [
     r"negeer (alle )?(vorige |eerdere )?(instructies|opdrachten)",
     r"ignora (todas )?(las )?instrucciones",
     r"ignora (tutte )?(le )?istruzioni",
-    # Nordic: Norwegian, Finnish, Swedish
-    r"ignorer (alle )?(tidligere |forrige )?(instruksjoner|instrukser|regler)",
-    r"\bnye instruks(joner|er)\b",
+    # Nordic: Norwegian, Danish, Finnish, Swedish
+    r"ignorer (alle )?(tidligere |forrige )?(instruksjoner|instrukser|instruktioner|regler)",
+    r"\bnye instruks(joner|er)\b|\bnye instruktioner\b",
     r"\btil (enhver|alle|hver) (ai|ki|kunstig intelligens)\b",
     r"\b(gi|sett) (dette|denne) (leadet|selskapet|leaden) (høyeste |full )?(poengsum|score)",
     r"(unohda|ohita) (kaikki )?(aiemmat |edelliset )?(ohjeet|säännöt)",

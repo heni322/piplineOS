@@ -3,7 +3,8 @@ misconfiguration fails loudly (AdapterNotConfigured) instead of silently calling
 
 - signals: mock -> the synthetic demo dataset; sandbox/live -> Contracts Finder + Find a Tender award notices
   (free, public, read-only), searched with the client's ICP keywords
-- companies house: free, read-only register (needs a free API key); France, Norway, Finland: free open registers
+- companies house: free, read-only register (needs a free API key); France, Norway, Finland: free open registers;
+  Sweden, Denmark: free registers with credentials issued on registration
 - enrichment / verifier: Hunter.io, PAID -> built by app.domain.paid behind the three-key gate
 """
 
@@ -77,6 +78,23 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
     by_country: dict[str, CompaniesRegistry] = {"GB": p.registry}
     for cc, (mode, cls) in real.items():
         by_country[cc] = cls() if mode != "mock" else MockCompaniesHouse()
+    # free registers that need credentials issued on registration (Sweden: OAuth client; Denmark: user and password)
+    by_country["SE"] = MockCompaniesHouse()
+    if settings.se_registry_adapter_mode != "mock":
+        if not settings.bolagsverket_client_id or settings.bolagsverket_client_secret is None:
+            raise AdapterNotConfigured("BOLAGSVERKET_CLIENT_ID / BOLAGSVERKET_CLIENT_SECRET are not set")
+        from app.adapters.registries.sweden import SwedenRegistry
+
+        by_country["SE"] = SwedenRegistry(
+            settings.bolagsverket_client_id, settings.bolagsverket_client_secret.get_secret_value()
+        )
+    by_country["DK"] = MockCompaniesHouse()
+    if settings.dk_registry_adapter_mode != "mock":
+        if not settings.cvr_username or settings.cvr_password is None:
+            raise AdapterNotConfigured("CVR_USERNAME / CVR_PASSWORD are not set")
+        from app.adapters.registries.denmark import DenmarkRegistry
+
+        by_country["DK"] = DenmarkRegistry(settings.cvr_username, settings.cvr_password.get_secret_value())
     p.registry = RoutingRegistry(by_country)
     return p
 

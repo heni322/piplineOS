@@ -58,10 +58,16 @@ class Settings(BaseSettings):
     fr_registry_adapter_mode: AdapterMode = "mock"  # France: recherche-entreprises.api.gouv.fr (free, no key)
     no_registry_adapter_mode: AdapterMode = "mock"  # Norway: data.brreg.no Enhetsregisteret (free, no key)
     fi_registry_adapter_mode: AdapterMode = "mock"  # Finland: avoindata.prh.fi YTJ v3 (free, no key)
+    se_registry_adapter_mode: AdapterMode = "mock"  # Sweden: Bolagsverket "värdefulla datamängder" (free, registration)
+    dk_registry_adapter_mode: AdapterMode = "mock"  # Denmark: Erhvervsstyrelsen CVR distribution (free, credentials)
     llm_adapter_mode: AdapterMode = "mock"
 
     # Real providers (Phase 6). Unused unless the matching adapter mode is sandbox/live.
     companies_house_api_key: SecretStr | None = None
+    bolagsverket_client_id: str | None = None  # Sweden register (OAuth client credentials, free)
+    bolagsverket_client_secret: SecretStr | None = None
+    cvr_username: str | None = None  # Denmark register (system-to-system access, free, issued by Erhvervsstyrelsen)
+    cvr_password: SecretStr | None = None
     hunter_api_key: SecretStr | None = None  # paid: used only when enrichment/verifier calls pass the three-key gate
     hunt_interval_hours: int = Field(default=6, ge=0, le=168)  # automatic trigger hunting; 0 = off
     hunt_lookback_days: int = Field(default=2, ge=1, le=30)

@@ -1,6 +1,6 @@
 """Deterministic reply rules. They run BEFORE and INDEPENDENTLY of the LLM. Safety outcomes found here
 (unsubscribe, objection to contact, data-protection request) are always acted on; the LLM can add safety outcomes
-but can never remove one. Keyword lists cover en/fr/de/nl/es/it and Nordic (nb/fi/sv) for the safety classes."""
+but can never remove one. Keyword lists cover en/fr/de/nl/es/it and Nordic (nb/da/fi/sv) for the safety classes."""
 
 from __future__ import annotations
 
@@ -67,6 +67,11 @@ UNSUBSCRIBE = _rx(
     r"ta bort (?:mig|oss) (?:från|ur)",
     r"sluta skicka",
     r"avsluta (?:min )?prenumeration",
+    r"\bafmeld",
+    r"\bframeld",
+    r"ønsker ikke (?:at )?(?:modtage|få) (?:flere|mere)",
+    r"\bfjern (?:mig|os) fra\b",
+    r"stop med at sende",
 )
 OBJECTION = _rx(
     r"\b(?:do not|don't|dont|never) (?:e-?mail|contact|message|write to) (?:me|us)\b",
@@ -89,6 +94,9 @@ OBJECTION = _rx(
     r"kontakta (?:mig|oss) inte",
     r"kontakta inte (?:mig|oss)",
     r"sluta kontakta",
+    r"kontakt (?:mig|os) ikke",
+    r"ikke (?:at )?kontakte (?:mig|os)",
+    r"stop med at kontakte",
 )
 DP_REQUEST = _rx(
     r"\bgdpr\b",
@@ -132,6 +140,10 @@ DP_REQUEST = _rx(
     r"registerutdrag",
     r"var har ni fått",
     r"\bradera (?:alla|mina|våra)\b",
+    r"personoplysning",
+    r"\bindsigt\b",
+    r"hvor har I fået",
+    r"\bslet (?:alle|mine|vores)\b",
 )
 DP_TYPES: list[tuple[DpType, re.Pattern[str]]] = [
     (
@@ -144,6 +156,7 @@ DP_TYPES: list[tuple[DpType, re.Pattern[str]]] = [
             r"löschung",
             r"\barticle 17\b",
             r"\bslett",
+            r"\bslet\b",
             r"poist",
             r"\bradera\b",
         ),
@@ -160,6 +173,8 @@ DP_TYPES: list[tuple[DpType, re.Pattern[str]]] = [
             r"auskunft",
             r"droit d'acc",
             r"innsyn",
+            r"indsigt",
+            r"hvor har I",
             r"hvor har dere",
             r"tarkastus",
             r"mistä",
@@ -200,6 +215,8 @@ OOO = _rx(
     r"\bautosvar\b",
     r"\bpå semester\b",
     r"\bfrånvarande\b",
+    r"\bfraværende\b",
+    r"\bpå ferie\b",
 )
 REFERRAL = _rx(
     r"not the right person",
@@ -217,6 +234,8 @@ REFERRAL = _rx(
     r"oikea henkilö",
     r"inte (?:den )?rätta? person",
     r"\bprata med\b",
+    r"ikke den rette person",
+    r"\btal med\b",
     r"ce n'est pas moi qui",
     r"contactez plutôt",
     r"je transmets à",
@@ -285,6 +304,8 @@ INTERESTED = _rx(
     r"sopii (?:hyvin|meille)",
     r"\bgärna\b",
     r"passar bra",
+    r"\bja tak\b",
+    r"passer (?:fint|godt)",
     r"m'intéresse",
     r"\bvolontiers\b",
     r"avec plaisir",
@@ -307,6 +328,8 @@ NOT_NOW = _rx(
     r"palataan asiaan",
     r"inte just nu",
     r"efter (?:sommaren|jul|årsskiftet)",
+    r"ikke lige nu",
+    r"efter sommerferien",
     r"pas (?:pour le|en ce) moment",
     r"revenez vers moi",
     r"reparlerons",
@@ -327,6 +350,8 @@ NEGATIVE = _rx(
     r"ei (?:ole )?(?:meille )?ajankohtai",
     r"\bnej,? tack\b",
     r"inte intresserade?",
+    r"\bnej,? tak\b",
+    r"ikke relevant",
     r"\bnon,? merci\b",
     r"pas pour nous",
     r"pas besoin",
@@ -395,6 +420,7 @@ STOPWORDS = {
     "no": {"jeg", "ikke", "og", "dere", "meg", "oss", "takk", "er", "på", "til", "med", "fra", "vi", "det"},
     "fi": {"ja", "ei", "en", "olen", "minut", "kiitos", "teiltä", "on", "tämä", "meille", "olla", "asti", "nyt"},
     "sv": {"jag", "inte", "och", "ni", "mig", "oss", "tack", "är", "på", "till", "med", "från", "vi", "er"},
+    "da": {"jeg", "ikke", "og", "jer", "mig", "os", "tak", "er", "på", "til", "med", "fra", "vi", "jeres"},
     "de": {"der", "die", "das", "und", "sie", "wir", "bitte", "nicht", "ich", "ist", "mit", "danke", "keine", "mich"},
     "nl": {"de", "het", "en", "u", "wij", "niet", "ik", "is", "bedankt", "een", "met", "geen", "mij"},
     "es": {"el", "la", "los", "y", "usted", "nosotros", "para", "gracias", "no", "yo", "es", "una", "por", "me"},

@@ -153,6 +153,7 @@ ZONES = {
         "Europe/Oslo": "Oslo time",
         "Europe/Helsinki": "Helsinki time",
         "Europe/Stockholm": "Stockholm time",
+        "Europe/Copenhagen": "Copenhagen time",
     },
     "fr-FR": {
         "Europe/London": "heure du Royaume-Uni",
@@ -163,6 +164,7 @@ ZONES = {
         "Europe/Oslo": "heure d'Oslo",
         "Europe/Helsinki": "heure d'Helsinki",
         "Europe/Stockholm": "heure de Stockholm",
+        "Europe/Copenhagen": "heure de Copenhague",
     },
 }
 

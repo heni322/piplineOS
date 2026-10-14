@@ -55,7 +55,7 @@ A **pure function** of its input (no I/O). The caller loads the context in one t
 | No registry match, or registry ambiguous | `unknown` ⇒ **block** |
 | Generic free-mail domain (gmail.com, outlook.com, …) | `individual` ⇒ never emailed |
 
-Companies House API is free and official (adapter with mock; sandbox via real API key in Phase 6). Each company is checked in its own country's register: France (Sirene, Phase 8), Norway (Brønnøysund Enhetsregisteret) and Finland (PRH YTJ) (Phase 9), all free and keyless. A country without a register returns `unknown` ⇒ block. A register entry that is dissolved, bankrupt or in liquidation also gives `unknown` (Phase 9).
+Companies House API is free and official (adapter with mock; sandbox via real API key in Phase 6). Each company is checked in its own country's register: France (Sirene, Phase 8), Norway (Brønnøysund Enhetsregisteret) and Finland (PRH YTJ) (Phase 9), all free and keyless; Sweden (Bolagsverket, by organisation number only; personal identity numbers are never sent) and Denmark (CVR), free with credentials issued on registration (Phase 9.1). A country without a register returns `unknown` ⇒ block. A register entry that is dissolved, bankrupt or in liquidation also gives `unknown` (Phase 9).
 
 ## 5. Seed configuration (all `verified_by_counsel: false`)
 

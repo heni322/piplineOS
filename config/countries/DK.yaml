@@ -5,7 +5,7 @@ mode: restricted_review
 allowed_channels: [email, alternative]
 rollout_stage: "2"
 languages: [da-DK, en]
-currency: EUR
+currency: DKK
 time_zones: [Europe/Copenhagen]
 holiday_calendars: ["DK"]
 eu_representative_required: true
