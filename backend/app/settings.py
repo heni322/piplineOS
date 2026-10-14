@@ -7,7 +7,9 @@ they live in versioned YAML under config/ (ADR-0007).
 from __future__ import annotations
 
 import base64
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -26,8 +28,14 @@ def decode_key(value: SecretStr) -> bytes:
     return raw
 
 
+# The repository root's .env (where scripts/dev-setup.ps1 writes it), then a .env in the working directory, which
+# wins. The test suite sets PIPELINEOS_IGNORE_ENV_FILE so a developer's own keys and switches never reach a test.
+_REPO_ENV = Path(__file__).resolve().parents[2] / ".env"
+_ENV_FILES = None if os.environ.get("PIPELINEOS_IGNORE_ENV_FILE") else (str(_REPO_ENV), ".env")
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_ENV_FILES, env_file_encoding="utf-8", extra="ignore")
 
     environment: Environment = "dev"
     log_level: str = "INFO"
