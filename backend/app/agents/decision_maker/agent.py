@@ -153,6 +153,9 @@ def find_decision_maker(
     sub_type, sub_reason = classify_subscriber(
         legal_form, email_domain(person.professional_email) if person.professional_email else None, reg is not None
     )
+    if reg is not None and reg.status != "active" and sub_type == "corporate":
+        # dissolved, bankrupt or in liquidation per the register: not treated as a live corporate subscriber
+        sub_type, sub_reason = "unknown", f"registry_status:{reg.status}"
     loc = parse_location(person.location_text)
     relevance = role_relevance(person.title, cfg)
     now = datetime.now(UTC)

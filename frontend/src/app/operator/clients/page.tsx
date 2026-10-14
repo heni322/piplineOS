@@ -6,14 +6,14 @@ import { getMessages } from "@/lib/i18n";
 import type { Client } from "@/lib/types";
 
 const t = getMessages().clients;
-type Form = "lia" | "dpa" | "user" | null;
+type Form = "lia" | "dpa" | "user" | "eurep" | null;
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ slug: "", legal_name: "", company_number: "", registered_address: "", billing_currency: "GBP" });
   const [form, setForm] = useState<{ id: string; kind: Form }>({ id: "", kind: null });
-  const [fields, setFields] = useState({ a: "", b: "" });
+  const [fields, setFields] = useState({ a: "", b: "", c: "" });
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,6 +41,8 @@ export default function ClientsPage() {
     const { id, kind } = form;
     if (kind === "lia") await api(`/api/v1/clients/${id}/lia`, { method: "POST", body: JSON.stringify({ reference: fields.a, approved_on: fields.b }) });
     if (kind === "dpa") await api(`/api/v1/clients/${id}/dpa`, { method: "POST", body: JSON.stringify({ version: fields.a, signed_on: fields.b }) });
+    if (kind === "eurep") await api(`/api/v1/clients/${id}/eu-representative`, { method: "POST",
+      body: JSON.stringify({ name: fields.a, contact_email: fields.b, country_code: fields.c.toUpperCase() }) });
     if (kind === "user") {
       const r = await api<{ email: string; dev_invite_link?: string }>(`/api/v1/clients/${id}/users`, { method: "POST", body: JSON.stringify({ email: fields.a }) });
       setForm({ id: "", kind: null });
@@ -89,7 +91,20 @@ export default function ClientsPage() {
                 <ul className="checklist">
                   {c.checklist.map((i) => <li key={i.key} data-done={i.done}>{i.detail}</li>)}
                 </ul>
-                {form.id === c.id && form.kind ? (
+                {form.id === c.id && form.kind === "eurep" ? (
+                  <div>
+                    <label htmlFor={`fa-${c.id}`}>{t.repName}</label>
+                    <input id={`fa-${c.id}`} value={fields.a} onChange={(e) => setFields({ ...fields, a: e.target.value })} />
+                    <label htmlFor={`fb-${c.id}`}>{t.repEmail}</label>
+                    <input id={`fb-${c.id}`} type="email" value={fields.b} onChange={(e) => setFields({ ...fields, b: e.target.value })} />
+                    <label htmlFor={`fc-${c.id}`}>{t.repCountry}</label>
+                    <input id={`fc-${c.id}`} maxLength={2} value={fields.c} onChange={(e) => setFields({ ...fields, c: e.target.value })} />
+                    <div className="row-actions" style={{ marginTop: 10 }}>
+                      <button type="button" disabled={busy || fields.a.length < 2 || !fields.b.includes("@") || fields.c.length !== 2} onClick={submitForm}>{t.save}</button>
+                      <button type="button" className="secondary" onClick={() => setForm({ id: "", kind: null })}>{t.cancel}</button>
+                    </div>
+                  </div>
+                ) : form.id === c.id && form.kind ? (
                   <div>
                     <label htmlFor={`fa-${c.id}`}>{form.kind === "lia" ? t.reference : form.kind === "dpa" ? t.version : t.email}</label>
                     <input id={`fa-${c.id}`} value={fields.a} onChange={(e) => setFields({ ...fields, a: e.target.value })} />
@@ -107,8 +122,11 @@ export default function ClientsPage() {
                 ) : (
                   <div className="row-actions">
                     {(["lia", "dpa", "user"] as const).map((k) => (
-                      <button key={k} type="button" className="secondary" onClick={() => { setForm({ id: c.id, kind: k }); setFields({ a: "", b: "" }); }}>{t[k]}</button>
+                      <button key={k} type="button" className="secondary" onClick={() => { setForm({ id: c.id, kind: k }); setFields({ a: "", b: "", c: "" }); }}>{t[k]}</button>
                     ))}
+                    {c.checklist.some((i) => i.key === "eu_representative") && (
+                      <button type="button" className="secondary" onClick={() => { setForm({ id: c.id, kind: "eurep" }); setFields({ a: "", b: "", c: "" }); }}>{t.eurep}</button>
+                    )}
                     {c.status === "onboarding" && (
                       <button type="button" disabled={busy || remaining > 0} onClick={() => run(async () => {
                         await api(`/api/v1/clients/${c.id}/activate`, { method: "POST" }); return t.activated; })}>{t.activate}</button>

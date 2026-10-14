@@ -88,6 +88,9 @@ class CompaniesHouseRegistry:
             company_number=number,
             name=profile.get("company_name", fallback_name),
             legal_form=TYPE_MAP.get(profile.get("type", ""), "unknown"),
-            status=profile.get("company_status", "unknown"),
+            # "open" is Companies House's word for a live overseas company's UK establishment
+            status="active"
+            if profile.get("company_status") in ("active", "open")
+            else profile.get("company_status", "unknown"),
             registered_country=JURISDICTION_COUNTRY.get(profile.get("jurisdiction", ""), "unknown"),
         )

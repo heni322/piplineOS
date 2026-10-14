@@ -150,6 +150,9 @@ ZONES = {
         "Europe/Paris": "Paris time",
         "Europe/Berlin": "Berlin time",
         "Europe/Amsterdam": "Amsterdam time",
+        "Europe/Oslo": "Oslo time",
+        "Europe/Helsinki": "Helsinki time",
+        "Europe/Stockholm": "Stockholm time",
     },
     "fr-FR": {
         "Europe/London": "heure du Royaume-Uni",
@@ -157,6 +160,9 @@ ZONES = {
         "Europe/Paris": "heure de Paris",
         "Europe/Berlin": "heure de Berlin",
         "Europe/Amsterdam": "heure d'Amsterdam",
+        "Europe/Oslo": "heure d'Oslo",
+        "Europe/Helsinki": "heure d'Helsinki",
+        "Europe/Stockholm": "heure de Stockholm",
     },
 }
 

@@ -1,6 +1,6 @@
 """Deterministic reply rules. They run BEFORE and INDEPENDENTLY of the LLM. Safety outcomes found here
 (unsubscribe, objection to contact, data-protection request) are always acted on; the LLM can add safety outcomes
-but can never remove one. Keyword lists cover en/fr/de/nl/es/it for the safety classes."""
+but can never remove one. Keyword lists cover en/fr/de/nl/es/it and Nordic (nb/fi/sv) for the safety classes."""
 
 from __future__ import annotations
 
@@ -49,6 +49,24 @@ UNSUBSCRIBE = _rx(
     r"\bquit(?:ar|en)me de (?:la|su) lista",
     r"elim[ií]n(?:enme|arme)",
     r"rimuovete?mi|rimuovermi",
+    # Nordic: Norwegian (bokmål), Finnish, Swedish (Finland is bilingual)
+    r"\bmeld (?:meg|oss) av\b",
+    r"\bavmeld",
+    r"(?:ønsker|vil) ikke (?:å )?(?:motta|få|ha) (?:flere|mer)",
+    r"\bfjern (?:meg|oss) fra\b",
+    r"slutt å sende",
+    r"^\W*avslutt\W*$",
+    r"poista(?:kaa|a)? (?:minut|meidät)",
+    r"en halua enää (?:saada|vastaanottaa)",
+    r"peru(?:utan|uta|ttakaa|n) (?:tilaus|tilauksen|postitus)|tilauksen peru",
+    r"lopetta(?:kaa|a) (?:viestien|sähköpostien|postitus|lähettäminen)",
+    r"älkää (?:enää )?lähettäkö",
+    r"^\W*lopeta\W*$",
+    r"avregistrera",
+    r"vill inte (?:få|ha) (?:fler|mer)",
+    r"ta bort (?:mig|oss) (?:från|ur)",
+    r"sluta skicka",
+    r"avsluta (?:min )?prenumeration",
 )
 OBJECTION = _rx(
     r"\b(?:do not|don't|dont|never) (?:e-?mail|contact|message|write to) (?:me|us)\b",
@@ -62,6 +80,15 @@ OBJECTION = _rx(
     r"neem geen contact",
     r"no (?:me|nos) contacte",
     r"non contattarmi",
+    r"ikke kontakt (?:meg|oss)",
+    r"(?:ikke|aldri) (?:å )?kontakte (?:meg|oss)",
+    r"slutt å kontakte",
+    r"älkää (?:enää )?ottako (?:minuun|meihin)(?: enää)? yhteyttä",
+    r"ettette (?:enää )?ota (?:minuun|meihin) yhteyttä",
+    r"lopettakaa yhteydenot",
+    r"kontakta (?:mig|oss) inte",
+    r"kontakta inte (?:mig|oss)",
+    r"sluta kontakta",
 )
 DP_REQUEST = _rx(
     r"\bgdpr\b",
@@ -91,6 +118,20 @@ DP_REQUEST = _rx(
     r"\bcorrect (?:my|our) (?:data|details)\b",
     r"\bportability\b",
     r"\brestrict (?:the )?processing\b",
+    r"personopplysning",
+    r"\binnsyn\b",
+    r"personvern",
+    r"hvor har dere fått",
+    r"\bslett(?:e)? (?:alle|mine|våre)\b",
+    r"henkilötie",
+    r"tietosuoj",
+    r"tarkastusoikeu",
+    r"mistä (?:olette )?saa(?:neet|tte|itte)",
+    r"tietojeni poist",
+    r"personuppgift",
+    r"registerutdrag",
+    r"var har ni fått",
+    r"\bradera (?:alla|mina|våra)\b",
 )
 DP_TYPES: list[tuple[DpType, re.Pattern[str]]] = [
     (
@@ -102,6 +143,9 @@ DP_TYPES: list[tuple[DpType, re.Pattern[str]]] = [
             r"supprimer",
             r"löschung",
             r"\barticle 17\b",
+            r"\bslett",
+            r"poist",
+            r"\bradera\b",
         ),
     ),
     (
@@ -115,6 +159,12 @@ DP_TYPES: list[tuple[DpType, re.Pattern[str]]] = [
             r"\barticle 15\b",
             r"auskunft",
             r"droit d'acc",
+            r"innsyn",
+            r"hvor har dere",
+            r"tarkastus",
+            r"mistä",
+            r"registerutdrag",
+            r"var har ni",
         ),
     ),
     ("objection", _rx(r"\bobject\b", r"\barticle 21\b")),
@@ -141,6 +191,15 @@ OOO = _rx(
     r"\bafwezig\b",
     r"fuera de la oficina",
     r"fuori ufficio",
+    r"automatisk svar",
+    r"\bpå ferie\b",
+    r"\bfraværende\b",
+    r"automaattinen vastaus",
+    r"\blomalla\b",
+    r"poissa toimisto",
+    r"\bautosvar\b",
+    r"\bpå semester\b",
+    r"\bfrånvarande\b",
 )
 REFERRAL = _rx(
     r"not the right person",
@@ -153,6 +212,14 @@ REFERRAL = _rx(
     r"\bhandles? (?:this|that)\b",
     r"\bis responsible for\b",
     r"\bforwarded (?:this|your email) to\b",
+    r"ikke (?:den )?rette? person",
+    r"\bsnakk med\b",
+    r"oikea henkilö",
+    r"inte (?:den )?rätta? person",
+    r"\bprata med\b",
+    r"ce n'est pas moi qui",
+    r"contactez plutôt",
+    r"je transmets à",
 )
 FLAGS: dict[Flag, re.Pattern[str]] = {
     "anger": _rx(
@@ -212,6 +279,17 @@ INTERESTED = _rx(
     r"\bsure\b",
     r"\bgo ahead\b",
     r"option\s*[1-5]",
+    r"\bgjerne\b",
+    r"høres interessant",
+    r"kiinnostava",
+    r"sopii (?:hyvin|meille)",
+    r"\bgärna\b",
+    r"passar bra",
+    r"m'intéresse",
+    r"\bvolontiers\b",
+    r"avec plaisir",
+    r"\bintéressant\b",
+    r"envoyez-moi",
 )
 NOT_NOW = _rx(
     r"not (?:right )?now",
@@ -223,6 +301,17 @@ NOT_NOW = _rx(
     r"reach out (?:again )?in",
     r"after (?:the )?(?:summer|christmas|new year)",
     r"\bq[1-4]\b",
+    r"ikke (?:akkurat )?nå\b",
+    r"etter (?:sommeren|jul|nyttår)",
+    r"ei juuri nyt",
+    r"palataan asiaan",
+    r"inte just nu",
+    r"efter (?:sommaren|jul|årsskiftet)",
+    r"pas (?:pour le|en ce) moment",
+    r"revenez vers moi",
+    r"reparlerons",
+    r"(?:premier|deuxième|second|troisième|quatrième) trimestre",
+    r"timing n'est pas bon",
 )
 NEGATIVE = _rx(
     r"not interested",
@@ -232,6 +321,15 @@ NEGATIVE = _rx(
     r"not relevant",
     r"not for us",
     r"\bno need\b",
+    r"\bnei,? takk\b",
+    r"ikke aktuelt",
+    r"\bei kiitos\b",
+    r"ei (?:ole )?(?:meille )?ajankohtai",
+    r"\bnej,? tack\b",
+    r"inte intresserade?",
+    r"\bnon,? merci\b",
+    r"pas pour nous",
+    r"pas besoin",
 )
 EMAIL = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")
 NAME_AFTER = re.compile(
@@ -294,6 +392,9 @@ STOPWORDS = {
         "c'est",
         "parlons",
     },
+    "no": {"jeg", "ikke", "og", "dere", "meg", "oss", "takk", "er", "på", "til", "med", "fra", "vi", "det"},
+    "fi": {"ja", "ei", "en", "olen", "minut", "kiitos", "teiltä", "on", "tämä", "meille", "olla", "asti", "nyt"},
+    "sv": {"jag", "inte", "och", "ni", "mig", "oss", "tack", "är", "på", "till", "med", "från", "vi", "er"},
     "de": {"der", "die", "das", "und", "sie", "wir", "bitte", "nicht", "ich", "ist", "mit", "danke", "keine", "mich"},
     "nl": {"de", "het", "en", "u", "wij", "niet", "ik", "is", "bedankt", "een", "met", "geen", "mij"},
     "es": {"el", "la", "los", "y", "usted", "nosotros", "para", "gracias", "no", "yo", "es", "una", "por", "me"},

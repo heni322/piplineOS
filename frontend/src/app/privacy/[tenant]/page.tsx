@@ -16,6 +16,7 @@ export default async function PrivacyNotice({ params }: { params: Promise<{ tena
       <p className="muted">Reference: {tenant}</p>
       <h2>{t.whoWeAre}</h2>
       <p>[Controller legal name, company number, registered office, contact for data protection queries.]</p>
+      <p>[Where the controller is outside the EU/EEA and writes to people there: its EU/EEA representative (Article 27), name and contact.]</p>
       <h2>{t.whatData}</h2>
       <p>[Professional contact details only: name, job title, work email, company. Source: licensed B2B data providers and public professional sources.]</p>
       <h2>{t.why}</h2>

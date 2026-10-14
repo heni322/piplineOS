@@ -12,7 +12,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "1.1.0"  # 1.1.0: EU/EEA representative check (GDPR Article 27)
 
 
 class Mode(StrEnum):
@@ -50,6 +50,7 @@ class Reason(StrEnum):
     CHANNEL_NOT_ALLOWED = "CHANNEL_NOT_ALLOWED"
     EMAIL_NOT_VERIFIED = "EMAIL_NOT_VERIFIED"
     ROLE_NOT_RELEVANT = "ROLE_NOT_RELEVANT"
+    EU_REPRESENTATIVE_MISSING = "EU_REPRESENTATIVE_MISSING"
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ class CountryRule:
     mode: Mode
     allowed_channels: frozenset[str]
     subscriber_rules: Mapping[str, Mode] = field(default_factory=dict)
+    eu_representative_required: bool = False  # from the country's rollout config (GDPR Article 27)
 
     def mode_for_subscriber(self, subscriber_type: str) -> Mode:
         if subscriber_type == "corporate":
@@ -75,6 +77,9 @@ class TenantGates:
     is_controller: bool  # operator's own (dogfooding) tenant: controller, no DPA needed — LIA still required
     tenant_status: str
     campaign_status: str
+    # True when the client is established in the EU/EEA or has recorded an EU/EEA representative. Defaults to the
+    # safe value: a country that requires a representative blocks until this is known.
+    eu_representative: bool = False
 
 
 @dataclass(frozen=True)
@@ -211,6 +216,8 @@ def evaluate(ctx: ComplianceContext) -> ComplianceDecision:
         reasons.append(Reason.EMAIL_NOT_VERIFIED)
     if p.role_relevance is None or p.role_relevance < ctx.role_relevance_threshold:
         reasons.append(Reason.ROLE_NOT_RELEVANT)
+    if any(ctx.rules[c].eu_representative_required for c in relevant) and not t.eu_representative:
+        reasons.append(Reason.EU_REPRESENTATIVE_MISSING)
     if reasons:
         return _decision(ctx, "block", reasons, effective, applied)
 

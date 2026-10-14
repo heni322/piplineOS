@@ -34,6 +34,7 @@ A **pure function** of its input (no I/O). The caller loads the context in one t
 | 12 | Email verified `valid` (`risky` ⇒ block by default, tenant cannot override) | `block` | `EMAIL_NOT_VERIFIED` |
 | 13 | Role relevance: prospect title matches tenant persona (computed by Agent 2, ≥ threshold) | `block` | `ROLE_NOT_RELEVANT` |
 | 14 | Channel in rule's `allowed_channels` | `block` | `CHANNEL_NOT_ALLOWED` |
+| 15 | A relevant country's rollout config says `eu_representative_required` and the client is neither established in the EU/EEA nor has an EU/EEA representative recorded (GDPR Article 27; engine 1.1.0) | `block` | `EU_REPRESENTATIVE_MISSING` |
 | — | All passed | `allow` | `OK` |
 
 **Strictness order**: `restricted_review` > `consent_required` > `permitted_with_opt_out`. Missing anything ⇒ strictest.
@@ -54,7 +55,7 @@ A **pure function** of its input (no I/O). The caller loads the context in one t
 | No registry match, or registry ambiguous | `unknown` ⇒ **block** |
 | Generic free-mail domain (gmail.com, outlook.com, …) | `individual` ⇒ never emailed |
 
-Companies House API is free and official (adapter with mock; sandbox via real API key in Phase 6). For EU countries the equivalent registry adapters are added at Rollout Stage 2+.
+Companies House API is free and official (adapter with mock; sandbox via real API key in Phase 6). Each company is checked in its own country's register: France (Sirene, Phase 8), Norway (Brønnøysund Enhetsregisteret) and Finland (PRH YTJ) (Phase 9), all free and keyless. A country without a register returns `unknown` ⇒ block. A register entry that is dissolved, bankrupt or in liquidation also gives `unknown` (Phase 9).
 
 ## 5. Seed configuration (all `verified_by_counsel: false`)
 

@@ -6,7 +6,7 @@ import json
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
@@ -120,6 +120,16 @@ class TenantConfig(_Strict):
     ai_disclosure_text: str = "This reply was drafted with the help of AI."
     nurture_days: int = Field(default=90, ge=14, le=365)
     pricing: Pricing | None = None
+
+    @field_validator("language")
+    @classmethod
+    def _language_has_texts_and_footer(cls, v: str) -> str:
+        """Only languages with reviewed fixed texts and a footer (Norway and Finland start with English)."""
+        from app.core.i18n import CATALOGUE
+
+        if v not in CATALOGUE:
+            raise ValueError(f"language must be one of {sorted(CATALOGUE)}")
+        return v
 
 
 def save_config(conn: Connection, tenant_id: uuid.UUID, cfg: TenantConfig, created_by: uuid.UUID | None = None) -> int:

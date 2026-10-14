@@ -25,6 +25,7 @@ from app.llm.simulator import SimulatedBackend
 
 DATASET = Path(__file__).parent / "datasets" / "reply_eval.jsonl"
 DATASET_FR = Path(__file__).parent / "datasets" / "reply_eval_fr.jsonl"
+DATASET_NORDIC = Path(__file__).parent / "datasets" / "reply_eval_nordic.jsonl"  # Norwegian, Finnish, Swedish
 SAFETY = ("unsubscribe", "objection", "data_protection_request")
 RECEIVED = date(2026, 10, 13)
 

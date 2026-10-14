@@ -56,6 +56,11 @@ KNOWN_CODES = frozenset(
         "TN",
     ]
 )
+# EU member states plus the EEA (Iceland, Liechtenstein, Norway): a client established here needs no Article 27
+# representative.
+EEA = frozenset(
+    "AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE IS LI NO".split()  # noqa: SIM905
+)
 UK_SUBDIVISIONS = frozenset({"GB-ENG", "GB-WLS", "GB-SCT", "GB-NIR"})
 
 # phrase -> (country, subdivision). Longest phrases are matched first.
@@ -167,9 +172,21 @@ PHRASES: dict[str, tuple[str, str | None]] = {
     "denmark": ("DK", None),
     "copenhagen": ("DK", None),
     "finland": ("FI", None),
+    "suomi": ("FI", None),
     "helsinki": ("FI", None),
+    "espoo": ("FI", None),
+    "tampere": ("FI", None),
+    "vantaa": ("FI", None),
+    "oulu": ("FI", None),
+    "turku": ("FI", None),
+    "jyväskylä": ("FI", None),
     "norway": ("NO", None),
+    "norge": ("NO", None),
     "oslo": ("NO", None),
+    "trondheim": ("NO", None),
+    "stavanger": ("NO", None),
+    "tromsø": ("NO", None),
+    "drammen": ("NO", None),
     "switzerland": ("CH", None),
     "zurich": ("CH", None),
     "luxembourg": ("LU", None),

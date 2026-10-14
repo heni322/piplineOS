@@ -20,11 +20,14 @@ from app.domain.compliance.engine import (
     SuppressionResult,
     TenantGates,
 )
+from app.domain.compliance.jurisdiction import EEA
 
 
 def load_rules(conn: Connection) -> dict[str, CountryRule]:
     rows = conn.execute(
-        text("SELECT id, country_code, version, mode, allowed_channels, subscriber_rules FROM current_compliance_rules")
+        text("""SELECT r.id, r.country_code, r.version, r.mode, r.allowed_channels, r.subscriber_rules,
+                       coalesce(c.eu_representative_required, false) AS eu_rep
+                FROM current_compliance_rules r LEFT JOIN current_country_rollout c USING (country_code)""")
     ).mappings()
     return {
         r["country_code"]: CountryRule(
@@ -34,6 +37,7 @@ def load_rules(conn: Connection) -> dict[str, CountryRule]:
             mode=Mode(r["mode"]),
             allowed_channels=frozenset(r["allowed_channels"]),
             subscriber_rules={k: Mode(v) for k, v in (r["subscriber_rules"] or {}).items()},
+            eu_representative_required=bool(r["eu_rep"]),
         )
         for r in rows
     }
@@ -47,7 +51,8 @@ def load_enabled_countries(conn: Connection) -> frozenset[str]:
 def load_tenant_gates(conn: Connection, tenant_id: uuid.UUID, campaign_id: uuid.UUID) -> TenantGates:
     t = (
         conn.execute(
-            text("SELECT role, lia_reference, lia_approved_at, dpa_status, status FROM tenants WHERE id = :t"),
+            text("""SELECT role, lia_reference, lia_approved_at, dpa_status, status, country_code, eu_representative
+                    FROM tenants WHERE id = :t"""),
             {"t": tenant_id},
         )
         .mappings()
@@ -60,6 +65,7 @@ def load_tenant_gates(conn: Connection, tenant_id: uuid.UUID, campaign_id: uuid.
         is_controller=t["role"] == "controller",
         tenant_status=t["status"],
         campaign_status=c,
+        eu_representative=t["country_code"] in EEA or t["eu_representative"] is not None,
     )
 
 

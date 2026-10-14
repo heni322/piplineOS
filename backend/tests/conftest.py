@@ -43,7 +43,19 @@ os.environ.update(
         # tests never use a real provider or a local model, whatever the developer's shell has loaded
         **{
             f"{name}_ADAPTER_MODE": "mock"
-            for name in ("EMAIL", "CALENDAR", "CRM", "ENRICHMENT", "VERIFIER", "SIGNALS", "COMPANIES_HOUSE", "LLM")
+            for name in (
+                "EMAIL",
+                "CALENDAR",
+                "CRM",
+                "ENRICHMENT",
+                "VERIFIER",
+                "SIGNALS",
+                "COMPANIES_HOUSE",
+                "LLM",
+                "FR_REGISTRY",
+                "NO_REGISTRY",
+                "FI_REGISTRY",
+            )
         },
         "LOG_LEVEL": "WARNING",
     }

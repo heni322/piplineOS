@@ -51,7 +51,7 @@ erDiagram
 
 ### 3.1 Tenancy & identity
 
-**tenants** [G] — `id, legal_name, company_number, registered_address, country_code, vat_number, status (onboarding|active|paused|offboarded), is_operator_own (bool, dogfooding), live_mode (bool default false), approval_mode (always|sampling), approval_sample_pct (int 0–100, default 100), approval_mode_locked_until (date, default created+14d), billing_currency (GBP|EUR), lia_reference, lia_document_url, lia_approved_at, dpa_status (none|sent|signed), dpa_signed_at, dpa_version, role (controller|processor_client)`.
+**tenants** [G] — `id, legal_name, company_number, registered_address, country_code, vat_number, status (onboarding|active|paused|offboarded), is_operator_own (bool, dogfooding), live_mode (bool default false), approval_mode (always|sampling), approval_sample_pct (int 0–100, default 100), approval_mode_locked_until (date, default created+14d), billing_currency (GBP|EUR), lia_reference, lia_document_url, lia_approved_at, dpa_status (none|sent|signed), dpa_signed_at, dpa_version, role (controller|processor_client), eu_representative (jsonb: name, contact_email, country_code, address, recorded_at; GDPR Article 27, operator-recorded, migration 0012)`.
 - CHECK: `approval_mode='always' OR now() > approval_mode_locked_until` enforced in app + trigger.
 - Not under RLS (operator-managed), but tenant users can read only their own row via a view.
 

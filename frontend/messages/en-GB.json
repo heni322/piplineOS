@@ -366,7 +366,11 @@
     "oneTime": "One-time password for {e}: {p}. Pass it on securely; it won't be shown again.",
     "cancel": "Cancel",
     "invited": "Invite sent to {e}. They choose their own password from the link.",
-    "devLink": "Development only: invite link"
+    "devLink": "Development only: invite link",
+    "eurep": "Record EU representative",
+    "repName": "Representative's name",
+    "repEmail": "Representative's contact email",
+    "repCountry": "Representative's country (two letters, e.g. IE)"
   },
   "reports": {
     "title": "Reports",

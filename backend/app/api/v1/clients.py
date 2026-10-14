@@ -140,6 +140,22 @@ def dpa(tenant_id: uuid.UUID, body: DpaIn, user: Operator) -> None:
         )
 
 
+class EuRepresentativeIn(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    contact_email: str = Field(min_length=5, max_length=320, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    country_code: str = Field(pattern=r"^[A-Z]{2}$")
+    address: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/clients/{tenant_id}/eu-representative", status_code=204)
+def eu_representative(tenant_id: uuid.UUID, body: EuRepresentativeIn, user: Operator) -> None:
+    try:
+        with transaction(user.db_context(tenant_id), get_engine()) as conn:
+            onboarding.record_eu_representative(conn, tenant_id=tenant_id, operator_id=user.id, **body.model_dump())
+    except onboarding.OnboardingError as exc:
+        raise ProblemError(422, "The representative must be in the EU or EEA", ", ".join(exc.missing)) from exc
+
+
 class ClientUserIn(BaseModel):
     email: str = Field(min_length=5, max_length=320, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     role: Literal["tenant_admin", "tenant_viewer"] = "tenant_admin"

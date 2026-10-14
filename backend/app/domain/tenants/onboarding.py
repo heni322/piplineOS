@@ -3,9 +3,10 @@ pricing, and activate only when every item is done. Nothing here sends anything.
 
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import text
@@ -128,6 +129,59 @@ def record_dpa(
     )
 
 
+def record_eu_representative(
+    conn: Connection,
+    *,
+    tenant_id: uuid.UUID,
+    operator_id: uuid.UUID,
+    name: str,
+    contact_email: str,
+    country_code: str,
+    address: str | None,
+) -> None:
+    """GDPR Article 27: the client's representative in the EU/EEA, needed before emailing prospects in a country
+    whose rules require one (unless the client is established there). Recorded by an operator, audited."""
+    from app.domain.compliance.jurisdiction import EEA
+
+    if country_code not in EEA:
+        raise OnboardingError("EU_REPRESENTATIVE_OUTSIDE_EEA", [country_code])
+    rep = {
+        "name": name,
+        "contact_email": contact_email,
+        "country_code": country_code,
+        "address": address,
+        "recorded_at": datetime.now(UTC).isoformat(),
+    }
+    conn.execute(
+        text("UPDATE tenants SET eu_representative = CAST(:r AS jsonb) WHERE id = :t"),
+        {"r": json.dumps(rep), "t": tenant_id},
+    )
+    write_audit(
+        conn,
+        action="tenant.eu_representative_recorded",
+        actor_type="user",
+        actor_id=str(operator_id),
+        tenant_id=tenant_id,
+        entity_type="tenant",
+        entity_id=tenant_id,
+        after={"name": name, "country_code": country_code},
+    )
+
+
+def eu_representative_needed(conn: Connection, tenant_country: str, target_countries: list[str]) -> list[str]:
+    """Target countries whose rules require an EU/EEA representative, when the client is not established there."""
+    from app.domain.compliance.jurisdiction import EEA
+
+    if tenant_country in EEA or not target_countries:
+        return []
+    rows = conn.execute(
+        text("""SELECT country_code FROM current_country_rollout
+                WHERE eu_representative_required AND country_code = ANY(:cc) ORDER BY country_code"""),
+        {"cc": list(target_countries)},
+    ).scalars()
+    return list(rows)
+
+
 def checklist(conn: Connection, tenant_id: uuid.UUID) -> list[Item]:
     t = conn.execute(text("SELECT * FROM tenants WHERE id = :t"), {"t": tenant_id}).mappings().one()
     has_cfg = conn.execute(text("SELECT 1 FROM tenant_configs WHERE tenant_id = :t"), {"t": tenant_id}).first()
@@ -170,6 +224,17 @@ def checklist(conn: Connection, tenant_id: uuid.UUID) -> list[Item]:
             "Client signed the current pricing",
         ),
         Item("sending_domain", domain_ok is not None, "A sending domain with SPF, DKIM and DMARC verified"),
+        *(
+            [
+                Item(
+                    "eu_representative",
+                    t["eu_representative"] is not None,
+                    f"EU/EEA representative recorded (Article 27), needed to email {', '.join(need)}",
+                )
+            ]
+            if (need := eu_representative_needed(conn, t["country_code"], cfg.icp.countries if cfg else []))
+            else []
+        ),
     ]
 
 

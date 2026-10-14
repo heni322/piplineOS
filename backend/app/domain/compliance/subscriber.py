@@ -39,6 +39,26 @@ FREE_MAIL_DOMAINS = frozenset(
         "yandex.com",
         "talktalk.net",
         "eircom.net",
+        # Nordic consumer mail
+        "online.no",
+        "hotmail.no",
+        "live.no",
+        "getmail.no",
+        "frisurf.no",
+        "start.no",
+        "luukku.com",
+        "suomi24.fi",
+        "kolumbus.fi",
+        "saunalahti.fi",
+        "elisanet.fi",
+        "welho.com",
+        "hotmail.fi",
+        "live.fi",
+        "hotmail.se",
+        "live.se",
+        "spray.se",
+        "bredband.net",
+        "comhem.se",
     }
 )
 

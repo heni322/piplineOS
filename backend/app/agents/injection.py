@@ -36,6 +36,17 @@ PATTERNS = [
     r"negeer (alle )?(vorige |eerdere )?(instructies|opdrachten)",
     r"ignora (todas )?(las )?instrucciones",
     r"ignora (tutte )?(le )?istruzioni",
+    # Nordic: Norwegian, Finnish, Swedish
+    r"ignorer (alle )?(tidligere |forrige )?(instruksjoner|instrukser|regler)",
+    r"\bnye instruks(joner|er)\b",
+    r"\btil (enhver|alle|hver) (ai|ki|kunstig intelligens)\b",
+    r"\b(gi|sett) (dette|denne) (leadet|selskapet|leaden) (høyeste |full )?(poengsum|score)",
+    r"(unohda|ohita) (kaikki )?(aiemmat |edelliset )?(ohjeet|säännöt)",
+    r"\buudet ohjeet\b",
+    r"\b(jokaiselle|kaikille)\b.{0,30}\bteko[äa]ly",
+    r"ignorera (alla )?(tidigare |föregående )?(instruktioner|regler)",
+    r"\bnya instruktioner\b",
+    r"\btill (varje|alla) (ai|ki)\b",
 ]
 _RX = re.compile("|".join(PATTERNS), re.IGNORECASE)
 _SENTENCE = re.compile(r"(?<=[.!?])\s+|\n+")

@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     signals_adapter_mode: AdapterMode = "mock"
     companies_house_adapter_mode: AdapterMode = "mock"
     fr_registry_adapter_mode: AdapterMode = "mock"  # France: recherche-entreprises.api.gouv.fr (free, no key)
+    no_registry_adapter_mode: AdapterMode = "mock"  # Norway: data.brreg.no Enhetsregisteret (free, no key)
+    fi_registry_adapter_mode: AdapterMode = "mock"  # Finland: avoindata.prh.fi YTJ v3 (free, no key)
     llm_adapter_mode: AdapterMode = "mock"
 
     # Real providers (Phase 6). Unused unless the matching adapter mode is sandbox/live.
