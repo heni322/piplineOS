@@ -81,7 +81,10 @@ This phase closes all three with free, official, lawful sources.
   - website ownership proof, generic-only addresses, robots.txt, redirects, private hosts, Wikidata and MX;
   - TED request shape, languages, paging and countries;
   - end to end: register → published address → compliance "allow" → drafted, nothing sent.
-- Full backend suite: see §6.
+- Full backend suite: **737 passed, 0 failed** in the cloud (Phase 11: 715).
+- Self-review fixes:
+  - website pages are now streamed with a hard 512 KB cap;
+  - the email pattern is bounded. Unbounded, a hostile page could make the scan take hours.
 - Lint, `mypy --strict` and the 3 import contracts are clean.
 
 ## 5. Limits — read before going live

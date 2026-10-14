@@ -52,7 +52,7 @@ item has been signed off. The live view of this list is on the **Go-live** page:
   | Nordic languages | 95.4% |
   | French | 90.5% |
 
-- **Tests:** 715 backend tests pass in the cloud (Phase 11); 12 browser tests pass on your PC.
+- **Tests:** 737 backend tests pass in the cloud (Phase 12); 12 browser tests pass on your PC.
 
 ## Still needed: yours only
 1. **Legal.**
