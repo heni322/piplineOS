@@ -26,6 +26,19 @@ class Icp(_Strict):
     industry_keywords: list[str] = Field(min_length=1)
     countries: list[str] = ["GB"]
     exclude_keywords: list[str] = []
+    # roles whose hiring is a trigger on a watched company's job board ("-x" excludes); empty = any new role
+    hiring_keywords: list[str] = []
+
+
+class WatchedCompany(_Strict):
+    """A target account the client names. Free sources watch it: its public job board (hiring) and, for a UK
+    company with its register number, new directors on the Companies House register."""
+
+    name: str = Field(min_length=1, max_length=200)
+    company_number: str | None = Field(default=None, pattern=r"^[A-Za-z0-9]{1,8}$")
+    domain: str | None = None
+    country: str | None = None
+    job_board: str | None = Field(default=None, pattern=r"^(greenhouse|lever|lever-eu|ashby):[A-Za-z0-9_.-]{1,100}$")
 
 
 class BrandVoice(_Strict):
@@ -120,6 +133,7 @@ class TenantConfig(_Strict):
     ai_disclosure_text: str = "This reply was drafted with the help of AI."
     nurture_days: int = Field(default=90, ge=14, le=365)
     pricing: Pricing | None = None
+    watchlist: list[WatchedCompany] = Field(default=[], max_length=500)
 
     @field_validator("language")
     @classmethod

@@ -20,6 +20,12 @@ item has been signed off. The live view of this list is on the **Go-live** page:
 - **Go-live preparation.** Sending-domain DNS checks, mailbox warm-up, the readiness list, backups and restore,
   monitoring and alerts.
 - **Replies safety net.** Replies whose push notification was lost are found within 15 minutes and handled once.
+- **Free-only mode** (`FREE_ONLY=true`, Phase 11). No paid provider is ever called:
+  - **triggers:** public contract awards, plus each client's watchlist: its public job boards (Greenhouse, Lever,
+    Ashby) and new directors on the Companies House register;
+  - **decision-makers:** the free Companies House officers list. There's no email address, so each lead becomes
+    a human "published contact" task;
+  - **AI:** the free local model.
 - **Countries.**
 
   | Situation | Countries |
@@ -39,7 +45,7 @@ item has been signed off. The live view of this list is on the **Go-live** page:
   | Nordic languages | 95.4% |
   | French | 90.5% |
 
-- **Tests:** 699 backend and 12 browser tests pass, in the cloud and on your PC.
+- **Tests:** 715 backend tests pass in the cloud (Phase 11); 12 browser tests pass on your PC.
 
 ## Still needed: yours only
 1. **Legal.**
@@ -50,10 +56,11 @@ item has been signed off. The live view of this list is on the **Go-live** page:
 3. **Company details** in `config/supplier.yaml`: legal name, number, address, VAT and bank details.
 4. **Infrastructure.** Hosting, domain, keys, backups and monitoring, following `docs/DEPLOYMENT.md`.
 5. **Providers and spending.**
-   - Microsoft 365 or Google Workspace mailboxes, warmed up.
-   - Choose the enrichment and verification providers.
-   - A paid AI API key and spend cap for live use.
-   - A paid register for Spain, Italy, Portugal and the Netherlands, if you want them.
+   - Microsoft 365 or Google Workspace mailboxes, warmed up. This is the one service that can't be free.
+   - With `FREE_ONLY=true`, nothing else to buy. Without it: enrichment and verification providers, and a paid
+     AI key with a spend cap.
+   - A server able to run the local model (enough CPU and RAM).
+   - Spain, Italy, Portugal and the Netherlands stay off: they have no free register.
 6. **Free registers.**
    - The Companies House key.
    - Sweden and Denmark credentials.
@@ -65,5 +72,5 @@ item has been signed off. The live view of this list is on the **Go-live** page:
    (`docs/GO-LIVE-RUNBOOK.md`).
 
 ## Code
-- The work is on stacked branches up to `phase/9-nordics-ready`; `main` still holds only the initial commit.
+- Phases 2–10.1 are on `main`; Phase 11 is on branch `phase/11-free-sources`.
 - Merging into `main` (by pull request, no history rewritten) is your call, whenever you are happy with the review.

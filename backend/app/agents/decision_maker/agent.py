@@ -119,7 +119,12 @@ def find_decision_maker(
             preflight = getattr(provider, "preflight", None)
             if preflight is not None:
                 preflight(lead_id, row["name"] or row["domain_normalised"] or "the company")
-        person = _pick(enrichment.find_people(row["domain_normalised"] or "", titles, row["name"]), cfg)
+        person = _pick(
+            enrichment.find_people(
+                row["domain_normalised"] or "", titles, row["name"], company_number=row["company_number"]
+            ),
+            cfg,
+        )
     except PaidCallDeferred:
         return None  # recorded in the dry-run log; the lead stays "discovered" and is retried later
     if person is not None and not row["domain_normalised"] and person.company_domain:

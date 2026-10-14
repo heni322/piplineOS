@@ -10,7 +10,12 @@ class MockEnrichment:
         self.people = people or {}
 
     def find_people(
-        self, company_domain: str, persona_titles: list[str], company_name: str | None = None
+        self,
+        company_domain: str,
+        persona_titles: list[str],
+        company_name: str | None = None,
+        *,
+        company_number: str | None = None,
     ) -> list[EnrichedPerson]:
         wanted = [t.lower() for t in persona_titles]
         return [p for p in self.people.get(company_domain, []) if any(w in p.title.lower() for w in wanted)]

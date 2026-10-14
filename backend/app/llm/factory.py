@@ -1,6 +1,7 @@
 """Chooses the LLM backend. Paid model calls follow the same three-key rule as sending (brief: DRY-RUN everywhere):
 adapter mode live + tenant live + GLOBAL_GO_LIVE with the go-live checklist signed. Adapter mode "sandbox" = a free
-open-weights model on this machine (Ollama), for testing with a real model at no cost. Otherwise: the simulator."""
+open-weights model on this machine (Ollama), for testing with a real model at no cost. FREE_ONLY: live work also runs
+on that local model and the paid API is never called. Otherwise: the simulator."""
 
 from __future__ import annotations
 
@@ -27,6 +28,8 @@ def select_backend(settings: Settings, *, tenant_live: bool, golive_complete: bo
         global_go_live=settings.global_go_live,
         golive_complete=golive_complete,
     )
+    if mode == "live" and settings.free_only:  # never the paid API: the free local model does the live work
+        return OllamaBackend(settings.local_llm_url, settings.local_llm_model)
     if mode == "live" and settings.anthropic_api_key is not None:
         return AnthropicBackend(settings.anthropic_api_key.get_secret_value())
     if mode == "sandbox":

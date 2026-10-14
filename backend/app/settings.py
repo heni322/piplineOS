@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     suppression_hash_key: SecretStr
     unsubscribe_signing_key: SecretStr
 
+    # Free-only: no paid provider is ever built, whatever the adapter modes say. Decision-makers come from the free
+    # Companies House officers list, email addresses are never bought or verified, and the AI runs on the free local
+    # model (LOCAL_LLM_URL) instead of the paid API.
+    free_only: bool = False
+
     # Three-key live switch, key 3 (keys 1 and 2: adapter mode + tenant.live_mode). Default OFF.
     global_go_live: bool = False
 

@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from app.core.crypto import PiiCipher
-from app.domain.compliance.engine import ComplianceDecision, ProspectFacts, Stage, evaluate
+from app.domain.compliance.engine import ComplianceDecision, ProspectFacts, Reason, Stage, evaluate
 from app.domain.compliance.repository import build_context, record_decision
 from app.domain.leads.state_machine import State, transition
 from app.domain.suppression.service import RecipientHashes
@@ -17,6 +17,12 @@ from app.domain.suppression.service import check as check_suppression
 ALT_TASK_TEXT = (
     "Email is blocked for this prospect ({reasons}). Consider a human-executed channel: engage with their "
     "public professional posts, ask for a warm introduction, or invite them to a relevant event. "
+    "No automated messaging."
+)
+NO_EMAIL_TASK_TEXT = (
+    "Decision-maker found on a public register ({source}), but there is no email address on file and none is "
+    "guessed. A human may reach them through the company's own published channels (its website contact form or "
+    "switchboard, or a letter to the registered office), or ask the client for a business address. "
     "No automated messaging."
 )
 
@@ -33,7 +39,7 @@ def run_gate(
     r = (
         conn.execute(
             text("""
-        SELECT l.state, l.campaign_id, p.email_enc, p.country_code AS p_country, p.subscriber_type,
+        SELECT l.state, l.campaign_id, l.prospect_id, p.email_enc, p.country_code AS p_country, p.subscriber_type,
                p.email_verification, p.role_relevance, c.country_code AS c_country
         FROM leads l JOIN companies c ON c.id = l.company_id LEFT JOIN prospects p ON p.id = l.prospect_id
         WHERE l.id = :l FOR UPDATE OF l"""),
@@ -64,7 +70,16 @@ def run_gate(
     decision = evaluate(ctx)
     decision_id = record_decision(conn, tenant_id=tenant_id, lead_id=lead_id, stage=stage, decision=decision)
     reasons = ",".join(x.value for x in decision.reason_codes)
-    if decision.suppressed:
+    # The ONLY obstacle is that we hold no address (free-only contacts from a register): a human task, not a dead end.
+    no_address = (
+        decision.outcome == "block"
+        and r["email_enc"] is None
+        and r["prospect_id"] is not None
+        and set(decision.reason_codes) == {Reason.EMAIL_NOT_VERIFIED}
+    )
+    if no_address:
+        target = State.ALTERNATIVE_CHANNEL
+    elif decision.suppressed:
         target = State.SUPPRESSED
     elif decision.outcome == "alternative_channel":
         target = State.ALTERNATIVE_CHANNEL
@@ -72,8 +87,26 @@ def run_gate(
         target = State.REJECTED_BY_COMPLIANCE
     else:
         target = State.COMPLIANCE_CHECKED
-    transition(conn, lead_id, target, actor_type="system", actor_id="compliance_gate", reason=reasons)
-    if target == State.ALTERNATIVE_CHANNEL:
+    transition(
+        conn,
+        lead_id,
+        target,
+        actor_type="system",
+        actor_id="compliance_gate",
+        reason=f"no_email_address:{reasons}" if no_address else reasons,
+    )
+    if no_address:
+        source = conn.execute(
+            text("""SELECT data_source FROM prospect_field_sources WHERE prospect_id = :p AND field_name = 'name'
+              ORDER BY collected_at LIMIT 1"""),
+            {"p": r["prospect_id"]},
+        ).scalar()
+        conn.execute(
+            text("""INSERT INTO alternative_channel_tasks (tenant_id, lead_id, channel, instructions)
+              VALUES (:t, :l, 'published_contact', :i)"""),
+            {"t": tenant_id, "l": lead_id, "i": NO_EMAIL_TASK_TEXT.format(source=source or "public source")},
+        )
+    elif target == State.ALTERNATIVE_CHANNEL:
         conn.execute(
             text("""INSERT INTO alternative_channel_tasks (tenant_id, lead_id, channel, instructions)
               VALUES (:t, :l, 'linkedin_manual', :i)"""),
