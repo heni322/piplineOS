@@ -47,6 +47,11 @@ groups:
         for: 1m
         labels: { severity: warn }
         annotations: { summary: "The safety sweep found replies whose push notification never arrived (webhook down, subscription lapsed?). They were handled; find why the push failed." }
+      - alert: SignalSourceFailing
+        expr: max by (source) (pipelineos_source_failing) == 1
+        for: 30m
+        labels: { severity: warn }
+        annotations: { summary: "Signal source {{ $labels.source }} keeps failing, so it finds nothing. Check the Go-live page (Source health) and run `pipelineos signals check` for it." }
       - alert: OutboxStuck
         expr: pipelineos_outbox_oldest_seconds > 300
         for: 5m

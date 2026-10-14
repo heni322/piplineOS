@@ -195,6 +195,21 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
                 )
             ],
         )
+        from app.domain.sources.health import summary as source_summary
+
+        health = source_summary(conn)
+        _gauge(
+            lines,
+            "pipelineos_source_failing",
+            "1 when a signal source's last run failed and it has not recovered (see the Go-live page)",
+            [({"source": h.source}, 1.0 if h.status == "failing" else 0.0) for h in health],
+        )
+        _gauge(
+            lines,
+            "pipelineos_source_failures_24h",
+            "failed runs of each signal source in the last 24 hours",
+            [({"source": h.source}, float(h.failures_24h)) for h in health],
+        )
         _gauge(
             lines,
             "pipelineos_replies_recovered_24h",

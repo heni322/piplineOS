@@ -31,6 +31,11 @@ test("governance: keys off, checklist unsigned, a country needs a solicitor's re
   await expect(sources).toHaveCount(5);
   await expect(sources.locator(".key-state").filter({ hasText: "Demo" })).toHaveCount(5);
   await expect(page.getByText("Fictional demo companies")).toBeVisible();
+  // source health: the demo hunt ran its sources, each recorded as healthy
+  const health = page.locator("section[aria-labelledby='health-h'] tbody tr");
+  await expect(health.first()).toBeVisible();
+  await expect(health.filter({ hasText: "Failing" })).toHaveCount(0);
+  await expect(health.first()).toContainText("Healthy");
   await expect(page.getByText(/0 of \d+ checklist items signed off/)).toBeVisible();
   // readiness: checked automatically, read-only
   const ready = page.locator("section[aria-labelledby='ready-h'] li");

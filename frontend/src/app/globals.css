@@ -159,3 +159,10 @@ th { color: var(--muted); font-weight: 600; }
 .targeting textarea { min-height: 6rem; font-family: var(--sans); }
 .targeting fieldset { border: 0; padding: 0; margin: 16px 0 0; }
 .targeting td input { min-width: 9rem; }
+
+/* Source health: state shown as a pill, colour from the shared semantic tokens */
+.health .num { text-align: right; font-variant-numeric: tabular-nums; }
+.health .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; font-size: 0.8125rem; font-weight: 600; }
+.health tr[data-status="healthy"] .pill { color: var(--verify); }
+.health tr[data-status="degraded"] .pill { color: var(--warn-ink); background: var(--warn-bg); }
+.health tr[data-status="failing"] .pill { color: var(--danger); }

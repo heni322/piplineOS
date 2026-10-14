@@ -90,3 +90,7 @@ export type Targeting = {
   industry_keywords: string[]; exclude_keywords: string[]; hiring_keywords: string[]; sic_codes: string[];
   countries: string[]; watchlist: Watched[]; config_version: number; available_countries: string[];
 };
+export type SourceHealth = {
+  source: string; status: "healthy" | "degraded" | "failing"; runs_24h: number; failures_24h: number; fetched_24h: number;
+  last_run_at: string; last_outcome: string; last_error: string | null; last_success_at: string | null;
+};

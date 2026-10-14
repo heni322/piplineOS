@@ -131,7 +131,7 @@ def hunt_active_campaigns(
 
     factory = providers_factory or providers_for
     since = (now or datetime.now(UTC)) - timedelta(days=settings.hunt_lookback_days)
-    totals = {"campaigns": 0, "discovered": 0, "processed": 0}
+    totals = {"campaigns": 0, "discovered": 0, "processed": 0, "failed": 0}
     with transaction(DbContext.system(), engine) as conn:
         tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
     for tenant_id in tenant_ids:
@@ -142,8 +142,13 @@ def hunt_active_campaigns(
                 .all()
             )
         for campaign_id in campaign_ids:
-            ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
-            run = run_campaign(ctx, factory(settings, ctx), since=since)
+            try:
+                ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
+                run = run_campaign(ctx, factory(settings, ctx), since=since)
+            except Exception as exc:
+                totals["failed"] += 1
+                log.error("campaign_hunt_failed", tenant_id=str(tenant_id), error=type(exc).__name__)
+                continue
             totals["campaigns"] += 1
             totals["discovered"] += run.hunt.discovered
             totals["processed"] += sum(run.outcomes.values())

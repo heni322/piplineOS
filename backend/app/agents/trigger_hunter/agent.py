@@ -6,7 +6,7 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 
 from sqlalchemy import Connection, text
@@ -22,6 +22,7 @@ from app.core.crypto import normalise_domain
 from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
 from app.domain.compliance.jurisdiction import parse_location
+from app.domain.sources.health import describe_error, record_run
 from app.llm.client import LLMEscalation, UntrustedSource, wrap_untrusted
 from app.llm.prompts import PromptFile, load_prompt
 
@@ -40,6 +41,7 @@ class HuntStats:
     injection_flags: int = 0
     insolvent: int = 0
     bad_source_url: int = 0
+    source_failures: int = 0
     signals: list[TriggerSignal] = field(default_factory=list)
 
 
@@ -62,12 +64,28 @@ def hunt(
     policy = load_prompt("common/untrusted_data_policy.v1.md").body
     cfg = ctx.config
     for b in bindings:
+        started = datetime.now(UTC)
         try:
             b.limiter.acquire_or_raise()
             raw = b.source.fetch(b.query, since)
         except RateLimited:
             stats.rate_limited += 1  # nothing lost: the next scheduled run fetches again from `since`
+            record_run(ctx.engine, b.source.name, started_at=started, outcome="rate_limited")
             continue
+        except Exception as exc:
+            stats.source_failures += 1
+            log.warning("signal_source_failed", source=b.source.name, error=describe_error(exc))
+            record_run(ctx.engine, b.source.name, started_at=started, outcome="failed", error=describe_error(exc))
+            continue
+        failed_parts = list(getattr(b.source, "failed", []) or [])
+        record_run(
+            ctx.engine,
+            b.source.name,
+            started_at=started,
+            outcome="partial" if failed_parts else "ok",
+            fetched=len(raw),
+            detail={"failed": failed_parts[:20]} if failed_parts else None,
+        )
         for s in sorted(raw, key=lambda r: r.detected_at):
             stats.fetched += 1
             _process(

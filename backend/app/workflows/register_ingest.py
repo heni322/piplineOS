@@ -9,6 +9,7 @@ a rate limit or the per-run lookup cap stops early and the next run resumes ther
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from sqlalchemy import text
@@ -18,6 +19,7 @@ from app.adapters.base import RateLimited
 from app.adapters.companies_house.stream import FilingEvent, StreamSlice
 from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
+from app.domain.sources.health import describe_error, record_run
 
 log = get_logger(__name__)
 CURSOR = "companies_house.filings"
@@ -89,8 +91,13 @@ def ingest_filings(
     max_lookups: int = 300,
 ) -> IngestStats:
     stats = IngestStats()
+    started = datetime.now(UTC)
     start = _cursor(engine)
-    sl = stream.read(start, max_events=max_events, max_seconds=max_seconds)
+    try:
+        sl = stream.read(start, max_events=max_events, max_seconds=max_seconds)
+    except Exception as exc:
+        record_run(engine, CURSOR, started_at=started, outcome="failed", error=describe_error(exc))
+        raise
     stats.read, stats.triggers, stats.reset = sl.read, len(sl.events), sl.reset
     if sl.reset:
         log.warning("filing_stream_reset", previous_timepoint=start)  # a gap: the job was off for too long
@@ -119,4 +126,12 @@ def ingest_filings(
     if resume_at is not None and resume_at != start:
         _save_cursor(engine, resume_at)
     log.info("filing_stream_ingest", **stats.__dict__)
+    record_run(
+        engine,
+        CURSOR,
+        started_at=started,
+        outcome="partial" if (stats.reset or stats.deferred) else "ok",
+        fetched=stats.stored,
+        detail={"read": stats.read, "deferred": stats.deferred, "reset": stats.reset},
+    )
     return stats
