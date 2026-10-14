@@ -36,10 +36,12 @@ emailing someone who asked us to stop. A review of the inbound code also found t
     change nothing.
   - Only a hash is stored, and the audit holds the count only.
   - A failing mailbox is isolated, and mock mode is skipped.
-- Lint, types and the 3 import contracts are clean. On the owner's PC: §3.1.
+- Lint, types and the 3 import contracts are clean. On the owner's PC: **697 passed, 0 failed** (§3.1).
 
 ### 3.1 On the owner's PC
-PENDING
+- Development and demo databases migrated to `0014`; nothing deleted.
+- Backend against the PC's Docker PostgreSQL: **697 passed, 0 failed, 0 skipped** (≈ 432 s).
+- Local app restarted on the new code: schema 0014, database, Valkey and web page OK.
 
 ## 4. Limits
 - The sweep looks back 72 hours. An outage longer than that still needs a manual check of the inbox; the alert
