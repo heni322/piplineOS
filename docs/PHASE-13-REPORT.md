@@ -25,13 +25,13 @@ close them.
   only.
 
 ## 3. Results
-- Backend: 4 new tests. They cover:
+- Backend: **742 passed, 0 failed** (Phase 12: 737). 5 new tests. They cover:
   - masked listing;
   - close-once;
   - the note kept out of the audit log;
   - client users and anonymous callers refused;
   - hostile links dropped.
-- Frontend: lint, types, unit tests and build pass. A new full-stack browser test signs in, opens Contact tasks,
+- Frontend: lint, types, 13 unit tests and build pass. **All 13 browser tests pass**, full stack, in the cloud. A new full-stack browser test signs in, opens Contact tasks,
   reveals a name (logged), closes a task, and runs the WCAG 2.1 AA checks before and after.
 
 ## 4. Also fixed

@@ -33,6 +33,8 @@ item has been signed off. The live view of this list is on the **Go-live** page:
   - the **company's own published business address**, taken only from a website proven to be theirs by its
     company number.
   - Check each live source once on your PC: `pipelineos signals check …` (`docs/PHASE-12-REPORT.md` §5).
+- **Contact tasks** (Phase 13): the operator's queue of leads to reach by hand, with names masked until a logged
+  reveal, and each task closed once with a note.
 - **Countries.**
 
   | Situation | Countries |
@@ -52,7 +54,7 @@ item has been signed off. The live view of this list is on the **Go-live** page:
   | Nordic languages | 95.4% |
   | French | 90.5% |
 
-- **Tests:** 737 backend tests pass in the cloud (Phase 12); 12 browser tests pass on your PC.
+- **Tests:** 742 backend and 13 browser tests pass in the cloud (Phase 13).
 
 ## Still needed: yours only
 1. **Legal.**
@@ -79,5 +81,5 @@ item has been signed off. The live view of this list is on the **Go-live** page:
    (`docs/GO-LIVE-RUNBOOK.md`).
 
 ## Code
-- Phases 2–10.1 are on `main`; Phases 11 and 12 are on branch `phase/11-free-sources`.
+- Phases 2–10.1 are on `main`; Phases 11–13 are on branch `phase/11-free-sources`.
 - Merging into `main` (by pull request, no history rewritten) is your call, whenever you are happy with the review.
