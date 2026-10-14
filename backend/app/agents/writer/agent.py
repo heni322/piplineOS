@@ -23,7 +23,7 @@ from app.domain.outbound.messages import create_draft
 from app.llm.client import LLMEscalation, UntrustedSource, wrap_untrusted
 from app.llm.prompts import load_prompt
 
-DRAFT, CRITIQUE = "writer/draft.v1.md", "writer/critique.v1.md"
+DRAFT, CRITIQUE = "writer/draft.v2.md", "writer/critique.v1.md"
 LEGAL_SUFFIX = re.compile(r"\s+(ltd|limited|plc|llp|lp|inc|gmbh|sarl|sas|bv)\.?$", re.IGNORECASE)
 
 
@@ -228,7 +228,7 @@ def _store(
                 sequence_step=step,
                 language=draft.language,
                 quality_score=round(quality, 1),
-                prompt_version="writer.draft.v1",
+                prompt_version="writer.draft.v2",
             )
             conn.execute(
                 text("""UPDATE messages SET status = 'pending_approval', critique = CAST(:cr AS jsonb),
