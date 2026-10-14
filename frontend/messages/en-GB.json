@@ -123,7 +123,8 @@
     "governance": "Go-live",
     "leads": "Leads",
     "inboxes": "Inboxes",
-    "clientCrm": "Your CRM"
+    "clientCrm": "Your CRM",
+    "tasks": "Contact tasks"
   },
   "approvals": {
     "title": "Approvals",
@@ -643,5 +644,38 @@
     "reasonWas": "Reason: {r}",
     "cancel": "Cancel",
     "change": "Replace connection"
+  },
+  "tasks": {
+    "title": "Contact tasks",
+    "intro": "Leads to reach by hand, never by automated email: decision-makers found on a public register with no email address, and prospects whose country rules allow other channels only. Names are hidden; showing one asks for a reason, and every view is logged.",
+    "empty": "No open contact tasks.",
+    "showClosed": "Show closed tasks",
+    "company": "Company",
+    "contact": "Contact",
+    "trigger": "Why now",
+    "channel": "How",
+    "created": "Created",
+    "source": "source",
+    "register": "register",
+    "website": "website",
+    "channels": {
+      "published_contact": "Company's published channels",
+      "linkedin_manual": "Personal, by hand",
+      "warm_intro": "Warm introduction",
+      "event": "Event invitation",
+      "inbound_content": "Inbound content"
+    },
+    "showName": "Show name",
+    "reason": "Why do you need to see this? (logged)",
+    "reveal": "Show",
+    "close": "Close task",
+    "closeTitle": "Close task: {c}",
+    "outcome": "Outcome",
+    "done": "Done: contacted",
+    "skipped": "Skipped: not contacted",
+    "note": "What did you do? (kept with the task)",
+    "closed": "Task closed.",
+    "cancel": "Cancel",
+    "logged": "Your view was logged."
   }
 }

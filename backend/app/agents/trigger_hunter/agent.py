@@ -7,6 +7,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 
 from sqlalchemy import Connection, text
 
@@ -38,6 +39,7 @@ class HuntStats:
     rate_limited: int = 0
     injection_flags: int = 0
     insolvent: int = 0
+    bad_source_url: int = 0
     signals: list[TriggerSignal] = field(default_factory=list)
 
 
@@ -103,6 +105,9 @@ def _process(
     window_days: int,
     insolvency: InsolvencyCheck | None = None,
 ) -> None:
+    if urlsplit(s.source_url).scheme not in ("https", "http"):  # source data: never store a javascript: link
+        stats.bad_source_url += 1
+        return
     domain = normalise_domain(s.domain) if s.domain else None
     loc = parse_location(s.country_hint)
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:

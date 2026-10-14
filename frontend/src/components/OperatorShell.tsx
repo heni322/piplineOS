@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/operator/approvals", label: t.nav.approvals },
   { href: "/operator/leads", label: t.nav.leads },
   { href: "/operator/escalations", label: t.nav.escalations },
+  { href: "/operator/tasks", label: t.nav.tasks },
   { href: "/operator/data-requests", label: t.nav.dataRequests },
   { href: "/operator/meetings", label: t.nav.meetings },
   { href: "/operator/billing", label: t.nav.billing },

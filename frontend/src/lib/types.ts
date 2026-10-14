@@ -18,6 +18,12 @@ export type Escalation = {
   id: string; lead_id: string; company: string; reason: string; detail: Record<string, unknown>;
   pre_escalation_state: string | null; lead_state: string; status: string; created_at: string; allowed_targets: string[];
 };
+export type ContactTask = {
+  id: string; lead_id: string; tenant_id: string; company: string; company_number: string | null;
+  company_domain: string | null; prospect: string | null; prospect_title: string | null; signal: string | null;
+  signal_url: string | null; channel: string; instructions: string; status: string; outcome_note: string | null;
+  created_at: string;
+};
 export type DataRequest = {
   id: string; tenant_id: string; lead_id: string | null; company: string | null; request_type: string; regime: string;
   controller: string; status: string; received_at: string; deadline_at: string; days_remaining: number; overdue: boolean;

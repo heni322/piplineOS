@@ -154,3 +154,28 @@ def test_hunt_uses_the_clients_sic_codes_and_skips_insolvent_companies(clean_db,
         ("LAKESIDE NETWORKS LTD", "funding", "companies_house.filings")
     ]
     assert RegisterFilingSource(clean_db, []).fetch("", SINCE) == []  # no SIC codes: off
+
+
+def test_a_signal_with_a_non_web_link_is_never_stored(clean_db, settings, cipher) -> None:  # type: ignore[no-untyped-def]
+    from app.adapters.signals.base import RawSignal
+
+    class Hostile:
+        name = "hostile.test"
+
+        def fetch(self, query: str, since: datetime) -> list[RawSignal]:
+            return [
+                RawSignal("Evil Ltd", None, "GB", "job_posting", "Hiring", "IT support", "javascript:alert(1)",
+                          SINCE, "x1"),
+                RawSignal("Fine Ltd", None, "GB", "job_posting", "Hiring", "IT support service desk",
+                          "https://jobs.example/1", SINCE, "x2"),
+            ]  # fmt: skip
+
+    demo = seed_demo(clean_db, settings)
+    ctx = agent_context(clean_db, settings, cipher, demo.tenant_id, demo.campaign_id)
+    p = providers()
+    p.sources = [SourceBinding(Hostile(), "")]
+    run = run_campaign(ctx, p, since=SINCE)
+    assert run.hunt.bad_source_url == 1
+    with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
+        urls = conn.execute(text("SELECT source_url FROM signals")).scalars().all()
+    assert urls == ["https://jobs.example/1"]

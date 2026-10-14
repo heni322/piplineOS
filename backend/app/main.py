@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from fastapi import FastAPI, Request, Response
 
 from app.api import ops, public, webhooks
-from app.api.v1 import auth, billing, clients, conversations, crm, governance, leads, operations
+from app.api.v1 import auth, billing, clients, conversations, crm, governance, leads, operations, tasks
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, correlation_id_var
 from app.settings import get_settings
@@ -63,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(billing.router, prefix="/api/v1")
     app.include_router(clients.router, prefix="/api/v1")
     app.include_router(crm.router, prefix="/api/v1")
+    app.include_router(tasks.router, prefix="/api/v1")
     app.include_router(public.router)
     app.include_router(webhooks.router)
     app.include_router(ops.router)
