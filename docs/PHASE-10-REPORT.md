@@ -73,10 +73,23 @@ register (§4).
 | Lint, types, 3 import contracts | Clean |
 | Stage 4 set, rules only, also with an always-"interested" model | Unsubscribe, objection, data request: 100%; 8 of 8 injections escalated, 0 acted on |
 | English, French and Nordic sets | Unchanged (100% safety) |
-| Stage 4 replies with Qwen 2.5 7B on the owner's PC | PENDING |
-| On the owner's PC | PENDING |
+| Stage 4 replies with Qwen 2.5 7B on the owner's PC | **98.1%** correctly classified; safety 100%; 8 of 8 injections escalated (§3.2) |
+| On the owner's PC | **693 passed, 0 failed, 0 skipped** (§3.3) |
 
-### 3.1 No external side effects
+### 3.2 Spanish, Italian, Portuguese and Dutch replies with a real model (Qwen 2.5 7B on the owner's PC, 61 replies, ≈ 16 s each)
+- **98.1%** correctly classified. This is the best of all sets: English 98.4%, Nordic 95.4%, French 90.5%.
+- Every class was at 100%, including interested, negative and not now.
+- The single miss: "?" was read as *negative* instead of *unclear*.
+- Hidden instructions: 8 of 8 escalated, 0 acted on.
+
+### 3.3 On the owner's PC
+- Synced on branch `phase/9-nordics-ready` (git bundle; no history rewritten).
+- The development and demo databases were migrated to `0013` and the country files re-synced (Sweden SEK,
+  Denmark DKK); nothing was deleted.
+- Backend against the PC's Docker PostgreSQL: **693 passed, 0 failed, 0 skipped** (≈ 480 s).
+- The local app was restarted on the new code: schema 0013, database, Valkey and web page OK.
+
+### 3.4 No external side effects
 - The register imports in the tests use synthetic files built in a temporary folder.
 - No register was downloaded and no network call was made.
 - No country was enabled and nothing was signed.

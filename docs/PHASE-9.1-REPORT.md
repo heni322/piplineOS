@@ -37,7 +37,7 @@ With this phase, all four Nordic countries have a company register adapter. Swed
 | Nordic set (74 replies: Norwegian, Danish, Finnish, Swedish, English), rules only, also with an always-"interested" model | Unsubscribe, objection, data request: 100%; 9 of 9 hidden instructions escalated, 0 acted on |
 | English and French sets | Unchanged |
 | Nordic replies with Qwen 2.5 7B on the owner's PC | **95.4%**; safety 100%; 9 of 9 injections escalated (§2.1) |
-| On the owner's PC | §2.2 |
+| On the owner's PC | **663 passed, 0 failed, 0 skipped** (§2.2) |
 
 **Limitation, stated plainly:** the Swedish and Danish adapters were written from the registers' published field
 names and tested against recorded examples, not against the live services. No credentials exist yet. The go-live
@@ -50,7 +50,9 @@ runbook (A.8) now requires a sandbox lookup of one known company before either c
 - The three mistakes are the same Finnish/"?" ones as in Phase 9; none is unsafe.
 
 ### 2.2 On the owner's PC
-PENDING
+- Synced on branch `phase/9-nordics-ready`. Country files re-synced: Sweden SEK, Denmark DKK, as new versions;
+  nothing was enabled.
+- Backend against the PC's Docker PostgreSQL: **663 passed, 0 failed, 0 skipped** (≈ 474 s).
 
 ### 2.3 No external side effects
 - All register calls in the tests go through an in-process mock transport.
