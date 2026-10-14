@@ -35,6 +35,7 @@ celery_app.conf.update(
         "reply-sla": {"task": "pipelineos.system.reply_sla", "schedule": 60.0},
         "deliverability-kill-switch": {"task": "pipelineos.system.deliverability", "schedule": 900.0},
         "crm-sync": {"task": "pipelineos.system.crm_sync", "schedule": 300.0},
+        "daily-deliverability": {"task": "pipelineos.system.daily_deliverability", "schedule": 24 * 3600.0},
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
         "renew-gmail-watches": {"task": "pipelineos.replies.renew_gmail_watches", "schedule": 24 * 3600.0},
         **(
@@ -77,6 +78,16 @@ def hunt_task() -> dict[str, int]:
     from app.workflows.pipeline import hunt_active_campaigns
 
     return hunt_active_campaigns(get_engine(), settings, PiiCipher(settings.key("pii_master_key")))
+
+
+@celery_app.task(name="pipelineos.system.daily_deliverability")
+def daily_deliverability_task() -> dict[str, int]:
+    """Once a day: re-check every sending domain's DNS, and advance mailbox warm-up for yesterday."""
+    from datetime import UTC, datetime
+
+    from app.workflows.daily import daily_deliverability
+
+    return daily_deliverability(get_engine(), now=datetime.now(UTC))
 
 
 @celery_app.task(name="pipelineos.system.crm_sync")

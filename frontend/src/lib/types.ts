@@ -71,3 +71,7 @@ export type CrmStatus = "booked" | "confirmed" | "attended" | "no_show" | "cance
 export type CrmConnection = { connected: boolean; provider: string | null; pipeline_id: string | null;
   stages: Record<CrmStatus, string> | null; status: string | null; connected_at: string | null; last_sync_at: string | null;
   disconnected_reason: string | null; meetings_synced: number; meetings_waiting: number; meetings_failed: number };
+export type SendingDomain = { id: string; tenant_id: string; tenant_name: string; domain: string; status: string;
+  spf_ok: boolean; dkim_ok: boolean; dmarc_ok: boolean; dmarc_policy: string | null; issues: string[];
+  checked_at: string | null; providers: string[] };
+export type ReadinessItem = { key: string; title: string; state: "done" | "todo" | "info"; who: "you" | "system"; detail: string };

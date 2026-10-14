@@ -32,6 +32,11 @@ test("governance: keys off, checklist unsigned, a country needs a solicitor's re
   await expect(sources.locator(".key-state").filter({ hasText: "Demo" })).toHaveCount(5);
   await expect(page.getByText("Fictional demo companies")).toBeVisible();
   await expect(page.getByText(/0 of \d+ checklist items signed off/)).toBeVisible();
+  // readiness: checked automatically, read-only
+  const ready = page.locator("section[aria-labelledby='ready-h'] li");
+  await expect(ready).toHaveCount(10);
+  await expect(ready.filter({ hasText: "Your company details" })).toContainText("To do");
+  await expect(ready.filter({ hasText: "Server switch GLOBAL_GO_LIVE" })).toContainText("Off");
 
   const ireland = page.getByRole("row", { name: /Ireland/ });
   await expect(ireland).toContainText("needs your solicitor's review first");
@@ -69,6 +74,10 @@ test("leads are masked until a reason is given; inboxes show health and can be p
   await page.getByRole("link", { name: "Inboxes" }).click();
   await expect(page.getByRole("heading", { name: "Inboxes" })).toBeVisible();
   await expect(page.getByText("not enough live sends yet").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sending domains" })).toBeVisible();
+  const domains = page.locator("section[aria-labelledby='domains-h']");
+  await expect(domains.getByRole("row", { name: /outreach\.northwind-demo\.example/ })).toContainText("Never checked");
+  await expect(page.getByRole("button", { name: "Check DNS" })).toBeVisible();
   await accessible(page, "inboxes");
   await page.getByRole("button", { name: "Pause" }).first().click();
   await page.getByLabel(/Why are you pausing it/).fill("Checking DNS records after a change");

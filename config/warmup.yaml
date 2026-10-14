@@ -1,0 +1,7 @@
+# Mailbox warm-up (operational, not legal). A new inbox starts "warming" with a small daily cap that rises by
+# `daily_increase` for every day it actually sent LIVE email, up to `target_cap`. After `days_to_active` such days
+# with healthy bounce and complaint rates it becomes "active". Dry-run days don't count: they warm nothing.
+start_cap: 10
+daily_increase: 2
+target_cap: 40
+days_to_active: 21

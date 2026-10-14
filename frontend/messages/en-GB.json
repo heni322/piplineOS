@@ -509,7 +509,14 @@
     "srcLlm": "AI writing and scoring",
     "srcLlmMock": "Simulated AI (no cost)",
     "srcLlmReal": "Claude (paid per call)",
-    "srcLlmLocal": "Free open model on this computer (Ollama, test only)"
+    "srcLlmLocal": "Free open model on this computer (Ollama, test only)",
+    "readinessTitle": "Before you switch on",
+    "readinessIntro": "Checked automatically from what is recorded here. This list never signs anything off: the sign-offs below stay yours.",
+    "stateDone": "Done",
+    "stateTodo": "To do",
+    "stateInfo": "In progress",
+    "whoYou": "You",
+    "whoSystem": "Automatic"
   },
   "leads": {
     "title": "Leads",
@@ -565,7 +572,22 @@
     "cancel": "Cancel",
     "paused": "{a} paused",
     "resumed": "{a} resumed",
-    "empty": "No inboxes yet."
+    "empty": "No inboxes yet.",
+    "domainsTitle": "Sending domains",
+    "domainsIntro": "Mail providers junk or reject email from domains without SPF, DKIM and DMARC. Checking reads the domain's public DNS; it changes nothing. It also runs every day by itself.",
+    "domain": "Domain",
+    "spf": "SPF",
+    "dkim": "DKIM",
+    "dmarc": "DMARC",
+    "pass": "Pass",
+    "fail": "Missing",
+    "checked": "Checked {d}",
+    "neverChecked": "Never checked",
+    "check": "Check DNS",
+    "checking": "Checking…",
+    "checkedNotice": "{d} checked: {n} issue(s)",
+    "allGood": "All three records are in place.",
+    "noDomains": "No sending domains yet."
   },
   "crm": {
     "title": "Your CRM",

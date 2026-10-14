@@ -3,7 +3,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { api, type Problem } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
-import type { Inbox } from "@/lib/types";
+import type { Inbox, SendingDomain } from "@/lib/types";
+import { day } from "@/lib/format";
 
 const t = getMessages().inboxes;
 const pct = (x: number) => `${(x * 100).toFixed(x * 100 < 1 ? 1 : 0)}%`;
@@ -15,6 +16,60 @@ function Rate({ count, rate, max, enough }: { count: number; rate: number | null
       {count}{rate !== null && ` (${pct(rate)})`}
       <span className="hint" style={{ display: "block" }}>{t.limit.replace("{pct}", pct(max))}</span>
     </span>
+  );
+}
+
+function Domains() {
+  const [rows, setRows] = useState<SendingDomain[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => {
+    api<SendingDomain[]>("/api/v1/sending-domains").then(setRows).catch(() => setError(getMessages().operator.loadError));
+  }, []);
+  useEffect(load, [load]);
+
+  async function check(d: SendingDomain) {
+    setBusy(d.id); setError(null); setNotice(null);
+    try {
+      const r = await api<SendingDomain>(`/api/v1/sending-domains/${d.id}/check`, { method: "POST" });
+      setRows((cur) => (cur ?? []).map((x) => (x.id === r.id ? r : x)));
+      setNotice(t.checkedNotice.replace("{d}", r.domain).replace("{n}", String(r.issues.length)));
+    } catch (e) { setError((e as Problem).detail ?? (e as Problem).title); } finally { setBusy(null); }
+  }
+
+  const mark = (ok: boolean) => <span className={ok ? "outcome-allow" : "outcome-block"}>{ok ? t.pass : t.fail}</span>;
+  return (
+    <section aria-labelledby="domains-h" style={{ marginTop: 36 }}>
+      <h2 id="domains-h">{t.domainsTitle}</h2>
+      <p className="muted" style={{ maxWidth: "70ch" }}>{t.domainsIntro}</p>
+      {notice && <p className="status" role="status">{notice}</p>}
+      {error && <p role="alert" className="error">{error}</p>}
+      {!rows ? <p className="muted" aria-busy="true">{getMessages().operator.loading}</p> : rows.length === 0 ? <p className="muted">{t.noDomains}</p> : (
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th scope="col">{t.domain}</th><th scope="col">{t.client}</th><th scope="col">{t.spf}</th><th scope="col">{t.dkim}</th>
+              <th scope="col">{t.dmarc}</th><th scope="col"><span className="sr-only">{t.check}</span></th></tr></thead>
+            <tbody>
+              {rows.map((d) => (
+                <Fragment key={d.id}>
+                  <tr>
+                    <th scope="row">{d.domain}<span className="hint" style={{ display: "block" }}>{d.checked_at ? t.checked.replace("{d}", day(d.checked_at)) : t.neverChecked}</span></th>
+                    <td>{d.tenant_name}</td><td>{mark(d.spf_ok)}</td><td>{mark(d.dkim_ok)}</td>
+                    <td>{mark(d.dmarc_ok)}{d.dmarc_policy && <span className="hint" style={{ display: "block" }}>p={d.dmarc_policy}</span>}</td>
+                    <td><button type="button" className="secondary" disabled={busy !== null} onClick={() => check(d)}>{busy === d.id ? t.checking : t.check}</button></td>
+                  </tr>
+                  {d.checked_at && (
+                    <tr><td colSpan={6} className="muted">{d.issues.length === 0 ? t.allGood : (
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>{d.issues.map((i) => <li key={i}>{i}</li>)}</ul>)}</td></tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -105,6 +160,7 @@ export default function InboxesPage() {
           </table>
         </div>
       )}
+      <Domains />
     </>
   );
 }

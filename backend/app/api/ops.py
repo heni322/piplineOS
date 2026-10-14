@@ -6,7 +6,7 @@ from __future__ import annotations
 import hmac
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -19,6 +19,9 @@ from app.core.errors import ProblemError
 from app.core.security import Permission
 from app.db.session import DbContext, get_engine, transaction
 from app.settings import Settings
+
+if TYPE_CHECKING:
+    from app.domain.deliverability.dns_check import Lookup
 
 router = APIRouter(tags=["ops"])
 
@@ -370,3 +373,74 @@ def resume(
             entity_id=inbox_id,
             after={"reason": body.reason},
         )
+
+
+# ------------------------------------------------------------------------------------------- sending domains
+class SendingDomainOut(BaseModel):
+    id: str
+    tenant_id: str
+    tenant_name: str
+    domain: str
+    status: str
+    spf_ok: bool
+    dkim_ok: bool
+    dmarc_ok: bool
+    dmarc_policy: str | None
+    issues: list[str]
+    checked_at: datetime | None
+    providers: list[str]
+
+
+def _dns_lookup() -> Lookup:  # replaced in tests (no network)
+    from app.domain.deliverability.dns_check import dns_lookup
+
+    return dns_lookup()
+
+
+_DOMAINS_SQL = """SELECT d.*, t.legal_name, coalesce(array_agg(DISTINCT i.provider)
+                    FILTER (WHERE i.provider IS NOT NULL), '{}') AS providers
+                  FROM sending_domains d JOIN tenants t ON t.id = d.tenant_id
+                  LEFT JOIN inboxes i ON i.sending_domain_id = d.id"""
+
+
+def _domain_out(r) -> SendingDomainOut:  # type: ignore[no-untyped-def]
+    return SendingDomainOut(
+        id=str(r["id"]),
+        tenant_id=str(r["tenant_id"]),
+        tenant_name=r["legal_name"],
+        domain=r["domain"],
+        status=r["status"],
+        spf_ok=r["spf_ok"],
+        dkim_ok=r["dkim_ok"],
+        dmarc_ok=r["dmarc_ok"],
+        dmarc_policy=r["dmarc_policy"],
+        issues=[str(x) for x in (r["dns_issues"] or [])],
+        checked_at=r["dns_checked_at"],
+        providers=sorted(r["providers"]),
+    )
+
+
+@router.get("/api/v1/sending-domains", response_model=list[SendingDomainOut])
+def sending_domains(
+    user: Annotated[CurrentUser, Depends(require(Permission.VIEW_ALL_TENANTS))],
+) -> list[SendingDomainOut]:
+    with transaction(user.db_context(), get_engine()) as conn:
+        rows = conn.execute(text(_DOMAINS_SQL + " GROUP BY d.id, t.legal_name ORDER BY t.legal_name, d.domain"))
+        return [_domain_out(r) for r in rows.mappings()]
+
+
+@router.post("/api/v1/sending-domains/{domain_id}/check", response_model=SendingDomainOut)
+def check_sending_domain(
+    domain_id: uuid.UUID, user: Annotated[CurrentUser, Depends(require(Permission.MANAGE_COMPLIANCE))]
+) -> SendingDomainOut:
+    """Reads the domain's public DNS (SPF, DKIM, DMARC) now and stores the result. Changes nothing in DNS."""
+    from app.domain.deliverability.dns_check import check_and_store
+
+    if user.role != "operator":
+        raise ProblemError(403, "Forbidden")
+    with transaction(user.db_context(), get_engine()) as conn:
+        if conn.execute(text("SELECT 1 FROM sending_domains WHERE id = :d"), {"d": domain_id}).first() is None:
+            raise ProblemError(404, "Not found")
+        check_and_store(conn, domain_id, _dns_lookup(), datetime.now(UTC))
+        r = conn.execute(text(_DOMAINS_SQL + " WHERE d.id = :d GROUP BY d.id, t.legal_name"), {"d": domain_id})
+        return _domain_out(r.mappings().one())

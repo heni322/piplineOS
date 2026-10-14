@@ -180,6 +180,26 @@ def governance_status(
     )
 
 
+class ReadinessItem(BaseModel):
+    key: str
+    title: str
+    state: str
+    who: str
+    detail: str
+
+
+@router.get("/governance/readiness", response_model=list[ReadinessItem])
+def governance_readiness(
+    user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))],
+    settings: Annotated[Settings, Depends(settings_dep)],
+) -> list[ReadinessItem]:
+    """What is still missing before real sending, checked automatically. Read-only: it signs nothing."""
+    from app.domain.golive.readiness import readiness
+
+    with transaction(user.db_context(), get_engine()) as conn:
+        return [ReadinessItem(**i) for i in readiness(conn, settings)]
+
+
 # ------------------------------------------------------------------------------------------- countries
 class CountryOut(BaseModel):
     code: str

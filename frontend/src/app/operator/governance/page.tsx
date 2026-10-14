@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Problem } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
-import type { AdequacyRow, ChecklistItem, CountryRow, GovernanceStatus, TaxRule } from "@/lib/types";
+import type { AdequacyRow, ChecklistItem, CountryRow, GovernanceStatus, ReadinessItem, TaxRule } from "@/lib/types";
 
 const t = getMessages().governance;
 const fill = (s: string, v: Record<string, string | number>) => Object.entries(v).reduce((a, [k, x]) => a.replaceAll(`{${k}}`, String(x)), s);
@@ -18,6 +18,7 @@ type Form =
 
 export default function GovernancePage() {
   const [status, setStatus] = useState<GovernanceStatus | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessItem[]>([]);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [countries, setCountries] = useState<CountryRow[]>([]);
   const [tax, setTax] = useState<TaxRule[]>([]);
@@ -31,11 +32,12 @@ export default function GovernancePage() {
 
   const load = useCallback(async () => {
     try {
-      const [s, g, c, x, a] = await Promise.all([
+      const [s, g, c, x, a, r] = await Promise.all([
         api<GovernanceStatus>("/api/v1/governance/status"), api<ChecklistItem[]>("/api/v1/golive"),
         api<CountryRow[]>("/api/v1/countries"), api<TaxRule[]>("/api/v1/tax-rules"), api<AdequacyRow[]>("/api/v1/governance/adequacy"),
+        api<ReadinessItem[]>("/api/v1/governance/readiness"),
       ]);
-      setStatus(s); setItems(g); setCountries(c); setTax(x); setAdequacy(a);
+      setStatus(s); setItems(g); setCountries(c); setTax(x); setAdequacy(a); setReadiness(r);
     } catch { setError(getMessages().operator.loadError); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -160,6 +162,27 @@ export default function GovernancePage() {
           ))}
         </ol>
         <p className="hint">{t.globalFlag}: <strong>{status.global_go_live ? t.on : t.off}</strong></p>
+      </section>
+
+      <section aria-labelledby="ready-h">
+        <h2 id="ready-h" style={{ marginTop: 32 }}>{t.readinessTitle} ({readiness.filter((r) => r.state === "done").length}/{readiness.length})</h2>
+        <p className="muted" style={{ maxWidth: "70ch" }}>{t.readinessIntro}</p>
+        <ul className="golive readiness">
+          {readiness.map((r) => (
+            <li key={r.key} data-done={r.state === "done"}>
+              <div>
+                <strong>{r.title}</strong>
+                <p className="muted" style={{ margin: "2px 0 0" }}>{r.detail}</p>
+              </div>
+              <div className="golive-act">
+                <span className={r.state === "done" ? "outcome-allow" : r.state === "todo" ? "outcome-block" : "muted"}>
+                  {r.state === "done" ? t.stateDone : r.state === "todo" ? t.stateTodo : t.stateInfo}
+                </span>
+                <span className="hint" style={{ display: "block" }}>{r.who === "you" ? t.whoYou : t.whoSystem}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="sources-h">
