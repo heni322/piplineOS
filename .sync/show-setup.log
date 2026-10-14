@@ -1,0 +1,113 @@
+start 
+CREATE DATABASE
+CREATE EXTENSION
+CREATE EXTENSION
+Demo operator created (credentials shown ONCE; dev database only).
+{"tenant_id": "a6d7ec0b-34a7-4d98-8a76-cb89ca882467", "discovered": 12, "outcomes": {"alternative_channel": 2, "pending_approval": 5, "disqualified": 1, "rejected_by_compliance": 3, "suppressed": 1}, "event": "campaign_run", "level": "info", "timestamp": "2026-10-13T10:10:59.575790Z"}
+{"message_id": "cabe1f80-72a3-4cbd-ae48-32bb870f0b9e", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:01.229507Z"}
+{"message_id": "70beddcb-b0f6-49a6-9fad-cb360226a2a8", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:01.298716Z"}
+{"message_id": "6773a92b-3af8-4736-8bc3-1ade8bbceef1", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:01.363748Z"}
+{"message_id": "a07e6dc5-d51f-45aa-8ed5-27c77d465512", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:01.436931Z"}
+{"message_id": "494952a8-21ec-4db4-8181-3d68165dfc55", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:01.512253Z"}
+{"message_id": "32f2cdc0-ee23-4822-ba2e-6a67e69ed83e", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:02.091689Z"}
+{"message_id": "f20921c4-8759-4eb9-b235-7a0dd74bfef4", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:02.151102Z"}
+{"message_id": "127898b4-bac9-45e2-9f69-3c1fd86a3b02", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:02.316776Z"}
+{"message_id": "64f91ee2-56c9-4f0f-8221-b32c66af63c1", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:02.411665Z"}
+{"message_id": "ed7aa5c8-7457-4d89-9a70-5fc8fc2a751f", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-13T10:11:02.486175Z"}
+BACKEND-DONE 
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +443
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 443, reused 0, downloaded 0, added 0
+Progress: resolved 443, reused 0, downloaded 23, added 22
+Progress: resolved 443, reused 0, downloaded 41, added 41
+Progress: resolved 443, reused 0, downloaded 52, added 52
+Progress: resolved 443, reused 0, downloaded 64, added 61
+Progress: resolved 443, reused 0, downloaded 75, added 74
+Progress: resolved 443, reused 0, downloaded 89, added 84
+
+   ╭───────────────────────────────────────────────╮
+   │                                               │
+   │     Update available! 10.28.2 → 12.11.2.      │
+   │     Changelog: https://pnpm.io/v/12.11.2      │
+   │   To update, run: corepack use pnpm@12.11.2   │
+   │                                               │
+   ╰───────────────────────────────────────────────╯
+
+Progress: resolved 443, reused 0, downloaded 107, added 105
+Progress: resolved 443, reused 0, downloaded 120, added 119
+Progress: resolved 443, reused 0, downloaded 139, added 139
+ WARN  Tarball download average speed 46 KiB/s (size 428 KiB) is below 50 KiB/s: https://registry.npmjs.org/@babel/parser/-/parser-7.29.9.tgz (GET)
+Progress: resolved 443, reused 0, downloaded 160, added 159
+Progress: resolved 443, reused 0, downloaded 190, added 188
+Progress: resolved 443, reused 0, downloaded 197, added 197
+Progress: resolved 443, reused 0, downloaded 205, added 204
+ WARN  Tarball download average speed 37 KiB/s (size 38 KiB) is below 50 KiB/s: https://registry.npmjs.org/ignore/-/ignore-7.0.12.tgz (GET)
+Progress: resolved 443, reused 0, downloaded 213, added 209
+Progress: resolved 443, reused 0, downloaded 235, added 234
+Progress: resolved 443, reused 0, downloaded 251, added 249
+Progress: resolved 443, reused 0, downloaded 278, added 277
+Progress: resolved 443, reused 0, downloaded 308, added 297
+Progress: resolved 443, reused 0, downloaded 327, added 313
+Progress: resolved 443, reused 0, downloaded 334, added 321
+Progress: resolved 443, reused 0, downloaded 346, added 328
+Progress: resolved 443, reused 0, downloaded 359, added 341
+Progress: resolved 443, reused 0, downloaded 368, added 364
+Progress: resolved 443, reused 0, downloaded 377, added 375
+ WARN  Tarball download average speed 45 KiB/s (size 1129 KiB) is below 50 KiB/s: https://registry.npmjs.org/react-dom/-/react-dom-19.1.1.tgz (GET)
+Progress: resolved 443, reused 0, downloaded 383, added 383
+Progress: resolved 443, reused 0, downloaded 394, added 392
+Progress: resolved 443, reused 0, downloaded 408, added 407
+ WARN  Tarball download average speed 49 KiB/s (size 155 KiB) is below 50 KiB/s: https://registry.npmjs.org/tough-cookie/-/tough-cookie-6.0.2.tgz (GET)
+ WARN  Tarball download average speed 48 KiB/s (size 356 KiB) is below 50 KiB/s: https://registry.npmjs.org/jsdom/-/jsdom-27.0.0.tgz (GET)
+Progress: resolved 443, reused 0, downloaded 425, added 422
+Progress: resolved 443, reused 0, downloaded 430, added 429
+Progress: resolved 443, reused 0, downloaded 432, added 431
+Progress: resolved 443, reused 0, downloaded 433, added 432
+Progress: resolved 443, reused 0, downloaded 434, added 433
+Progress: resolved 443, reused 0, downloaded 437, added 436
+Progress: resolved 443, reused 0, downloaded 438, added 438
+Progress: resolved 443, reused 0, downloaded 439, added 438
+Progress: resolved 443, reused 0, downloaded 439, added 439
+Progress: resolved 443, reused 0, downloaded 440, added 439
+Progress: resolved 443, reused 0, downloaded 440, added 440
+Progress: resolved 443, reused 0, downloaded 441, added 440
+Progress: resolved 443, reused 0, downloaded 441, added 441
+Progress: resolved 443, reused 0, downloaded 442, added 441
+Progress: resolved 443, reused 0, downloaded 442, added 442
+Progress: resolved 443, reused 0, downloaded 443, added 442
+Progress: resolved 443, reused 0, downloaded 443, added 443
+Progress: resolved 443, reused 0, downloaded 443, added 443, done
+
+dependencies:
++ next 15.5.27
++ react 19.1.1
++ react-dom 19.1.1
+
+devDependencies:
++ @axe-core/playwright 4.10.2
++ @eslint/eslintrc 3.3.1
++ @playwright/test 1.55.1
++ @testing-library/jest-dom 6.8.0
++ @testing-library/react 16.3.0
++ @types/node 22.18.6
++ @types/react 19.1.13
++ @types/react-dom 19.1.9
++ @vitejs/plugin-react 5.2.0
++ eslint 9.36.0
++ eslint-config-next 15.5.27
++ eslint-plugin-jsx-a11y 6.10.2
++ jsdom 27.0.0
++ typescript 5.9.2
++ vitest 4.1.11
+
+╭ Warning ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│   Ignored build scripts: esbuild@0.28.2, unrs-resolver@1.12.2.               │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+│   to run scripts.                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Done in 1m 56.3s using pnpm v10.28.2
+ALL-DONE 

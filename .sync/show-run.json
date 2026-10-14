@@ -1,0 +1,14 @@
+{
+  "signals_fetched": 14,
+  "deduplicated": 1,
+  "below_threshold": 1,
+  "discovered": 12,
+  "injection_flags": 1,
+  "lead_outcomes": {
+    "alternative_channel": 2,
+    "pending_approval": 5,
+    "disqualified": 1,
+    "rejected_by_compliance": 3,
+    "suppressed": 1
+  }
+}

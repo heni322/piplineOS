@@ -1,0 +1,6 @@
+warning: `VIRTUAL_ENV=C:\Users\heniz\AppData\Roaming\Claude\Claude Extensions\ant.dir.cursortouch.windows-mcp\.venv` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+{"message_id": "50e6942c-41af-417a-b8bf-562974cbba71", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-12T17:12:25.966667Z"}
+{"message_id": "58d8d340-4814-40c0-b0b9-6817852a9d9a", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-12T17:12:25.996692Z"}
+{"message_id": "1308f3e6-f4cd-4e60-80db-3ff77b986361", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-12T17:12:26.026034Z"}
+{"message_id": "21a4a3b5-8808-4ee4-84e0-72acaa7c4357", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-12T17:12:26.055405Z"}
+{"message_id": "83072f8a-f6bd-4e11-b021-4b0c068742e1", "mode": "dry_run", "status": "dry_run_sent", "event": "message_sent", "level": "info", "timestamp": "2026-10-12T17:12:26.268458Z"}

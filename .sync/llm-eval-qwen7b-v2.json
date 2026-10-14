@@ -1,0 +1,123 @@
+{
+  "model": "qwen2.5:7b",
+  "started": "2026-10-14 09:52",
+  "pipeline": {
+    "signals": {
+      "fetched": 14,
+      "discovered": 11,
+      "below_threshold": 2,
+      "deduplicated": 1,
+      "escalated": 0,
+      "injection_flags": 1
+    },
+    "outcomes_match": 9,
+    "outcomes_total": 12,
+    "outcomes": {
+      "Contoso Managed IT Ltd": {
+        "expected": "pending_approval",
+        "got": "pending_approval"
+      },
+      "Woodgrove IT plc": {
+        "expected": "pending_approval",
+        "got": "escalated"
+      },
+      "Adventure Works MSP Ltd": {
+        "expected": "pending_approval",
+        "got": "escalated"
+      },
+      "Proseware Systems Ltd": {
+        "expected": "pending_approval",
+        "got": "pending_approval"
+      },
+      "Blue Yonder Managed Services Ltd": {
+        "expected": "pending_approval",
+        "got": "pending_approval"
+      },
+      "Fabrikam Cloud Ltd": {
+        "expected": "alternative_channel",
+        "got": "alternative_channel"
+      },
+      "Sam Patel IT Consulting": {
+        "expected": "alternative_channel",
+        "got": "alternative_channel"
+      },
+      "Tailspin Networks Ltd": {
+        "expected": "suppressed",
+        "got": "suppressed"
+      },
+      "Litware Solutions Ltd": {
+        "expected": "rejected_by_compliance",
+        "got": "rejected_by_compliance"
+      },
+      "Coho Data Services Ltd": {
+        "expected": "rejected_by_compliance",
+        "got": "rejected_by_compliance"
+      },
+      "Wide World IT Ltd": {
+        "expected": "rejected_by_compliance",
+        "got": "rejected_by_compliance"
+      },
+      "Graphic Design Institute Ltd": {
+        "expected": "disqualified",
+        "got": null
+      }
+    },
+    "drafts": 3,
+    "quality_scores": [
+      8.6,
+      8.8,
+      9.1
+    ],
+    "draft_samples": [
+      {
+        "company": "Blue Yonder Managed Services Ltd",
+        "quality": 9.1,
+        "subject": "Blue Yonder's new SOC offering",
+        "body": "Hi Taylor,\n\nI saw that Blue Yonder Managed Services launched a managed SOC offering for its 200 mid-market clients. As a Service Delivery Director, you'll know the importance of having robust support. Would a one-page summary of how we can help with overflow cover be useful?\n\nJordan"
+      },
+      {
+        "company": "Contoso Managed IT Ltd",
+        "quality": 8.6,
+        "subject": "Head of Service Delivery at Contoso Managed IT",
+        "body": "Hi Alex,\n\nI saw that Contoso Managed IT Ltd is hiring a Head of Service Delivery to manage a growing service desk team supporting SME clients. As you scale, managing overflow and out-of-hours support can be crucial. Would a one-page summary of how we can help with that be useful?\n\nJordan"
+      },
+      {
+        "company": "Proseware Systems Ltd",
+        "quality": 8.8,
+        "subject": "Service Desk Support for Proseware Systems",
+        "body": "Hi Jamie,\n\nI saw that Proseware Systems is hiring a Head of IT Operations to consolidate its service desks for 80 manufacturing clients. With such a large operation, overflow cover can help maintain smooth service. Would a one-page summary be useful?\n\nJordan"
+      }
+    ],
+    "llm_calls": [
+      {
+        "agent": "trigger_hunter",
+        "outcome": "ok",
+        "n": 13,
+        "avg_ms": 16648,
+        "output_tokens": 1239
+      },
+      {
+        "agent": "writer",
+        "outcome": "ok",
+        "n": 14,
+        "avg_ms": 50590,
+        "output_tokens": 3482
+      },
+      {
+        "agent": "writer.critique",
+        "outcome": "ok",
+        "n": 14,
+        "avg_ms": 28765,
+        "output_tokens": 2206
+      }
+    ],
+    "outcome_counts": {
+      "alternative_channel": 2,
+      "escalated": 2,
+      "rejected_by_compliance": 3,
+      "pending_approval": 3,
+      "suppressed": 1
+    },
+    "seconds": 1329
+  }
+}

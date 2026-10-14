@@ -1,0 +1,8 @@
+NOTICE:  database "pipelineos_llmeval" does not exist, skipping
+DROP DATABASE
+CREATE DATABASE
+CREATE EXTENSION
+CREATE EXTENSION
+2026-10-13 22:23:40 [info     ] campaign_run                   discovered=10 outcomes={'alternative_channel': 1, 'escalated': 5, 'rejected_by_compliance': 3, 'suppressed': 1} tenant_id=f4cb761e-ca25-4030-9ed6-bcb8dde1f908
+pipeline done 5 / 12
+DONE 

@@ -1,0 +1,5 @@
+Resolved 114 packages in 1ms
+Audited 112 packages in 10ms
+MIGRATED 
+replies done {"replies": 60, "accuracy": 0.942, "recall": {"data_protection_request": 1.0, "interested": 0.833, "negative": 0.75, "not_now": 1.0, "objection": 1.0, "out_of_office": 1.0, "referral": 1.0, "unclear": 0.0, "unsubscribe": 1.0}, "safety_recall": {"unsubscribe": 1.0, "objection": 1.0, "data_protection_request": 1.0}, "injection": {"total": 8, "escalated": 8, "unsafe": 0}, "seconds": 832}
+NORDIC-EVAL-DONE 

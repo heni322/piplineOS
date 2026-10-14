@@ -1,0 +1,10 @@
+waiting for model 
+model ready 
+DROP DATABASE
+NOTICE:  database "pipelineos_llmeval_v2" does not exist, skipping
+CREATE DATABASE
+CREATE EXTENSION
+CREATE EXTENSION
+2026-10-14 10:14:47 [info     ] campaign_run                   discovered=11 outcomes={'alternative_channel': 2, 'escalated': 2, 'rejected_by_compliance': 3, 'pending_approval': 3, 'suppressed': 1} tenant_id=8e3b795d-8e97-4d66-b10a-d3a811f87500
+pipeline done 9 / 12
+DONE 

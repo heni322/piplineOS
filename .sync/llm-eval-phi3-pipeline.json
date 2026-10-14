@@ -1,0 +1,99 @@
+{
+  "model": "phi3:mini",
+  "started": "2026-10-13 21:47",
+  "pipeline": {
+    "signals": {
+      "fetched": 14,
+      "discovered": 10,
+      "below_threshold": 3,
+      "deduplicated": 1,
+      "escalated": 0,
+      "injection_flags": 1
+    },
+    "outcomes_match": 5,
+    "outcomes_total": 12,
+    "outcomes": {
+      "Contoso Managed IT Ltd": {
+        "expected": "pending_approval",
+        "got": "escalated"
+      },
+      "Woodgrove IT plc": {
+        "expected": "pending_approval",
+        "got": "escalated"
+      },
+      "Adventure Works MSP Ltd": {
+        "expected": "pending_approval",
+        "got": "escalated"
+      },
+      "Proseware Systems Ltd": {
+        "expected": "pending_approval",
+        "got": "escalated"
+      },
+      "Blue Yonder Managed Services Ltd": {
+        "expected": "pending_approval",
+        "got": "escalated"
+      },
+      "Fabrikam Cloud Ltd": {
+        "expected": "alternative_channel",
+        "got": "alternative_channel"
+      },
+      "Sam Patel IT Consulting": {
+        "expected": "alternative_channel",
+        "got": null
+      },
+      "Tailspin Networks Ltd": {
+        "expected": "suppressed",
+        "got": "suppressed"
+      },
+      "Litware Solutions Ltd": {
+        "expected": "rejected_by_compliance",
+        "got": "rejected_by_compliance"
+      },
+      "Coho Data Services Ltd": {
+        "expected": "rejected_by_compliance",
+        "got": "rejected_by_compliance"
+      },
+      "Wide World IT Ltd": {
+        "expected": "rejected_by_compliance",
+        "got": "rejected_by_compliance"
+      },
+      "Graphic Design Institute Ltd": {
+        "expected": "disqualified",
+        "got": null
+      }
+    },
+    "drafts": 0,
+    "quality_scores": [],
+    "draft_samples": [],
+    "llm_calls": [
+      {
+        "agent": "trigger_hunter",
+        "outcome": "ok",
+        "n": 13,
+        "avg_ms": 23801,
+        "output_tokens": 2112
+      },
+      {
+        "agent": "writer",
+        "outcome": "ok",
+        "n": 15,
+        "avg_ms": 83383,
+        "output_tokens": 6223
+      },
+      {
+        "agent": "writer.critique",
+        "outcome": "ok",
+        "n": 15,
+        "avg_ms": 39214,
+        "output_tokens": 3466
+      }
+    ],
+    "outcome_counts": {
+      "alternative_channel": 1,
+      "escalated": 5,
+      "rejected_by_compliance": 3,
+      "suppressed": 1
+    },
+    "seconds": 2151
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "invoice_id": "66f5335e-ca7d-4056-aa64-6517653566fd",
+  "lines": [
+    {
+      "kind": "setup",
+      "description": "Set-up fee",
+      "amount_minor": 25000,
+      "meeting_id": null,
+      "credit_for_line_id": null
+    },
+    {
+      "kind": "retainer",
+      "description": "Monthly service, October 2026",
+      "amount_minor": 50000,
+      "meeting_id": null,
+      "credit_for_line_id": null
+    },
+    {
+      "kind": "meeting",
+      "description": "Qualified meeting attended: Contoso Managed IT Ltd, 15 Oct 2026",
+      "amount_minor": 30000,
+      "meeting_id": "a8561fe9-e603-46f7-a76a-f81856e0d52f",
+      "credit_for_line_id": null
+    }
+  ],
+  "excluded": [],
+  "total": "£1,050.00",
+  "issue_blocked_by": [
+    "GO_LIVE_NOT_SIGNED_OFF",
+    "SUPPLIER_DETAILS_INCOMPLETE",
+    "TAX_RULE_NOT_VERIFIED_BY_ACCOUNTANT"
+  ]
+}

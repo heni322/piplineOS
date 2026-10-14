@@ -1,0 +1,21 @@
+Resolved 114 packages in 1ms
+Audited 112 packages in 18ms
+{
+  "created": [
+    "country_rollout_status:DK",
+    "country_rollout_status:SE",
+    "sub_processors:hunter",
+    "supplier"
+  ],
+  "unchanged": 39
+}
+{
+  "created": [
+    "country_rollout_status:DK",
+    "country_rollout_status:SE"
+  ],
+  "unchanged": 41
+}
+SYNCED 
+replies done {"replies": 74, "accuracy": 0.954, "recall": {"data_protection_request": 1.0, "interested": 0.857, "negative": 0.8, "not_now": 1.0, "objection": 1.0, "out_of_office": 1.0, "referral": 1.0, "unclear": 0.0, "unsubscribe": 1.0}, "safety_recall": {"unsubscribe": 1.0, "objection": 1.0, "data_protection_request": 1.0}, "injection": {"total": 9, "escalated": 9, "unsafe": 0}, "seconds": 1093}
+NORDIC-EVAL-DONE 

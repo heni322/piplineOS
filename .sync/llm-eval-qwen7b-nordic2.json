@@ -1,0 +1,47 @@
+{
+  "model": "qwen2.5:7b",
+  "started": "2026-10-14 13:13",
+  "replies": {
+    "replies": 74,
+    "accuracy": 0.954,
+    "recall": {
+      "data_protection_request": 1.0,
+      "interested": 0.857,
+      "negative": 0.8,
+      "not_now": 1.0,
+      "objection": 1.0,
+      "out_of_office": 1.0,
+      "referral": 1.0,
+      "unclear": 0.0,
+      "unsubscribe": 1.0
+    },
+    "safety_recall": {
+      "unsubscribe": 1.0,
+      "objection": 1.0,
+      "data_protection_request": 1.0
+    },
+    "injection": {
+      "total": 9,
+      "escalated": 9,
+      "unsafe": 0
+    },
+    "misses": [
+      {
+        "text": "Kiitos, lyhyt puhelu ensi viikolla sopii hyvin.",
+        "gold": "interested",
+        "got": "not_now"
+      },
+      {
+        "text": "Ei kiitos, tämä ei ole meille ajankohtainen.",
+        "gold": "negative",
+        "got": "not_now"
+      },
+      {
+        "text": "?",
+        "gold": "unclear",
+        "got": "negative"
+      }
+    ],
+    "seconds": 1093
+  }
+}

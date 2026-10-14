@@ -1,0 +1,10 @@
+
+> pipelineos-web@0.2.0 dev C:\Users\heniz\Desktop\piplineOS\frontend
+> next dev -p 3000
+
+   ▲ Next.js 15.5.27
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.25.1:3000
+
+ ✓ Starting...
+ ✓ Ready in 23.9s
