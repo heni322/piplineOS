@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     fi_registry_adapter_mode: AdapterMode = "mock"  # Finland: avoindata.prh.fi YTJ v3 (free, no key)
     se_registry_adapter_mode: AdapterMode = "mock"  # Sweden: Bolagsverket "värdefulla datamängder" (free, registration)
     dk_registry_adapter_mode: AdapterMode = "mock"  # Denmark: Erhvervsstyrelsen CVR distribution (free, credentials)
+    be_registry_adapter_mode: AdapterMode = "mock"  # Belgium: local copy of KBO open data (owner imports the file)
+    ie_registry_adapter_mode: AdapterMode = "mock"  # Ireland: local copy of CRO open data (owner imports the file)
     llm_adapter_mode: AdapterMode = "mock"
 
     # Real providers (Phase 6). Unused unless the matching adapter mode is sandbox/live.

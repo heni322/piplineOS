@@ -95,6 +95,16 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
         from app.adapters.registries.denmark import DenmarkRegistry
 
         by_country["DK"] = DenmarkRegistry(settings.cvr_username, settings.cvr_password.get_secret_value())
+    # registers published as open-data files: read the owner-imported local copy (no network at lookup time)
+    for cc, mode in (("BE", settings.be_registry_adapter_mode), ("IE", settings.ie_registry_adapter_mode)):
+        by_country[cc] = MockCompaniesHouse()
+        if mode != "mock":
+            from app.adapters.registries.belgium import BelgiumRegistry
+            from app.adapters.registries.ireland import IrelandRegistry
+            from app.db.session import get_engine
+
+            engine = ctx.engine if ctx is not None else get_engine()
+            by_country[cc] = BelgiumRegistry(engine) if cc == "BE" else IrelandRegistry(engine)
     p.registry = RoutingRegistry(by_country)
     return p
 

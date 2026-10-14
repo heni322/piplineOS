@@ -39,6 +39,12 @@ Go-live is the owner's decision and action. Nothing in this repository turns on 
      - Sweden: register for Bolagsverket's free API (värdefulla datamängder), then set `BOLAGSVERKET_CLIENT_ID` / `_SECRET`.
      - Denmark: ask Erhvervsstyrelsen (cvrselvbetjening@erst.dk) for free system-to-system access, then set `CVR_USERNAME` / `CVR_PASSWORD`.
      - For Sweden and Denmark, first set the mode to `sandbox` and look up one known company. The adapters were built from the published field names and have not yet seen the real service.
+     - Belgium and Ireland publish their registers as free open-data files, not lookup services:
+       - Belgium: register with FPS Economy for KBO open data and download the monthly full extract.
+       - Ireland: download CRO "Company Records" (CC BY 4.0).
+       - Import with `pipelineos registers import be|ie <zip>`, then set `BE_` / `IE_REGISTRY_ADAPTER_MODE=live`.
+       - Re-import monthly (Belgium) or weekly (Ireland). For Ireland, add the CC BY attribution to the privacy notice.
+     - Spain, Italy, Portugal and the Netherlands have no free register that confirms legal form. Their companies stay "unknown" (blocked) until you choose a paid source.
 9. **Enrichment and email-verification providers** chosen and contracted. Their adapters are built only after you choose (see the Phase 6 report).
 10. Backups running, a restore drill passed, monitoring and alerts wired, keys stored offline.
 

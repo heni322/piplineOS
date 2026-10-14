@@ -66,6 +66,23 @@ FREE_MAIL_DOMAINS = frozenset(
         "ofir.dk",
         "stofanet.dk",
         "yahoo.dk",
+        # Spain, Italy, Portugal, Belgium consumer mail
+        "hotmail.es",
+        "yahoo.es",
+        "telefonica.net",
+        "libero.it",
+        "virgilio.it",
+        "alice.it",
+        "tiscali.it",
+        "hotmail.it",
+        "yahoo.it",
+        "sapo.pt",
+        "hotmail.com.pt",
+        "clix.pt",
+        "skynet.be",
+        "telenet.be",
+        "hotmail.be",
+        "proximus.be",
     }
 )
 

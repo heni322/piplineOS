@@ -22,3 +22,4 @@ Status values: Proposed · Accepted · Superseded. All are **Proposed** until th
 | [0015](0015-live-data-and-client-crm.md) | Real data sources and the client's CRM (Phases 6.2–6.3) | Proposed |
 | [0016](0016-stage-2-nordics.md) | Stage 2 readiness: Norway and Finland, EU/EEA representative check | Proposed |
 | [0017](0017-sweden-denmark-registers.md) | Sweden and Denmark registers (credentials issued free on registration) | Proposed |
+| [0018](0018-stage-4-and-open-data-registers.md) | Stage 4 languages; Belgium and Ireland registers from open-data files | Proposed |

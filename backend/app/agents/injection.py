@@ -36,6 +36,10 @@ PATTERNS = [
     r"negeer (alle )?(vorige |eerdere )?(instructies|opdrachten)",
     r"ignora (todas )?(las )?instrucciones",
     r"ignora (tutte )?(le )?istruzioni",
+    r"\bnuevas instrucciones\b|olvida (todas )?(las )?instrucciones",
+    r"\bnuove istruzioni\b|dimentica (tutte )?(le )?istruzioni",
+    r"ignor[ae] (todas )?(as )?instru[çc][õo]es|esque[çc]e (todas )?(as )?instru[çc][õo]es|\bnovas instru[çc][õo]es\b",
+    r"\bnieuwe instructies\b|vergeet (alle )?(vorige |eerdere )?instructies",
     # Nordic: Norwegian, Danish, Finnish, Swedish
     r"ignorer (alle )?(tidligere |forrige )?(instruksjoner|instrukser|instruktioner|regler)",
     r"\bnye instruks(joner|er)\b|\bnye instruktioner\b",

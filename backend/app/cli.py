@@ -25,10 +25,12 @@ keys_app = typer.Typer(help="Cryptographic keys")
 config_app = typer.Typer(help="Versioned configuration")
 users_app = typer.Typer(help="Users")
 demo_app = typer.Typer(help="Synthetic demo data (dev/test only)")
+registers_app = typer.Typer(help="Public company registers")
 app.add_typer(keys_app, name="keys")
 app.add_typer(config_app, name="config")
 app.add_typer(users_app, name="users")
 app.add_typer(demo_app, name="demo")
+app.add_typer(registers_app, name="registers")
 
 
 @app.callback()
@@ -52,6 +54,21 @@ def config_sync(path: Path = DEFAULT_CONFIG) -> None:
     with transaction(DbContext.system(), get_engine()) as conn:
         report = sync_all(conn, path)
     typer.echo(json.dumps({"created": report.created, "unchanged": len(report.unchanged)}, indent=2))
+
+
+@registers_app.command("import")
+def import_register(country: str, source: Path) -> None:
+    """Import a public register's open-data file into the local copy: `be` (KBO/BCE full extract, free after
+    registration with FPS Economy) or `ie` (CRO "Company Records", CC BY 4.0). Legal persons only; never deletes.
+    Runs with the database owner account."""
+    from app.adapters.registries.belgium import import_kbo
+    from app.adapters.registries.ireland import import_cro
+
+    importers = {"be": import_kbo, "ie": import_cro}
+    if country.lower() not in importers:
+        raise typer.BadParameter("country must be 'be' or 'ie'")
+    r = importers[country.lower()](get_engine(get_settings().database_owner_url), source)
+    typer.echo(json.dumps(r.__dict__, indent=2, default=str))
 
 
 @users_app.command("create-operator")

@@ -175,3 +175,5 @@ Supporting tables added: tenant_keys (wrapped per-tenant data keys, ADR-0005/000
 | `dry_run_log` payloads | 90 days | Null `payload_enc` |
 | Suppression hashes | Permanent | Never deleted |
 | `audit_log` | 6 years | Partition drop after export (requires operator approval) |
+
+**register_companies / register_names** [reference, not tenant data; migration 0013] — local copies of public registers published as open-data files (Belgium KBO/BCE, Ireland CRO). `register_companies(country_code, company_number, form_code, legal_form, status, extract_date, imported_at)`, `register_names(country_code, company_number, name, name_norm)`. Legal persons only, no addresses. Application role: SELECT only; written by the owner's import command; imports never delete (missing companies become `not_in_extract`).

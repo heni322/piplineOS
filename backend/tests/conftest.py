@@ -57,6 +57,8 @@ os.environ.update(
                 "FI_REGISTRY",
                 "SE_REGISTRY",
                 "DK_REGISTRY",
+                "BE_REGISTRY",
+                "IE_REGISTRY",
             )
         },
         "LOG_LEVEL": "WARNING",

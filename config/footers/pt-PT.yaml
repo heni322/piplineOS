@@ -1,0 +1,20 @@
+# Gerado de forma determinística e acrescentado após a redação (o Agente 3 nunca o escreve). Texto PROVISÓRIO,
+# a validar por um advogado (Lei 41/2004, RGPD, CNPD) antes de ativar Portugal.
+locale: pt-PT
+template: |
+  --
+  {sender_name}, {sender_title} · {company_legal_name}
+  Registada em {registration_jurisdiction} sob o n.º {company_number} · {registered_office_address}
+
+  Obtivemos os seus dados profissionais através de {data_source_summary} e contactamo-lo sobre {purpose}
+  por estar relacionado com a sua função. Pode opor-se a qualquer momento: responda «cancelar» ou use esta ligação:
+  {unsubscribe_url}
+  Política de privacidade e os seus direitos: {privacy_url}
+required_placeholders:
+  - sender_name
+  - company_legal_name
+  - company_number
+  - registered_office_address
+  - unsubscribe_url
+  - privacy_url
+  - data_source_summary

@@ -36,15 +36,18 @@ With this phase, all four Nordic countries have a company register adapter. Swed
 | Lint, types, 3 import contracts | Clean |
 | Nordic set (74 replies: Norwegian, Danish, Finnish, Swedish, English), rules only, also with an always-"interested" model | Unsubscribe, objection, data request: 100%; 9 of 9 hidden instructions escalated, 0 acted on |
 | English and French sets | Unchanged |
-| Nordic replies with Qwen 2.5 7B on the owner's PC | §2.1 |
+| Nordic replies with Qwen 2.5 7B on the owner's PC | **95.4%**; safety 100%; 9 of 9 injections escalated (§2.1) |
 | On the owner's PC | §2.2 |
 
 **Limitation, stated plainly:** the Swedish and Danish adapters were written from the registers' published field
 names and tested against recorded examples, not against the live services. No credentials exist yet. The go-live
 runbook (A.8) now requires a sandbox lookup of one known company before either country is enabled.
 
-### 2.1 Nordic replies with a real model
-PENDING
+### 2.1 Nordic replies with a real model (Qwen 2.5 7B on the owner's PC, 74 replies, ≈ 15 s each)
+- **95.4%** correctly classified, up from 94.2% on the 60-reply set. All 14 new Danish replies were right.
+- Unsubscribe, objection and data request: 100%. Out of office, not now and referral: 100%.
+- Hidden instructions: 9 of 9 escalated, 0 acted on.
+- The three mistakes are the same Finnish/"?" ones as in Phase 9; none is unsafe.
 
 ### 2.2 On the owner's PC
 PENDING

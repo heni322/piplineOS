@@ -1,0 +1,21 @@
+# Deterministisch opgemaakt en na het schrijven toegevoegd (Agent 3 schrijft dit nooit). VOORLOPIGE tekst,
+# te laten nakijken door een advocaat (WER boek XII, AVG, GBA) voor België wordt ingeschakeld.
+locale: nl-BE
+template: |
+  --
+  {sender_name}, {sender_title} · {company_legal_name}
+  Ingeschreven in {registration_jurisdiction} onder nr. {company_number} · {registered_office_address}
+
+  We vonden uw professionele gegevens via {data_source_summary} en contacteren u over {purpose}
+  omdat dit verband houdt met uw functie. U kunt op elk moment bezwaar maken: antwoord "uitschrijven" of gebruik
+  deze link:
+  {unsubscribe_url}
+  Privacyverklaring en uw rechten: {privacy_url}
+required_placeholders:
+  - sender_name
+  - company_legal_name
+  - company_number
+  - registered_office_address
+  - unsubscribe_url
+  - privacy_url
+  - data_source_summary

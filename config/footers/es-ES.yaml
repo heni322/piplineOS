@@ -1,0 +1,20 @@
+# Generado de forma determinista y añadido tras la redacción (el Agente 3 nunca lo escribe). Texto PROVISIONAL,
+# pendiente de revisión por un abogado (LSSI, RGPD, LOPDGDD) antes de activar España.
+locale: es-ES
+template: |
+  --
+  {sender_name}, {sender_title} · {company_legal_name}
+  Inscrita en {registration_jurisdiction} con n.º {company_number} · {registered_office_address}
+
+  Hemos obtenido sus datos profesionales a través de {data_source_summary} y le escribimos sobre {purpose}
+  porque guarda relación con su puesto. Puede oponerse en cualquier momento: responda «baja» o use este enlace:
+  {unsubscribe_url}
+  Política de privacidad y sus derechos: {privacy_url}
+required_placeholders:
+  - sender_name
+  - company_legal_name
+  - company_number
+  - registered_office_address
+  - unsubscribe_url
+  - privacy_url
+  - data_source_summary

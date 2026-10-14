@@ -1,0 +1,20 @@
+# Generato in modo deterministico e aggiunto dopo la redazione (l'Agente 3 non lo scrive mai). Testo PROVVISORIO,
+# da far verificare a un avvocato (Codice privacy, GDPR, Garante) prima di attivare l'Italia.
+locale: it-IT
+template: |
+  --
+  {sender_name}, {sender_title} · {company_legal_name}
+  Registrata in {registration_jurisdiction} n. {company_number} · {registered_office_address}
+
+  Abbiamo ottenuto i Suoi dati professionali tramite {data_source_summary} e La contattiamo in merito a {purpose}
+  perché riguarda il Suo ruolo. Può opporsi in qualsiasi momento: risponda «cancellami» o usi questo link:
+  {unsubscribe_url}
+  Informativa privacy e i Suoi diritti: {privacy_url}
+required_placeholders:
+  - sender_name
+  - company_legal_name
+  - company_number
+  - registered_office_address
+  - unsubscribe_url
+  - privacy_url
+  - data_source_summary

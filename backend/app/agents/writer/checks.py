@@ -39,6 +39,24 @@ SPAM = [
     "dernière chance",
     "cliquez ici",
     "100 %",
+    # Spanish, Italian, Portuguese, Dutch
+    "gratis",
+    "garantizado",
+    "sin compromiso",
+    "oferta limitada",
+    "haga clic aquí",
+    "gratuito",
+    "garantito",
+    "senza impegno",
+    "offerta limitata",
+    "clicca qui",
+    "garantido",
+    "sem compromisso",
+    "clique aqui",
+    "gegarandeerd",
+    "vrijblijvend",
+    "beperkte tijd",
+    "klik hier",
 ]
 HIGH_FRICTION = [
     r"\b(15|20|30|45|60)[- ]?min",
@@ -48,14 +66,39 @@ HIGH_FRICTION = [
     r"\bschedule (a|an) (call|demo|meeting)\b",
     r"\br[ée]server (un|une) (appel|cr[ée]neau|rendez-vous|d[ée]mo)\b",
     r"\bprendre (un )?rendez-vous\b",
+    r"\breserv(?:ar|e) (?:una )?(?:llamada|reunión|cita|demo)\b",
+    r"\bprenot(?:are|i) (?:una )?(?:chiamata|riunione|demo)\b|\bfissare un appuntamento\b",
+    r"\bmarc(?:ar|e) (?:uma )?(?:chamada|reunião|demo)\b",
+    r"\bplan (?:een )?(?:gesprek|afspraak|demo)\b|\bboek (?:een )?(?:gesprek|afspraak|demo)\b",
 ]
 SENSITIVE = [
     r"\b(wife|husband|partner's|children|kids|pregnan\w*|religio\w*|church|mosque|illness|diagnos\w*|"
     r"disabilit\w*|divorce\w*|birthday|sexual\w*|ethnic\w*|political view\w*)\b",
     r"\b(votre (femme|mari|conjoint\w*)|vos enfants|enceinte|religi\w*|[ée]glise|mosqu[ée]e|maladie|diagnostic\w*|"
     r"handicap\w*|divorc\w*|anniversaire|sexualit[ée]|ethni\w*|opinions? politiques?)\b",
+    r"\b(su (?:esposa|marido|pareja)|sus hijos|embarazad\w*|religi[óo]n\w*|iglesia|enfermedad\w*|discapacidad\w*|"
+    r"divorci\w*|cumpleaños|sexualidad|étnic\w*|ideolog[íi]a pol[íi]tica)\b",
+    r"\b(sua moglie|suo marito|i suoi figli|incinta|religion\w*|chiesa|malattia|disabilit[àa]|divorzi\w*|compleanno|"
+    r"sessualit[àa]|etnia|opinioni politiche)\b",
+    r"\b(sua esposa|seu marido|seus filhos|grávida|religião|igreja|doença|deficiência|divórcio|aniversário|"
+    r"sexualidade|etnia|opiniões políticas)\b",
+    r"\b(uw (?:vrouw|man|partner)|uw kinderen|zwanger\w*|geloof|kerk|moskee|ziekte|handicap|scheiding|verjaardag|"
+    r"seksualiteit|etniciteit|politieke voorkeur)\b",
 ]
 INFORMAL_FR = re.compile(r"\b(tu|toi|ton|ta|tes|t'as|t'es)\b", re.IGNORECASE)
+# Formal address per language (prefix -> (informal forms, the form to use)). A native speaker reviews these.
+INFORMAL = {
+    "es": (
+        re.compile(
+            r"\b(tú|te|contigo|tus?|vosotr[oa]s|os)\b",  # not "ti": "TI" is IT in Spanish
+            re.IGNORECASE,
+        ),
+        "usted",
+    ),
+    "it": (re.compile(r"\b(tu|ti|te|tuo|tua|tuoi|tue)\b", re.IGNORECASE), "Lei"),
+    "pt": (re.compile(r"\b(tu|te|contigo|teu|tua|teus|tuas)\b", re.IGNORECASE), "o(a) senhor(a) / third person"),
+    "nl": (re.compile(r"\b(jij|jou|jouw|je|jullie)\b", re.IGNORECASE), "u"),
+}
 US_TO_UK = {
     "optimize": "optimise",
     "optimization": "optimisation",
@@ -222,7 +265,10 @@ def check_draft(
     if PHONE.search(everything):
         r.blocking.append("phone numbers are not allowed in the copy")
     if re.search(
-        r"unsubscribe|privacy notice|registered in|company number|d[ée]sinscri|confidentialit[ée]|immatricul|siren",
+        r"unsubscribe|privacy notice|registered in|company number|d[ée]sinscri|confidentialit[ée]|immatricul|siren"
+        r"|darse de baja|pol[íi]tica de privacidad|\bcif\b|informativa (?:sulla )?privacy|disiscri|partita iva"
+        r"|cancelar (?:a )?subscri[çc][ãa]o|pol[íi]tica de privacidade|\bnipc\b|uitschrijv|privacyverklaring"
+        r"|ondernemingsnummer",
         all_text,
         re.IGNORECASE,
     ):
@@ -249,6 +295,11 @@ def check_draft(
         informal = sorted({m.group(1).lower() for m in INFORMAL_FR.finditer(everything)})
         if informal:
             r.blocking.append(f"informal address ({', '.join(informal)}): use the formal 'vous' in French")
+    if language[:2] in INFORMAL:
+        rx, formal = INFORMAL[language[:2]]
+        informal = sorted({m.group(1).lower() for m in rx.finditer(everything)})
+        if informal:
+            r.blocking.append(f"informal address ({', '.join(informal)}): use the formal '{formal}'")
 
     sentences = [s for s in re.split(r"(?<=[.!?])\s+", body.strip()) if s]
     if "?" not in body:

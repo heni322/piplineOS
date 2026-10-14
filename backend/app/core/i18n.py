@@ -1,6 +1,7 @@
 """Fixed texts PipelineOS sends or shows to prospects (slot offers, confirmations, reminders, the public unsubscribe
 and reschedule pages), per language. The AI-written emails follow the client's language through their prompts; these
-are the deterministic ones. French uses formal "vous". Unknown languages fall back to British English.
+are the deterministic ones. Formal address throughout (French "vous", Spanish "usted", Italian "Lei", Dutch "u",
+European Portuguese third person). Unknown languages fall back to British English.
 
 PLACEHOLDER wording: like the footers, this is reviewed by a native speaker / counsel before a country is enabled."""
 
@@ -107,11 +108,204 @@ CATALOGUE: dict[str, dict[str, str]] = {
         "page_contact_title": "Nous revenons vers vous",
         "page_contact": "Un membre de l'équipe vous contactera pour trouver un horaire.",
     },
+    "es-ES": {
+        "greeting": "Hola, {name}:",
+        "slot_intro": "Gracias por su respuesta. ¿Le vendría bien alguno de estos horarios para una breve llamada?",
+        "slot_intro_taken": "Lo siento, ese horario acaba de ocuparse. ¿Le vendría bien alguno de estos?",
+        "slot_intro_other": "Sin problema. ¿Le vendría bien alguno de estos horarios?",
+        "slot_option": "Opción {i}: {label}",
+        "slot_close": "Basta con que responda con la opción que prefiera y le enviaré una invitación de "
+        "{minutes} minutos.",
+        "confirm_booked": "Gracias, queda reservado",
+        "confirm_moved": "Su llamada se ha cambiado",
+        "confirm_body": "{lead}: {when}, {minutes} minutos. Recibirá una invitación de calendario.",
+        "agenda": "Orden del día:",
+        "reschedule_link": "Si el horario deja de venirle bien, puede elegir otro aquí:",
+        "confirm_subject": "Confirmado: {title}, {when}",
+        "reminder_tomorrow": "mañana",
+        "reminder_shortly": "en breve",
+        "reminder_body": "Le recuerdo nuestra llamada {soon}: {when}.",
+        "reminder_close": "Si el horario ya no le viene bien, responda y buscaré otro.",
+        "reminder_subject": "Recordatorio: {title}, {when}",
+        "reply_subject": "Re: {subject}",
+        "reply_subject_default": "nuestra conversación",
+        "date": "{weekday} {day} de {month} a las {time} ({zone})",
+        "page_unsub_title": "Darse de baja",
+        "page_unsub_intro": "Haga clic abajo para no recibir más correos nuestros.",
+        "page_unsub_button": "Darme de baja",
+        "page_unsub_done_title": "Se ha dado de baja",
+        "page_unsub_done": "No recibirá más correos nuestros. Esto se aplica a todas nuestras campañas.",
+        "page_link_invalid_title": "Enlace no válido",
+        "page_unsub_invalid": "Este enlace de baja no es válido. Responda al correo con «baja» y le retiraremos.",
+        "page_unsub_unknown": "Este enlace de baja no es válido.",
+        "page_wait_title": "Espere, por favor",
+        "page_too_many": "Demasiadas solicitudes desde su red. Espere un minuto y vuelva a intentarlo.",
+        "page_resched_title": "Elegir un nuevo horario",
+        "page_resched_button": "Cambiar mi llamada",
+        "page_resched_invalid": "Este enlace ya no es válido. Responda a su correo de confirmación y buscaremos otro "
+        "horario.",
+        "page_no_times_title": "No hay horarios libres",
+        "page_no_times": "Ahora mismo no hay horarios libres. Responda a su correo de confirmación.",
+        "page_time_na_title": "Horario no disponible",
+        "page_bad_request": "No se ha entendido la solicitud.",
+        "page_time_taken": "Ese horario ya no está disponible. Vuelva atrás y elija otro.",
+        "page_time_failed": "No se ha podido reservar ese horario. Responda a su correo de confirmación.",
+        "page_moved_title": "Su llamada se ha cambiado",
+        "page_moved": "Su llamada es ahora el {when}. Recibirá una nueva confirmación.",
+        "page_contact_title": "Nos pondremos en contacto",
+        "page_contact": "Una persona del equipo se pondrá en contacto con usted para buscar un horario.",
+    },
+    "it-IT": {
+        "greeting": "Gentile {name},",
+        "slot_intro": "Grazie per la risposta. Uno di questi orari Le andrebbe bene per una breve chiamata?",
+        "slot_intro_taken": "Mi scusi, quell'orario è appena stato occupato. Uno di questi Le andrebbe bene?",
+        "slot_intro_other": "Nessun problema. Uno di questi orari Le andrebbe bene?",
+        "slot_option": "Opzione {i}: {label}",
+        "slot_close": "Mi risponda semplicemente con l'opzione che preferisce e Le invierò un invito di "
+        "{minutes} minuti.",
+        "confirm_booked": "Grazie, è confermato",
+        "confirm_moved": "La Sua chiamata è stata spostata",
+        "confirm_body": "{lead}: {when}, {minutes} minuti. Riceverà un invito in calendario.",
+        "agenda": "Ordine del giorno:",
+        "reschedule_link": "Se l'orario non Le va più bene, può sceglierne un altro qui:",
+        "confirm_subject": "Confermato: {title}, {when}",
+        "reminder_tomorrow": "domani",
+        "reminder_shortly": "a breve",
+        "reminder_body": "Le ricordo la nostra chiamata {soon}: {when}.",
+        "reminder_close": "Se l'orario non Le va più bene, mi risponda e ne troverò un altro.",
+        "reminder_subject": "Promemoria: {title}, {when}",
+        "reply_subject": "Re: {subject}",
+        "reply_subject_default": "la nostra conversazione",
+        "date": "{weekday} {day} {month} alle {time} ({zone})",
+        "page_unsub_title": "Annulla iscrizione",
+        "page_unsub_intro": "Clicchi qui sotto per non ricevere più email da noi.",
+        "page_unsub_button": "Annulla l'iscrizione",
+        "page_unsub_done_title": "Iscrizione annullata",
+        "page_unsub_done": "Non riceverà più email da noi. Vale per tutte le nostre campagne.",
+        "page_link_invalid_title": "Link non valido",
+        "page_unsub_invalid": "Questo link di disiscrizione non è valido. Risponda all'email con «cancellami» e La "
+        "rimuoveremo.",
+        "page_unsub_unknown": "Questo link di disiscrizione non è valido.",
+        "page_wait_title": "Attenda, per favore",
+        "page_too_many": "Troppe richieste dalla Sua rete. Attenda un minuto e riprovi.",
+        "page_resched_title": "Scegliere un nuovo orario",
+        "page_resched_button": "Sposta la mia chiamata",
+        "page_resched_invalid": "Questo link non è più valido. Risponda all'email di conferma e troveremo un altro "
+        "orario.",
+        "page_no_times_title": "Nessun orario libero",
+        "page_no_times": "Al momento non ci sono orari liberi. Risponda all'email di conferma.",
+        "page_time_na_title": "Orario non disponibile",
+        "page_bad_request": "La richiesta non è stata compresa.",
+        "page_time_taken": "Quell'orario non è più disponibile. Torni indietro e ne scelga un altro.",
+        "page_time_failed": "Non è stato possibile prenotare quell'orario. Risponda all'email di conferma.",
+        "page_moved_title": "La Sua chiamata è stata spostata",
+        "page_moved": "La Sua chiamata è ora il {when}. Riceverà una nuova conferma.",
+        "page_contact_title": "La contatteremo",
+        "page_contact": "Una persona del team La contatterà per trovare un orario.",
+    },
+    "pt-PT": {
+        "greeting": "Caro(a) {name},",
+        "slot_intro": "Obrigado pela resposta. Algum destes horários lhe seria conveniente para uma breve chamada?",
+        "slot_intro_taken": "Lamento, esse horário acabou de ser ocupado. Algum destes lhe seria conveniente?",
+        "slot_intro_other": "Sem problema. Algum destes horários lhe seria conveniente?",
+        "slot_option": "Opção {i}: {label}",
+        "slot_close": "Basta responder com a opção que preferir e enviarei um convite de {minutes} minutos.",
+        "confirm_booked": "Obrigado, está marcado",
+        "confirm_moved": "A sua chamada foi alterada",
+        "confirm_body": "{lead}: {when}, {minutes} minutos. Receberá um convite de calendário.",
+        "agenda": "Ordem de trabalhos:",
+        "reschedule_link": "Se o horário deixar de lhe convir, pode escolher outro aqui:",
+        "confirm_subject": "Confirmado: {title}, {when}",
+        "reminder_tomorrow": "amanhã",
+        "reminder_shortly": "em breve",
+        "reminder_body": "Recordo a nossa chamada {soon}: {when}.",
+        "reminder_close": "Se o horário já não lhe convier, responda e encontrarei outro.",
+        "reminder_subject": "Lembrete: {title}, {when}",
+        "reply_subject": "Re: {subject}",
+        "reply_subject_default": "a nossa conversa",
+        "date": "{weekday}, {day} de {month} às {time} ({zone})",
+        "page_unsub_title": "Cancelar subscrição",
+        "page_unsub_intro": "Clique abaixo para deixar de receber emails nossos.",
+        "page_unsub_button": "Cancelar a subscrição",
+        "page_unsub_done_title": "Subscrição cancelada",
+        "page_unsub_done": "Não receberá mais emails nossos. Isto aplica-se a todas as nossas campanhas.",
+        "page_link_invalid_title": "Ligação inválida",
+        "page_unsub_invalid": "Esta ligação de cancelamento não é válida. Responda ao email com «cancelar» e "
+        "retirá-lo-emos.",
+        "page_unsub_unknown": "Esta ligação de cancelamento não é válida.",
+        "page_wait_title": "Aguarde, por favor",
+        "page_too_many": "Demasiados pedidos a partir da sua rede. Aguarde um minuto e tente novamente.",
+        "page_resched_title": "Escolher um novo horário",
+        "page_resched_button": "Alterar a minha chamada",
+        "page_resched_invalid": "Esta ligação já não é válida. Responda ao email de confirmação e encontraremos outro "
+        "horário.",
+        "page_no_times_title": "Sem horários livres",
+        "page_no_times": "Neste momento não há horários livres. Responda ao email de confirmação.",
+        "page_time_na_title": "Horário indisponível",
+        "page_bad_request": "O pedido não foi compreendido.",
+        "page_time_taken": "Esse horário já não está disponível. Volte atrás e escolha outro.",
+        "page_time_failed": "Não foi possível marcar esse horário. Responda ao email de confirmação.",
+        "page_moved_title": "A sua chamada foi alterada",
+        "page_moved": "A sua chamada passou para {when}. Receberá uma nova confirmação.",
+        "page_contact_title": "Entraremos em contacto",
+        "page_contact": "Um membro da equipa entrará em contacto consigo para encontrar um horário.",
+    },
+    "nl-BE": {
+        "greeting": "Beste {name},",
+        "slot_intro": "Bedankt voor uw antwoord. Past een van deze momenten u voor een kort gesprek?",
+        "slot_intro_taken": "Excuses, dat moment is net ingenomen. Past een van deze u?",
+        "slot_intro_other": "Geen probleem. Past een van deze momenten u?",
+        "slot_option": "Optie {i}: {label}",
+        "slot_close": "Antwoord gewoon met de optie die u past, dan stuur ik een uitnodiging van {minutes} minuten.",
+        "confirm_booked": "Bedankt, het staat vast",
+        "confirm_moved": "Uw gesprek is verplaatst",
+        "confirm_body": "{lead}: {when}, {minutes} minuten. U ontvangt een agenda-uitnodiging.",
+        "agenda": "Agenda:",
+        "reschedule_link": "Past het moment u niet meer, dan kunt u hier een ander kiezen:",
+        "confirm_subject": "Bevestigd: {title}, {when}",
+        "reminder_tomorrow": "morgen",
+        "reminder_shortly": "straks",
+        "reminder_body": "Een korte herinnering aan ons gesprek {soon}: {when}.",
+        "reminder_close": "Past het moment u niet meer, antwoord dan en ik zoek een ander.",
+        "reminder_subject": "Herinnering: {title}, {when}",
+        "reply_subject": "Re: {subject}",
+        "reply_subject_default": "ons gesprek",
+        "date": "{weekday} {day} {month} om {time} ({zone})",
+        "page_unsub_title": "Uitschrijven",
+        "page_unsub_intro": "Klik hieronder om geen e-mails meer van ons te ontvangen.",
+        "page_unsub_button": "Uitschrijven",
+        "page_unsub_done_title": "U bent uitgeschreven",
+        "page_unsub_done": "U ontvangt geen e-mails meer van ons. Dit geldt voor al onze campagnes.",
+        "page_link_invalid_title": "Link ongeldig",
+        "page_unsub_invalid": "Deze uitschrijflink is ongeldig. Antwoord op de e-mail met “uitschrijven” en we "
+        "verwijderen u.",
+        "page_unsub_unknown": "Deze uitschrijflink is ongeldig.",
+        "page_wait_title": "Even geduld",
+        "page_too_many": "Te veel verzoeken vanaf uw netwerk. Wacht een minuut en probeer opnieuw.",
+        "page_resched_title": "Een nieuw moment kiezen",
+        "page_resched_button": "Mijn gesprek verplaatsen",
+        "page_resched_invalid": "Deze link is niet meer geldig. Antwoord op uw bevestigingsmail en we zoeken een ander "
+        "moment.",
+        "page_no_times_title": "Geen vrije momenten",
+        "page_no_times": "Er zijn momenteel geen vrije momenten. Antwoord op uw bevestigingsmail.",
+        "page_time_na_title": "Moment niet beschikbaar",
+        "page_bad_request": "Dat verzoek werd niet begrepen.",
+        "page_time_taken": "Dat moment is niet meer beschikbaar. Ga terug en kies een ander.",
+        "page_time_failed": "Dat moment kon niet geboekt worden. Antwoord op uw bevestigingsmail.",
+        "page_moved_title": "Uw gesprek is verplaatst",
+        "page_moved": "Uw gesprek is nu op {when}. U ontvangt een nieuwe bevestiging.",
+        "page_contact_title": "We nemen contact op",
+        "page_contact": "Iemand van het team neemt contact met u op om een moment te vinden.",
+    },
 }
 
 WEEKDAYS = {
     "en-GB": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     "fr-FR": ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
+    "es-ES": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
+    "it-IT": ["lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica"],
+    "pt-PT": ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"],
+    "nl-BE": ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"],
 }
 MONTHS = {
     "en-GB": [
@@ -142,6 +336,62 @@ MONTHS = {
         "novembre",
         "décembre",
     ],
+    "es-ES": [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+    ],
+    "it-IT": [
+        "gennaio",
+        "febbraio",
+        "marzo",
+        "aprile",
+        "maggio",
+        "giugno",
+        "luglio",
+        "agosto",
+        "settembre",
+        "ottobre",
+        "novembre",
+        "dicembre",
+    ],
+    "pt-PT": [
+        "janeiro",
+        "fevereiro",
+        "março",
+        "abril",
+        "maio",
+        "junho",
+        "julho",
+        "agosto",
+        "setembro",
+        "outubro",
+        "novembro",
+        "dezembro",
+    ],
+    "nl-BE": [
+        "januari",
+        "februari",
+        "maart",
+        "april",
+        "mei",
+        "juni",
+        "juli",
+        "augustus",
+        "september",
+        "oktober",
+        "november",
+        "december",
+    ],
 }
 ZONES = {
     "en-GB": {
@@ -154,6 +404,10 @@ ZONES = {
         "Europe/Helsinki": "Helsinki time",
         "Europe/Stockholm": "Stockholm time",
         "Europe/Copenhagen": "Copenhagen time",
+        "Europe/Madrid": "Madrid time",
+        "Europe/Rome": "Rome time",
+        "Europe/Lisbon": "Lisbon time",
+        "Europe/Brussels": "Brussels time",
     },
     "fr-FR": {
         "Europe/London": "heure du Royaume-Uni",
@@ -165,16 +419,59 @@ ZONES = {
         "Europe/Helsinki": "heure d'Helsinki",
         "Europe/Stockholm": "heure de Stockholm",
         "Europe/Copenhagen": "heure de Copenhague",
+        "Europe/Madrid": "heure de Madrid",
+        "Europe/Rome": "heure de Rome",
+        "Europe/Lisbon": "heure de Lisbonne",
+        "Europe/Brussels": "heure de Bruxelles",
+    },
+    "es-ES": {
+        "Europe/Madrid": "hora de Madrid",
+        "Atlantic/Canary": "hora de Canarias",
+        "Europe/London": "hora del Reino Unido",
+        "Europe/Rome": "hora de Roma",
+        "Europe/Lisbon": "hora de Lisboa",
+        "Europe/Brussels": "hora de Bruselas",
+        "Europe/Paris": "hora de París",
+    },
+    "it-IT": {
+        "Europe/Rome": "ora italiana",
+        "Europe/London": "ora del Regno Unito",
+        "Europe/Madrid": "ora di Madrid",
+        "Europe/Lisbon": "ora di Lisbona",
+        "Europe/Brussels": "ora di Bruxelles",
+        "Europe/Paris": "ora di Parigi",
+    },
+    "pt-PT": {
+        "Europe/Lisbon": "hora de Lisboa",
+        "Atlantic/Azores": "hora dos Açores",
+        "Europe/London": "hora do Reino Unido",
+        "Europe/Madrid": "hora de Madrid",
+        "Europe/Rome": "hora de Roma",
+        "Europe/Brussels": "hora de Bruxelas",
+        "Europe/Paris": "hora de Paris",
+    },
+    "nl-BE": {
+        "Europe/Brussels": "Belgische tijd",
+        "Europe/London": "Britse tijd",
+        "Europe/Amsterdam": "Nederlandse tijd",
+        "Europe/Paris": "tijd in Parijs",
+        "Europe/Madrid": "tijd in Madrid",
+        "Europe/Rome": "tijd in Rome",
+        "Europe/Lisbon": "tijd in Lissabon",
     },
 }
 
 
+BY_PREFIX = {"fr": "fr-FR", "es": "es-ES", "it": "it-IT", "pt": "pt-PT", "nl": "nl-BE", "en": DEFAULT}
+
+
 def lang(code: str | None) -> str:
-    """Normalise a language tag to a supported catalogue: 'fr', 'fr-BE' -> 'fr-FR'; anything else -> en-GB."""
+    """Normalise a language tag to a supported catalogue: 'fr', 'fr-BE' -> 'fr-FR'; 'nl-NL' -> 'nl-BE'; anything
+    unsupported -> en-GB."""
     c = (code or "").strip()
     if c in CATALOGUE:
         return c
-    return "fr-FR" if c.lower().startswith("fr") else DEFAULT
+    return BY_PREFIX.get(c.lower()[:2], DEFAULT)
 
 
 def t(code: str | None, key: str, **values: object) -> str:
@@ -183,7 +480,7 @@ def t(code: str | None, key: str, **values: object) -> str:
 
 def date_label(local: datetime, tz: str, code: str | None) -> str:
     lg = lang(code)
-    time = f"{local:%H:%M}" if lg == DEFAULT else f"{local:%H}h{local:%M}"
+    time = f"{local:%H}h{local:%M}" if lg == "fr-FR" else f"{local:%H:%M}"
     return t(
         lg,
         "date",
@@ -196,7 +493,7 @@ def date_label(local: datetime, tz: str, code: str | None) -> str:
 
 
 def from_accept_language(header: str | None) -> str:
-    """Public pages: the visitor's browser language, highest preference first (only en-GB and fr-FR exist)."""
+    """Public pages: the visitor's browser language, highest preference first (supported catalogues only)."""
     best, best_q = DEFAULT, -1.0
     for part in (header or "").split(","):
         bits = part.strip().split(";")
@@ -210,6 +507,6 @@ def from_accept_language(header: str | None) -> str:
                     q = float(b.strip()[2:])
                 except ValueError:
                     q = 0.0
-        if q > best_q and (tag.startswith("fr") or tag.startswith("en")):
-            best, best_q = ("fr-FR" if tag.startswith("fr") else DEFAULT), q
+        if q > best_q and tag[:2] in BY_PREFIX:
+            best, best_q = BY_PREFIX[tag[:2]], q
     return best
