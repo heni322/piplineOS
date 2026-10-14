@@ -40,6 +40,11 @@ os.environ.update(
         "SUPPRESSION_HASH_KEY": _key(),
         "UNSUBSCRIBE_SIGNING_KEY": _key(),
         "GLOBAL_GO_LIVE": "false",
+        # tests never use a real provider or a local model, whatever the developer's shell has loaded
+        **{
+            f"{name}_ADAPTER_MODE": "mock"
+            for name in ("EMAIL", "CALENDAR", "CRM", "ENRICHMENT", "VERIFIER", "SIGNALS", "COMPANIES_HOUSE", "LLM")
+        },
         "LOG_LEVEL": "WARNING",
     }
 )
