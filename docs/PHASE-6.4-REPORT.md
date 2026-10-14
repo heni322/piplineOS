@@ -18,7 +18,7 @@ The agents can now be tested with a real AI model at no cost: an open-weights mo
 | Evaluation | `tests/evals/local_model_run.py`. Part 1: the 75 labelled replies through the real reply prompts. Part 2: the demo pipeline on a fresh database, compared with the expected outcomes, with the drafts and AI-call statistics |
 | Writer | `prompts/writer/draft.v2.md`. Version 1 stays locked for the audit trail; the writer uses version 2. The deterministic checks are unchanged (same strictness) |
 | Dashboard | Go-live page: "Free open model on this computer (Ollama, test only)" when the local model is in use |
-| Tests | 6 new (local backend: request shape, local-only address, timeout, truncation, zero cost, mode selection). Backend: **570 passed** |
+| Tests | 6 new (local backend: request shape, local-only address, timeout, truncation, zero cost, mode selection). The test setup now pins every adapter mode to mock. Backend: **570 passed** in the cloud and **570 passed, 0 failed** on the owner's PC |
 
 ## 3. Results (owner's PC: Intel i5-10500H, 16 GB RAM, GTX 1650 4 GB)
 
