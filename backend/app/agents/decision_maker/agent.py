@@ -145,7 +145,9 @@ def find_decision_maker(
     except PersonObjected as exc:
         _objected_at_source(ctx, lead_id, exc.email, verifier.name)
         return None
-    reg = registry.lookup(row["name"], row["domain_normalised"], row["company_number"])
+    reg = registry.lookup(row["name"], row["domain_normalised"], row["company_number"], row["country_code"])
+    name_for = getattr(registry, "name_for", None)
+    registry_name = name_for(row["country_code"]) if callable(name_for) else registry.name
     legal_form = reg.legal_form if reg else "unknown"
     company_country = reg.registered_country if reg else row["country_code"]
     sub_type, sub_reason = classify_subscriber(
@@ -160,7 +162,7 @@ def find_decision_maker(
         "email": person.data_source,
         "email_verification": verifier.name,
         "location": person.data_source,
-        "legal_form": registry.name if reg else "none",
+        "legal_form": registry_name if reg else "none",
         "subscriber_type": f"rule:{sub_reason}",
     }
     if person.profile_url:
@@ -176,7 +178,7 @@ def find_decision_maker(
               name_enc = CASE WHEN :personal THEN CAST(:ne AS bytea) ELSE name_enc END WHERE id = :id"""),
             {
                 "lf": legal_form,
-                "src": registry.name if reg else None,
+                "src": registry_name if reg else None,
                 "cn": reg.company_number if reg else None,
                 "cc": company_country,
                 "personal": personal,

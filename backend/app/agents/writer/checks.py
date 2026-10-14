@@ -29,6 +29,16 @@ SPAM = [
     "cash",
     "double your",
     "once in a lifetime",
+    # French
+    "gratuit",
+    "gratuite",
+    "garanti",
+    "garantie",
+    "sans engagement",
+    "offre limitée",
+    "dernière chance",
+    "cliquez ici",
+    "100 %",
 ]
 HIGH_FRICTION = [
     r"\b(15|20|30|45|60)[- ]?min",
@@ -36,11 +46,16 @@ HIGH_FRICTION = [
     r"\bcalendly\b",
     r"\bcalendar link\b",
     r"\bschedule (a|an) (call|demo|meeting)\b",
+    r"\br[ée]server (un|une) (appel|cr[ée]neau|rendez-vous|d[ée]mo)\b",
+    r"\bprendre (un )?rendez-vous\b",
 ]
 SENSITIVE = [
     r"\b(wife|husband|partner's|children|kids|pregnan\w*|religio\w*|church|mosque|illness|diagnos\w*|"
-    r"disabilit\w*|divorce\w*|birthday|sexual\w*|ethnic\w*|political view\w*)\b"
+    r"disabilit\w*|divorce\w*|birthday|sexual\w*|ethnic\w*|political view\w*)\b",
+    r"\b(votre (femme|mari|conjoint\w*)|vos enfants|enceinte|religi\w*|[ée]glise|mosqu[ée]e|maladie|diagnostic\w*|"
+    r"handicap\w*|divorc\w*|anniversaire|sexualit[ée]|ethni\w*|opinions? politiques?)\b",
 ]
+INFORMAL_FR = re.compile(r"\b(tu|toi|ton|ta|tes|t'as|t'es)\b", re.IGNORECASE)
 US_TO_UK = {
     "optimize": "optimise",
     "optimization": "optimisation",
@@ -206,7 +221,11 @@ def check_draft(
         r.blocking.append("links or email addresses are not allowed in the copy")
     if PHONE.search(everything):
         r.blocking.append("phone numbers are not allowed in the copy")
-    if re.search(r"unsubscribe|privacy notice|registered in|company number", all_text, re.IGNORECASE):
+    if re.search(
+        r"unsubscribe|privacy notice|registered in|company number|d[ée]sinscri|confidentialit[ée]|immatricul|siren",
+        all_text,
+        re.IGNORECASE,
+    ):
         r.blocking.append("footer/legal text must not be written by the model (added automatically)")
     if MASK_TOKEN.search(everything):
         r.blocking.append("contains masked tokens (e.g. 'A***'): unmask before editing")
@@ -226,6 +245,10 @@ def check_draft(
             r.blocking.append("mentions personal or sensitive details")
     if language == "en-GB":
         r.blocking.extend(_uk_spelling_issues(everything))
+    if language.startswith("fr"):
+        informal = sorted({m.group(1).lower() for m in INFORMAL_FR.finditer(everything)})
+        if informal:
+            r.blocking.append(f"informal address ({', '.join(informal)}): use the formal 'vous' in French")
 
     sentences = [s for s in re.split(r"(?<=[.!?])\s+", body.strip()) if s]
     if "?" not in body:

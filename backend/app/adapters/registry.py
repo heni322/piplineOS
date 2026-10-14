@@ -61,6 +61,12 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
         from app.adapters.companies_house.live import CompaniesHouseRegistry
 
         p.registry = CompaniesHouseRegistry(settings.companies_house_api_key.get_secret_value())
+    from app.adapters.companies_house.mock import MockCompaniesHouse
+    from app.adapters.registries.france import FranceRegistry
+    from app.adapters.registries.routing import RoutingRegistry
+
+    france = FranceRegistry() if settings.fr_registry_adapter_mode != "mock" else MockCompaniesHouse()
+    p.registry = RoutingRegistry({"GB": p.registry, "FR": france})
     return p
 
 

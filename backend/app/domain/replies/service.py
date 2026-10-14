@@ -31,6 +31,7 @@ from app.agents.decision_maker.agent import role_relevance
 from app.agents.reply_handler import agent as agent4
 from app.agents.reply_handler.rules import RuleResult, apply_rules, parse_slot_choice
 from app.agents.reply_handler.schemas import SAFETY_CLASSES, HandledReply
+from app.core import i18n
 from app.core.audit import write_audit
 from app.core.crypto import blind_index, email_domain, normalise_email, suppression_hash
 from app.core.logging import get_logger
@@ -459,7 +460,11 @@ def handle(
                     reply_id=reply_id,
                     body=body,
                     email=email,
-                    subject=f"Re: {msg.subject or 'our conversation'}",
+                    subject=i18n.t(
+                        cfg.language,
+                        "reply_subject",
+                        subject=msg.subject or i18n.t(cfg.language, "reply_subject_default"),
+                    ),
                     asks_if_ai=rules.asks_if_ai,
                 )
                 conn.execute(
@@ -544,7 +549,7 @@ def _interested(
                 lead_id=lead_id,
                 reply_id=reply_id,
                 now=now,
-                intro="No problem. Would any of these times work instead?",
+                intro=i18n.t(cfg.language, "slot_intro_other"),
             )
             return ["reschedule_slots_offered_for_approval" if res else "no_slots_available"]
         if rules.confirms:
@@ -598,7 +603,9 @@ def _interested(
             reply_id=reply_id,
             body=body,
             email=email,
-            subject=f"Re: {msg.subject or 'our conversation'}",
+            subject=i18n.t(
+                cfg.language, "reply_subject", subject=msg.subject or i18n.t(cfg.language, "reply_subject_default")
+            ),
             asks_if_ai=rules.asks_if_ai,
         )
         return [f"playbook_reply_drafted:{entry.id}"]
@@ -675,7 +682,9 @@ def _interested(
             reply_id=reply_id,
             body=body,
             email=email,
-            subject=f"Re: {msg.subject or 'our conversation'}",
+            subject=i18n.t(
+                cfg.language, "reply_subject", subject=msg.subject or i18n.t(cfg.language, "reply_subject_default")
+            ),
             asks_if_ai=rules.asks_if_ai,
         )
         return ["qualification:incomplete", "qualifying_question_drafted_for_approval"]

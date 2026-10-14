@@ -29,9 +29,9 @@ from app.workflows.pipeline import agent_context, run_campaign
 from tests.evals import reply_eval
 
 
-def part_replies(backend: OllamaBackend) -> dict[str, Any]:
+def part_replies(backend: OllamaBackend, dataset: Path = reply_eval.DATASET) -> dict[str, Any]:
     t0 = time.monotonic()
-    r = reply_eval.run(backend)
+    r = reply_eval.run(backend, dataset=dataset)
     return {
         "replies": r.n,
         "accuracy": round(r.accuracy(), 3),
@@ -118,11 +118,12 @@ def main() -> None:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--skip-replies", action="store_true")
     ap.add_argument("--skip-pipeline", action="store_true")
+    ap.add_argument("--language", choices=["en", "fr"], default="en", help="reply set: English or French")
     a = ap.parse_args()
     backend = OllamaBackend(a.url, a.model)
     out: dict[str, Any] = {"model": a.model, "started": time.strftime("%Y-%m-%d %H:%M")}
     if not a.skip_replies:
-        out["replies"] = part_replies(backend)
+        out["replies"] = part_replies(backend, reply_eval.DATASET_FR if a.language == "fr" else reply_eval.DATASET)
         a.out.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
         print("replies done", json.dumps({k: v for k, v in out["replies"].items() if k != "misses"}), flush=True)
     if not a.skip_pipeline:

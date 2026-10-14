@@ -58,7 +58,11 @@ class CompaniesHouseRegistry:
         self._http = client(base_url, transport, auth=(api_key, ""))
 
     def lookup(
-        self, company_name: str, domain: str | None = None, company_number: str | None = None
+        self,
+        company_name: str,
+        domain: str | None = None,
+        company_number: str | None = None,
+        country: str | None = None,
     ) -> RegistryCompany | None:
         """By company number when known (exact). Otherwise an exact (normalised) name match only; several equally
         good matches -> None (ambiguous = unknown)."""

@@ -24,6 +24,7 @@ from app.llm.client import LLMBackend, LLMClient
 from app.llm.simulator import SimulatedBackend
 
 DATASET = Path(__file__).parent / "datasets" / "reply_eval.jsonl"
+DATASET_FR = Path(__file__).parent / "datasets" / "reply_eval_fr.jsonl"
 SAFETY = ("unsubscribe", "objection", "data_protection_request")
 RECEIVED = date(2026, 10, 13)
 
@@ -53,11 +54,11 @@ class ReplyEvalResult:
         return sum(v for (g, p), v in self.confusion.items() if g == p) / n if n else 1.0
 
 
-def load() -> list[dict[str, Any]]:
-    return [json.loads(line) for line in DATASET.read_text(encoding="utf-8").splitlines() if line.strip()]
+def load(path: Path = DATASET) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def run(backend: LLMBackend | None = None) -> ReplyEvalResult:
+def run(backend: LLMBackend | None = None, dataset: Path = DATASET) -> ReplyEvalResult:
     llm = LLMClient(
         backend or SimulatedBackend(),
         {"volume": "simulated", "reasoning": "simulated"},
@@ -66,7 +67,7 @@ def run(backend: LLMBackend | None = None) -> ReplyEvalResult:
     )
     ctx: Any = SimpleNamespace(llm=llm, config=DEMO_CONFIG, tenant_id=uuid.UUID(int=1))
     res = ReplyEvalResult()
-    for row in load():
+    for row in load(dataset):
         text = row["text"]
         rules = apply_rules(text, RECEIVED, "prospect@eval.example")
         out = classify(ctx, uuid.UUID(int=2), text, rules, offered_slots=[], received=RECEIVED)

@@ -12,7 +12,11 @@ class MockCompaniesHouse:
         self.records = {k.lower(): v for k, v in (records or {}).items()}
 
     def lookup(
-        self, company_name: str, domain: str | None = None, company_number: str | None = None
+        self,
+        company_name: str,
+        domain: str | None = None,
+        company_number: str | None = None,
+        country: str | None = None,
     ) -> RegistryCompany | None:
         if company_number:
             return next((r for r in self.records.values() if r.company_number == company_number), None)

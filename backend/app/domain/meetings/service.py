@@ -14,6 +14,7 @@ from sqlalchemy import RowMapping, text
 from sqlalchemy.engine import Connection
 
 from app.adapters.calendar.base import Slot
+from app.core import i18n
 from app.core.audit import write_audit
 from app.core.crypto import PiiCipher
 from app.domain.deliverability.hours import DEFAULT_TZ, is_business_time, is_holiday
@@ -27,14 +28,6 @@ from app.settings import Settings
 
 __all__ = ["Prospect", "Slot"]  # Slot re-exported so workflows/api need not import the adapter layer
 
-TZ_LABEL = {
-    "Europe/London": "UK time",
-    "Europe/Dublin": "Irish time",
-    "Europe/Paris": "Paris time",
-    "Europe/Berlin": "Berlin time",
-    "Europe/Amsterdam": "Amsterdam time",
-}
-
 
 @dataclass
 class Prospect:
@@ -45,10 +38,9 @@ class Prospect:
     tz: str
 
 
-def label(slot: Slot, tz: str) -> str:
-    local = slot.starts_at.astimezone(ZoneInfo(tz))
-    zone = TZ_LABEL.get(tz, tz)
-    return f"{local.strftime('%A')} {local.day} {local.strftime('%B')} at {local.strftime('%H:%M')} ({zone})"
+def label(slot: Slot, tz: str, language: str | None = None) -> str:
+    """'Thursday 15 October at 14:00 (UK time)' / 'jeudi 15 octobre à 14h00 (heure de Paris)'."""
+    return i18n.date_label(slot.starts_at.astimezone(ZoneInfo(tz)), tz, language)
 
 
 def candidate_slots(
@@ -190,7 +182,7 @@ def offer_slots(
     lead_id: uuid.UUID,
     reply_id: uuid.UUID | None,
     now: datetime,
-    intro: str = "Thanks for coming back to me. Would any of these times work for a short call?",
+    intro: str | None = None,
     exclude: list[Slot] | None = None,
 ) -> tuple[uuid.UUID, list[str]] | None:
     """Creates a slot offer + a templated reply (routed to approval like any AI-handled reply)."""
@@ -199,14 +191,15 @@ def offer_slots(
     slots = candidate_slots(cfg, p, now, cal.busy(cfg.calendar.calendar_ref, now, horizon), exclude=exclude)
     if not slots:
         return None
-    labels = [label(s, p.tz) for s in slots]
+    lg = cfg.language
+    labels = [label(s, p.tz, lg) for s in slots]
     conn.execute(
         text("UPDATE slot_offers SET status = 'superseded' WHERE lead_id = :l AND status = 'open'"), {"l": lead_id}
     )
-    lines = "\n".join(f"Option {i}: {lab}" for i, lab in enumerate(labels, 1))
+    lines = "\n".join(i18n.t(lg, "slot_option", i=i, label=lab) for i, lab in enumerate(labels, 1))
     body = (
-        f"Hi {p.first_name},\n\n{intro}\n\n{lines}\n\nJust reply with the option that suits you and I will send an "
-        f"invite for {cfg.calendar.meeting_minutes} minutes.\n\n{cfg.brand_voice.sender_name.split()[0]}"
+        f"{i18n.t(lg, 'greeting', name=p.first_name)}\n\n{intro or i18n.t(lg, 'slot_intro')}\n\n{lines}\n\n"
+        f"{i18n.t(lg, 'slot_close', minutes=cfg.calendar.meeting_minutes)}\n\n{cfg.brand_voice.sender_name.split()[0]}"
         + (f"\n\n{cfg.ai_disclosure_text}" if cfg.ai_disclosure == "always" else "")
     )
     offer_id = uuid.uuid4()
@@ -297,7 +290,7 @@ def book(
             lead_id=lead_id,
             reply_id=None,
             now=now,
-            intro="Sorry, that time has just been taken. Would one of these work instead?",
+            intro=i18n.t(cfg.language, "slot_intro_taken"),
             exclude=[chosen],
         )
         return {"status": "reoffered", "message_id": re[0] if re else None}
@@ -377,11 +370,13 @@ def after_booking(
     ).scalar_one()
     signed = unsubscribe.sign(settings.key("unsubscribe_signing_key"), token_id, unsubscribe.RESCHEDULE)
     link = f"{settings.api_base_url}/r/{signed}"
-    when = label(slot, prospect.tz)
+    lg = cfg.language
+    when = label(slot, prospect.tz, lg)
+    lead = i18n.t(lg, "confirm_moved" if rescheduled else "confirm_booked")
     body = (
-        f"Hi {prospect.first_name},\n\n{'Your call has been moved' if rescheduled else 'Thanks, that is booked'}: "
-        f"{when}, {cfg.calendar.meeting_minutes} minutes. A calendar invite is on its way.\n\nAgenda:\n"
-        f"{cfg.show_rate.agenda}\n\nIf the time stops working, you can pick another here:\n{link}\n\n"
+        f"{i18n.t(lg, 'greeting', name=prospect.first_name)}\n\n"
+        f"{i18n.t(lg, 'confirm_body', lead=lead, when=when, minutes=cfg.calendar.meeting_minutes)}\n\n"
+        f"{i18n.t(lg, 'agenda')}\n{cfg.show_rate.agenda}\n\n{i18n.t(lg, 'reschedule_link')}\n{link}\n\n"
         f"{cfg.brand_voice.sender_name.split()[0]}"
     )
     template_message(
@@ -392,7 +387,7 @@ def after_booking(
         tenant_id=tenant_id,
         lead_id=lead_id,
         kind="meeting_confirmation",
-        subject=f"Confirmed: {cfg.show_rate.meeting_title}, {when}",
+        subject=i18n.t(lg, "confirm_subject", title=cfg.show_rate.meeting_title, when=when),
         body=body,
         status="approved",
         key=f"confirm:{meeting_id}:{token_id}",

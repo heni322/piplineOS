@@ -1,0 +1,22 @@
+# Rendu de façon déterministe et ajouté après la génération (l'Agent 3 ne l'écrit jamais). Formulation PROVISOIRE,
+# à faire valider par un avocat (CNIL, LCEN) avant toute activation de la France. Les {champs} sont remplis à partir
+# des données du client et du message.
+locale: fr-FR
+template: |
+  --
+  {sender_name}, {sender_title} · {company_legal_name}
+  Immatriculée en {registration_jurisdiction} sous le n° {company_number} · {registered_office_address}
+
+  Nous avons obtenu vos coordonnées professionnelles via {data_source_summary} et vous contactons au sujet de
+  {purpose}, en lien avec votre fonction. Vous pouvez vous y opposer à tout moment : répondez « désinscription »
+  ou utilisez ce lien :
+  {unsubscribe_url}
+  Politique de confidentialité et vos droits : {privacy_url}
+required_placeholders:
+  - sender_name
+  - company_legal_name
+  - company_number
+  - registered_office_address
+  - unsubscribe_url
+  - privacy_url
+  - data_source_summary

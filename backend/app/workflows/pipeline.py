@@ -21,6 +21,7 @@ from app.agents.base import AgentContext
 from app.agents.decision_maker.agent import find_decision_maker
 from app.agents.trigger_hunter.agent import HuntStats, SourceBinding, hunt
 from app.agents.writer.agent import write_for_lead
+from app.core import i18n
 from app.core.crypto import PiiCipher
 from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
@@ -170,11 +171,12 @@ def queue_due_reminders(
                 conn.execute(text("UPDATE meeting_reminders SET status = 'skipped' WHERE id = :r"), {"r": r.id})
                 continue
             p = meetings.load_prospect(conn, cipher, tenant_id, r.lead_id)
-            when = meetings.label(meetings.Slot(r.starts_at, r.ends_at), p.tz)
-            soon = "tomorrow" if r.offset_minutes >= 720 else "shortly"
+            lg = cfg.language
+            when = meetings.label(meetings.Slot(r.starts_at, r.ends_at), p.tz, lg)
+            soon = i18n.t(lg, "reminder_tomorrow" if r.offset_minutes >= 720 else "reminder_shortly")
             body = (
-                f"Hi {p.first_name},\n\nA quick reminder of our call {soon}: {when}.\n\nAgenda:\n"
-                f"{cfg.show_rate.agenda}\n\nIf the time no longer works, just reply and I will find another.\n\n"
+                f"{i18n.t(lg, 'greeting', name=p.first_name)}\n\n{i18n.t(lg, 'reminder_body', soon=soon, when=when)}"
+                f"\n\n{i18n.t(lg, 'agenda')}\n{cfg.show_rate.agenda}\n\n{i18n.t(lg, 'reminder_close')}\n\n"
                 f"{cfg.brand_voice.sender_name.split()[0]}"
             )
             mid = meetings.template_message(
@@ -187,7 +189,7 @@ def queue_due_reminders(
                 kind="meeting_reminder",
                 body=body,
                 status="approved",
-                subject=f"Reminder: {cfg.show_rate.meeting_title}, {when}",
+                subject=i18n.t(lg, "reminder_subject", title=cfg.show_rate.meeting_title, when=when),
                 key=f"reminder:{r.id}",
                 meeting_id=r.meeting_id,
             )

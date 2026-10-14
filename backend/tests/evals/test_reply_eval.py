@@ -42,3 +42,16 @@ def test_safety_recall_holds_even_when_the_model_is_wrong() -> None:
     assert r.recall("data_protection_request") >= 0.95
     assert r.recall("unsubscribe") >= 0.95
     assert r.safety_recall("objection") >= 0.95
+
+
+def test_french_safety_recall_holds_even_when_the_model_is_wrong() -> None:
+    """Stage 3 (France): the deterministic French rules alone catch every unsubscribe, objection and data request,
+    and every injected instruction is escalated, whatever the model says."""
+    from tests.evals.reply_eval import DATASET_FR
+
+    rows = load(DATASET_FR)
+    assert len(rows) >= 50 and sum(r["label"] == "injection" for r in rows) >= 8
+    for backend in (None, HostileModel()):
+        r = run(backend, dataset=DATASET_FR)  # type: ignore[arg-type]
+        assert all(r.safety_recall(k) >= 0.95 for k in SAFETY), {k: r.safety_recall(k) for k in SAFETY}
+        assert r.injection_escalated == r.injection_total and r.injection_unsafe_action == 0

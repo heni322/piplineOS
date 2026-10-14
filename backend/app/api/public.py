@@ -17,6 +17,7 @@ from sqlalchemy import text
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import cipher_dep, settings_dep
+from app.core import i18n
 from app.core.audit import write_audit
 from app.core.crypto import PiiCipher
 from app.db.session import DbContext, get_engine, transaction
@@ -36,33 +37,41 @@ CSS = (
     "background:#1a1a1a;color:#fff;cursor:pointer}}"
 )
 PAGE = (
-    '<!doctype html><html lang="en-GB"><head><meta charset="utf-8">'
+    '<!doctype html><html lang="{lang}"><head><meta charset="utf-8">'
     '<meta name="viewport" content="width=device-width, initial-scale=1">'
     '<meta name="robots" content="noindex,nofollow"><title>{title}</title><style>' + CSS + "</style></head>"
     "<body><main><h1>{title}</h1>{body}</main></body></html>"
 )
 
 
-def _page(title: str, body: str, status: int = 200) -> HTMLResponse:
-    return HTMLResponse(PAGE.format(title=html.escape(title), body=body), status_code=status)
+def _page(title: str, body: str, status: int = 200, lang: str = i18n.DEFAULT) -> HTMLResponse:
+    return HTMLResponse(PAGE.format(title=html.escape(title), body=body, lang=lang), status_code=status)
+
+
+def _msg(lang: str, title_key: str, text_key: str, status: int = 200, **values: object) -> HTMLResponse:
+    """A page with a translated title and one translated paragraph (escaped once, as a whole)."""
+    return _page(i18n.t(lang, title_key), f"<p>{html.escape(i18n.t(lang, text_key, **values))}</p>", status, lang)
+
+
+def _visitor_lang(request: Request) -> str:
+    return i18n.from_accept_language(request.headers.get("accept-language"))
 
 
 @router.get("/u/{token}", response_class=HTMLResponse)
-def unsubscribe_confirm(token: str, settings: Annotated[Settings, Depends(settings_dep)]) -> HTMLResponse:
+def unsubscribe_confirm(
+    token: str, request: Request, settings: Annotated[Settings, Depends(settings_dep)]
+) -> HTMLResponse:
+    lang = _visitor_lang(request)
     try:
         unsubscribe.verify(settings.key("unsubscribe_signing_key"), token)
     except unsubscribe.InvalidToken:
-        return _page(
-            "Link not valid",
-            "<p>This unsubscribe link is not valid. Reply to the email with "
-            "&ldquo;unsubscribe&rdquo; and we will remove you.</p>",
-            400,
-        )
+        return _msg(lang, "page_link_invalid_title", "page_unsub_invalid", 400)
     safe = html.escape(token, quote=True)
     return _page(
-        "Unsubscribe",
-        f'<p>Click below to stop all further emails from us.</p><form method="post" '
-        f'action="/u/{safe}"><button type="submit">Unsubscribe</button></form>',
+        i18n.t(lang, "page_unsub_title"),
+        f'<p>{html.escape(i18n.t(lang, "page_unsub_intro"), quote=False)}</p><form method="post" '
+        f'action="/u/{safe}"><button type="submit">{html.escape(i18n.t(lang, "page_unsub_button"))}</button></form>',
+        lang=lang,
     )
 
 
@@ -74,13 +83,11 @@ def _limited(request: Request, settings: Settings, what: str) -> bool:
     return not ratelimit.allow(f"{prefix}{what}:{ip}", rate_per_sec=0.5, capacity=30, redis_url=settings.redis_url)
 
 
-TOO_MANY = "<p>Too many requests from your network. Wait a minute and try again.</p>"
-
-
 @router.post("/u/{token}", response_class=HTMLResponse)
 def unsubscribe_do(token: str, request: Request, settings: Annotated[Settings, Depends(settings_dep)]) -> HTMLResponse:
+    lang = _visitor_lang(request)
     if _limited(request, settings, "unsub"):
-        return _page("Please wait", TOO_MANY, 429)
+        return _msg(lang, "page_wait_title", "page_too_many", 429)
     engine = get_engine()
     try:
         token_id = unsubscribe.verify(settings.key("unsubscribe_signing_key"), token)
@@ -89,16 +96,11 @@ def unsubscribe_do(token: str, request: Request, settings: Annotated[Settings, D
             write_audit(
                 conn, action="unsubscribe.invalid_token", actor_type="system", actor_id="public", tenant_id=None
             )
-        return _page(
-            "Link not valid",
-            "<p>This unsubscribe link is not valid. Reply to the email with "
-            "&ldquo;unsubscribe&rdquo; and we will remove you.</p>",
-            400,
-        )
+        return _msg(lang, "page_link_invalid_title", "page_unsub_invalid", 400)
     with transaction(DbContext.system(), engine) as conn:
         found = conn.execute(text("SELECT * FROM unsubscribe_lookup(:id)"), {"id": token_id}).mappings().first()
     if found is None:
-        return _page("Link not valid", "<p>This unsubscribe link is not valid.</p>", 400)
+        return _msg(lang, "page_link_invalid_title", "page_unsub_unknown", 400)
     tenant_id = found["tenant_id"]
     with transaction(DbContext.system(tenant_id), engine) as conn:
         tok = (
@@ -128,22 +130,16 @@ def unsubscribe_do(token: str, request: Request, settings: Annotated[Settings, D
                 entity_id=tok["lead_id"],
             )
     _ = suppress_domain  # domain-level suppression is an operator action, not triggered by one person's click
-    return _page(
-        "You have been unsubscribed",
-        "<p>You will not receive further emails from us. This applies to every campaign we run.</p>",
-    )
+    return _msg(lang, "page_unsub_done_title", "page_unsub_done")
 
 
 # ------------------------------------------------------------------------------------------- reschedule link
-RESCHEDULE_INVALID = (
-    "<p>This link is no longer valid. Reply to your confirmation email and we will find another time.</p>"
-)
 
 
 def _reschedule_context(
     token: str, settings: Settings, cipher: PiiCipher, now: datetime
-) -> tuple[uuid.UUID, uuid.UUID, list[meetings.Slot], str] | None:
-    """Returns (tenant_id, meeting_id, offered slots, prospect timezone) or None when the link cannot be used."""
+) -> tuple[uuid.UUID, uuid.UUID, list[meetings.Slot], str, str] | None:
+    """Returns (tenant_id, meeting_id, offered slots, prospect timezone, language) or None when unusable."""
     try:
         token_id = unsubscribe.verify(settings.key("unsubscribe_signing_key"), token, unsubscribe.RESCHEDULE)
     except unsubscribe.InvalidToken:
@@ -171,7 +167,7 @@ def _reschedule_context(
         ]
         current = meetings.Slot(m["starts_at"], m["ends_at"])
         slots = meetings.candidate_slots(cfg, prospect, now, busy, exclude=[current])
-    return tenant_id, meeting_id, slots, prospect.tz
+    return tenant_id, meeting_id, slots, prospect.tz, cfg.language
 
 
 @router.get("/r/{token}", response_class=HTMLResponse)
@@ -181,23 +177,26 @@ def reschedule_page(
     settings: Annotated[Settings, Depends(settings_dep)],
     cipher: Annotated[PiiCipher, Depends(cipher_dep)],
 ) -> HTMLResponse:
+    visitor = _visitor_lang(request)
     if _limited(request, settings, "resched"):
-        return _page("Please wait", TOO_MANY, 429)
+        return _msg(visitor, "page_wait_title", "page_too_many", 429)
     ctx = _reschedule_context(token, settings, cipher, datetime.now(UTC))
     if ctx is None:
-        return _page("Link not valid", RESCHEDULE_INVALID, 400)
-    _, _, slots, tz = ctx
+        return _msg(visitor, "page_link_invalid_title", "page_resched_invalid", 400)
+    _, _, slots, tz, lang = ctx
     if not slots:
-        return _page("No free times", "<p>There are no free times right now. Reply to your confirmation email.</p>")
+        return _msg(lang, "page_no_times_title", "page_no_times")
     safe = html.escape(token, quote=True)
     options = "".join(
         f'<p><label><input type="radio" name="slot" value="{html.escape(s.starts_at.isoformat(), quote=True)}"'
-        f"{' checked' if i == 0 else ''}> {html.escape(meetings.label(s, tz))}</label></p>"
+        f"{' checked' if i == 0 else ''}> {html.escape(meetings.label(s, tz, lang))}</label></p>"
         for i, s in enumerate(slots)
     )
+    button = html.escape(i18n.t(lang, "page_resched_button"))
     return _page(
-        "Choose a new time",
-        f'<form method="post" action="/r/{safe}">{options}<button type="submit">Move my call</button></form>',
+        i18n.t(lang, "page_resched_title"),
+        f'<form method="post" action="/r/{safe}">{options}<button type="submit">{button}</button></form>',
+        lang=lang,
     )
 
 
@@ -209,24 +208,25 @@ async def reschedule_do(
     cipher: Annotated[PiiCipher, Depends(cipher_dep)],
 ) -> HTMLResponse:
     """Parses the tiny urlencoded form itself (no multipart dependency), then does the DB work off the event loop."""
+    visitor = _visitor_lang(request)
     if _limited(request, settings, "resched"):
-        return _page("Please wait", TOO_MANY, 429)
+        return _msg(visitor, "page_wait_title", "page_too_many", 429)
     raw = await request.body()
     if len(raw) > 200:
-        return _page("Time not available", "<p>That request was not understood.</p>", 400)
+        return _msg(visitor, "page_time_na_title", "page_bad_request", 400)
     slot = (parse_qs(raw.decode("utf-8", "replace")).get("slot") or [""])[0]
-    return await run_in_threadpool(_reschedule_do, token, slot, settings, cipher)
+    return await run_in_threadpool(_reschedule_do, token, slot, settings, cipher, visitor)
 
 
-def _reschedule_do(token: str, slot: str, settings: Settings, cipher: PiiCipher) -> HTMLResponse:
+def _reschedule_do(token: str, slot: str, settings: Settings, cipher: PiiCipher, visitor: str) -> HTMLResponse:
     now = datetime.now(UTC)
     ctx = _reschedule_context(token, settings, cipher, now)
     if ctx is None:
-        return _page("Link not valid", RESCHEDULE_INVALID, 400)
-    tenant_id, meeting_id, slots, tz = ctx
+        return _msg(visitor, "page_link_invalid_title", "page_resched_invalid", 400)
+    tenant_id, meeting_id, slots, tz, lang = ctx
     chosen = next((s for s in slots if s.starts_at.isoformat() == slot), None)
     if chosen is None:  # only a freshly offered slot can be chosen; anything else is refused
-        return _page("Time not available", "<p>That time is no longer available. Go back and pick another.</p>", 409)
+        return _msg(lang, "page_time_na_title", "page_time_taken", 409)
     token_id = unsubscribe.verify(settings.key("unsubscribe_signing_key"), token, unsubscribe.RESCHEDULE)
     with transaction(DbContext.system(tenant_id), get_engine()) as conn:
         used = conn.execute(
@@ -234,7 +234,7 @@ def _reschedule_do(token: str, slot: str, settings: Settings, cipher: PiiCipher)
             {"id": token_id},
         ).first()
         if used is None:
-            return _page("Link not valid", RESCHEDULE_INVALID, 400)
+            return _msg(lang, "page_link_invalid_title", "page_resched_invalid", 400)
         _, cfg = load_config(conn, tenant_id)
         result = meetings.reschedule(
             conn,
@@ -248,10 +248,7 @@ def _reschedule_do(token: str, slot: str, settings: Settings, cipher: PiiCipher)
             now=now,
         )
     if result["status"] == "rescheduled":
-        return _page(
-            "Your call has moved",
-            f"<p>Your call is now on {html.escape(meetings.label(chosen, tz))}. A new confirmation is on its way.</p>",
-        )
+        return _msg(lang, "page_moved_title", "page_moved", when=meetings.label(chosen, tz, lang))
     if result["status"] == "escalated":
-        return _page("We will be in touch", "<p>A member of the team will contact you to find a time.</p>")
-    return _page("Time not available", "<p>That time could not be booked. Reply to your confirmation email.</p>", 409)
+        return _msg(lang, "page_contact_title", "page_contact")
+    return _msg(lang, "page_time_na_title", "page_time_failed", 409)

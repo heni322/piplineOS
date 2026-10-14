@@ -17,5 +17,9 @@ class CompaniesRegistry(Protocol):
     name: str
 
     def lookup(
-        self, company_name: str, domain: str | None = None, company_number: str | None = None
+        self,
+        company_name: str,
+        domain: str | None = None,
+        company_number: str | None = None,
+        country: str | None = None,
     ) -> RegistryCompany | None: ...
