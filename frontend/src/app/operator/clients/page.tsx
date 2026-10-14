@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { TargetingPanel } from "@/components/TargetingPanel";
 import { api, type Problem } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
 import type { Client } from "@/lib/types";
@@ -18,6 +19,7 @@ export default function ClientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [devLink, setDevLink] = useState<string | null>(null);
+  const [targeting, setTargeting] = useState<{ id: string; name: string } | null>(null);
 
   const load = useCallback(() => {
     api<Client[]>("/api/v1/clients").then(setClients).catch(() => setError(getMessages().operator.loadError));
@@ -80,6 +82,10 @@ export default function ClientsPage() {
           </div>
         </div>
       )}
+      {targeting && (
+        <TargetingPanel key={targeting.id} id={targeting.id} name={targeting.name} onClose={() => setTargeting(null)}
+          onSaved={(m) => { setTargeting(null); setStatus(m); }} />
+      )}
       {clients.length === 0 ? <p className="muted">{t.empty}</p> : (
         <div className="grid" style={{ marginTop: 20 }}>
           {clients.map((c) => {
@@ -124,6 +130,7 @@ export default function ClientsPage() {
                     {(["lia", "dpa", "user"] as const).map((k) => (
                       <button key={k} type="button" className="secondary" onClick={() => { setForm({ id: c.id, kind: k }); setFields({ a: "", b: "", c: "" }); }}>{t[k]}</button>
                     ))}
+                    <button type="button" className="secondary" onClick={() => { setTargeting({ id: c.id, name: c.legal_name }); setStatus(null); }}>{t.targeting}</button>
                     {c.checklist.some((i) => i.key === "eu_representative") && (
                       <button type="button" className="secondary" onClick={() => { setForm({ id: c.id, kind: "eurep" }); setFields({ a: "", b: "", c: "" }); }}>{t.eurep}</button>
                     )}

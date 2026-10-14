@@ -85,3 +85,8 @@ export type SendingDomain = { id: string; tenant_id: string; tenant_name: string
   spf_ok: boolean; dkim_ok: boolean; dmarc_ok: boolean; dmarc_policy: string | null; issues: string[];
   checked_at: string | null; providers: string[] };
 export type ReadinessItem = { key: string; title: string; state: "done" | "todo" | "info"; who: "you" | "system"; detail: string };
+export type Watched = { name: string; company_number: string | null; domain: string | null; country: string | null; job_board: string | null };
+export type Targeting = {
+  industry_keywords: string[]; exclude_keywords: string[]; hiring_keywords: string[]; sic_codes: string[];
+  countries: string[]; watchlist: Watched[]; config_version: number; available_countries: string[];
+};

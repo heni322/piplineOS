@@ -152,3 +152,10 @@ th { color: var(--muted); font-weight: 600; }
 @media (max-width: 560px) { .golive li { grid-template-columns: 1fr; } }
 .rate { font-variant-numeric: tabular-nums; }
 .rate.over { color: var(--danger); font-weight: 600; }
+
+/* Targeting panel: four keyword boxes side by side where there is room, stacked on phones */
+.targeting-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.targeting-grid > div { min-width: 0; }
+.targeting textarea { min-height: 6rem; font-family: var(--sans); }
+.targeting fieldset { border: 0; padding: 0; margin: 16px 0 0; }
+.targeting td input { min-width: 9rem; }
