@@ -26,7 +26,7 @@ These could only be set by sending a complete configuration as raw JSON to the A
   at a time, each on a fresh code, and a stale lock from a crashed run expires.
 
 ## 3. Results
-- Backend: 3 new API tests:
+- Backend: **745 passed, 0 failed** (Phase 13: 742). 3 new API tests:
   - a round trip, with signed terms unchanged;
   - six kinds of invalid input refused with a reason;
   - client users and anonymous callers refused.
