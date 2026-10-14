@@ -35,10 +35,10 @@ its format, removes a board or times out, two things went wrong before this phas
 | Healthy | otherwise |
 
 ## 3. Results
-- Backend: 4 new tests:
+- Backend: **749 passed, 0 failed** (Phase 14: 745). 4 new tests:
   - a broken, a rate-limited and a partial source in one hunt;
   - the scheduled hunt survives a broken client;
   - the three status levels;
   - the operator API (sign-in required) and the metrics.
-- Frontend: lint, types and unit tests pass. The governance browser test now also checks the Source health table and
+- Frontend: lint, types and unit tests pass. **All 14 browser tests pass.** The governance browser test now also checks the Source health table and
   runs the WCAG checks with it on the page.

@@ -267,7 +267,7 @@ def test_scheduled_hunt_runs_every_active_campaign(clean_db, settings, cipher) -
         now=datetime(2026, 10, 13, tzinfo=UTC),
         providers_factory=lambda st, ctx: live_providers(st, ctx, hunter),
     )
-    assert totals == {"campaigns": 1, "discovered": 1, "processed": 1} and hunter.calls == []
+    assert totals == {"campaigns": 1, "discovered": 1, "processed": 1, "failed": 0} and hunter.calls == []
     with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
         conn.execute(text("UPDATE campaigns SET status = 'paused'"))
     assert (
