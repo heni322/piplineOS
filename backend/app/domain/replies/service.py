@@ -16,6 +16,8 @@ Actions per class (docs/04-state-machine.md):
 from __future__ import annotations
 
 import contextlib
+import hashlib
+import hmac
 import json
 import uuid
 from dataclasses import dataclass, field
@@ -82,6 +84,11 @@ class Outcome:
     new_lead_id: uuid.UUID | None = None  # referral: the referred person's lead (drafted after commit)
 
 
+def message_hash(key: bytes, message_id: str, tenant_id: uuid.UUID) -> bytes:
+    """Keyed hash of a Message-ID, per tenant: lets us recognise a message we already handled without storing it."""
+    return hmac.new(key, tenant_id.bytes + b"msgid:" + message_id.strip().encode(), hashlib.sha256).digest()
+
+
 def ingest(conn: Connection, ctx: AgentContext, msg: InboundEmail) -> tuple[uuid.UUID | None, uuid.UUID | None, bool]:
     """Stores the reply (encrypted) once. Returns (reply_id, lead_id, is_new). Unknown senders are not stored, but
     any unsubscribe / DP request from them is still honoured (suppression by hash)."""
@@ -105,6 +112,16 @@ def ingest(conn: Connection, ctx: AgentContext, msg: InboundEmail) -> tuple[uuid
             {"b": bidx},
         ).scalar()
     if lead_id is None:
+        first_time = conn.execute(
+            text("""INSERT INTO inbound_seen (tenant_id, message_hash) VALUES (:t, :h)
+                    ON CONFLICT DO NOTHING RETURNING 1"""),
+            {
+                "t": ctx.tenant_id,
+                "h": message_hash(ctx.settings.key("blind_index_key"), msg.provider_message_id, ctx.tenant_id),
+            },
+        ).first()
+        if first_time is None:  # the same unknown-sender message again (duplicate push, or the safety sweep)
+            return None, None, False
         rules = apply_rules(msg.body_text, msg.received_at.date(), msg.from_email)
         if rules.safety:
             hashes = RecipientHashes.for_email(ctx.settings.key("suppression_hash_key"), msg.from_email)

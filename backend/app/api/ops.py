@@ -197,6 +197,20 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
         )
         _gauge(
             lines,
+            "pipelineos_replies_recovered_24h",
+            "replies found by the safety sweep because their push notification never arrived (last 24 hours)",
+            [
+                (
+                    {},
+                    one(
+                        """SELECT coalesce(sum((after->>'count')::int), 0) FROM audit_log
+                           WHERE action = 'inbound.sweep_recovered' AND created_at > now() - interval '24 hours'"""
+                    ),
+                )
+            ],
+        )
+        _gauge(
+            lines,
             "pipelineos_inboxes_paused",
             "inboxes paused (kill switch or operator)",
             [({}, one("SELECT count(*) FROM inboxes WHERE status = 'paused'"))],

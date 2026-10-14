@@ -42,6 +42,11 @@ groups:
         for: 5m
         labels: { severity: warn }
         annotations: { summary: "Replies are waiting more than 5 minutes to be classified (workers down or backlogged?)." }
+      - alert: RepliesRecoveredBySweep
+        expr: pipelineos_replies_recovered_24h > 0
+        for: 1m
+        labels: { severity: warn }
+        annotations: { summary: "The safety sweep found replies whose push notification never arrived (webhook down, subscription lapsed?). They were handled; find why the push failed." }
       - alert: OutboxStuck
         expr: pipelineos_outbox_oldest_seconds > 300
         for: 5m

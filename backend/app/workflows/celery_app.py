@@ -32,6 +32,7 @@ celery_app.conf.update(
         "reconcile-sends": {"task": "pipelineos.system.reconcile_sends", "schedule": 60.0},
         "send-due": {"task": "pipelineos.send.send_due", "schedule": 300.0},
         "fetch-inbound": {"task": "pipelineos.replies.fetch_inbound", "schedule": 60.0},
+        "sweep-inbound": {"task": "pipelineos.replies.sweep_inbound", "schedule": 900.0},
         "reply-sla": {"task": "pipelineos.system.reply_sla", "schedule": 60.0},
         "deliverability-kill-switch": {"task": "pipelineos.system.deliverability", "schedule": 900.0},
         "crm-sync": {"task": "pipelineos.system.crm_sync", "schedule": 300.0},
@@ -168,7 +169,7 @@ def draft_referral_task(lead_id: str) -> str:
 
 @celery_app.task(name="pipelineos.replies.fetch_inbound", autoretry_for=(ConnectionError,), retry_backoff=True)
 def fetch_inbound_task() -> int:
-    """Pulls new replies per tenant mailbox and runs Agent 4. Real mailboxes arrive with the Phase 6 adapters."""
+    """Pulls new replies per tenant mailbox and runs Agent 4 (mock mailboxes; real ones push and are swept)."""
     from app.adapters.registry import inbox_for, providers_for
     from app.core.crypto import PiiCipher
     from app.workflows.pipeline import agent_context, process_inbound
@@ -187,6 +188,15 @@ def fetch_inbound_task() -> int:
         ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
         handled += len(process_inbound(ctx, msgs, providers_for(settings, ctx)))
     return handled
+
+
+@celery_app.task(name="pipelineos.replies.sweep_inbound")
+def sweep_inbound_task() -> dict[str, object]:
+    """Safety net: replies a push notification missed (see app.workflows.inbound_sweep)."""
+    from app.core.crypto import PiiCipher
+    from app.workflows.inbound_sweep import sweep_inboxes
+
+    return sweep_inboxes(get_engine(), settings, PiiCipher(settings.key("pii_master_key")))
 
 
 @celery_app.task(name="pipelineos.system.reply_sla")

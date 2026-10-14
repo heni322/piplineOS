@@ -177,3 +177,5 @@ Supporting tables added: tenant_keys (wrapped per-tenant data keys, ADR-0005/000
 | `audit_log` | 6 years | Partition drop after export (requires operator approval) |
 
 **register_companies / register_names** [reference, not tenant data; migration 0013] — local copies of public registers published as open-data files (Belgium KBO/BCE, Ireland CRO). `register_companies(country_code, company_number, form_code, legal_form, status, extract_date, imported_at)`, `register_names(country_code, company_number, name, name_norm)`. Legal persons only, no addresses. Application role: SELECT only; written by the owner's import command; imports never delete (missing companies become `not_in_extract`).
+
+**inbound_seen** [T, migration 0014] — `tenant_id, message_hash (HMAC of the Message-ID, per tenant), seen_at`. Records that an inbound message from an unknown sender was handled, so a duplicate push or the 15-minute safety sweep never handles it twice. Nothing readable is stored.

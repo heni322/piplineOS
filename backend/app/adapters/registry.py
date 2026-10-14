@@ -14,7 +14,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 from app.adapters.base import AdapterNotConfigured
-from app.adapters.inbound.base import Inbox
+from app.adapters.inbound.base import InboundEmail, Inbox
 from app.adapters.inbound.mock import MockInbox
 from app.settings import Settings
 
@@ -110,7 +110,16 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
 
 
 def inbox_for(settings: Settings, tenant_id: uuid.UUID) -> Inbox:
-    """The tenant's reply mailbox for polling. Real mailboxes push replies via webhooks (Graph, Gmail)."""
+    """The tenant's reply mailbox for polling. Real mailboxes push replies (Graph change notifications, Gmail
+    Pub/Sub) and are swept every 15 minutes for anything a push missed (app.workflows.inbound_sweep), so there is
+    nothing to poll here."""
     if settings.email_adapter_mode != "mock":
-        raise AdapterNotConfigured("inbound mailbox adapters are not implemented until Phase 6")
+        return PushOnlyInbox()
     return MockInbox()
+
+
+class PushOnlyInbox:
+    name = "inbox.push_only"
+
+    def fetch_new(self) -> list[InboundEmail]:
+        return []

@@ -322,3 +322,30 @@ def test_push_verifier_accepts_a_genuine_google_token() -> None:
 def test_push_verifier_rejects_forged_or_misdirected_tokens(token: str | None, why: str) -> None:
     with pytest.raises(GoogleAuthError, match=why):
         verifier().verify(token)
+
+
+def test_gmail_sweep_lists_inbox_ids_with_message_id_and_skips_our_sent_mail() -> None:
+    def meta(req: httpx.Request) -> httpx.Response:
+        mid = req.url.path.rsplit("/", 1)[-1]
+        assert req.url.params["format"] == "metadata"  # headers only
+        labels = ["INBOX", "SENT"] if mid == "m2" else ["INBOX"]
+        return httpx.Response(
+            200,
+            json={
+                "id": mid,
+                "labelIds": labels,
+                "payload": {"headers": [{"name": "Message-ID", "value": f"<{mid}@x>"}]},
+            },
+        )
+
+    c, rec = creds(
+        {
+            ("GET", "/gmail/v1/users/me/messages"): {"messages": [{"id": "m1"}, {"id": "m2"}]},
+            ("GET", "/gmail/v1/users/me/messages/m1"): meta,
+            ("GET", "/gmail/v1/users/me/messages/m2"): meta,
+        }
+    )
+    since = __import__("datetime").datetime(2026, 10, 11, tzinfo=__import__("datetime").UTC)
+    assert GmailInbox(c, MAILBOX).recent_ids(since) == [("m1", "<m1@x>")]
+    listing = next(r for r in rec.calls if r.url.path == "/gmail/v1/users/me/messages")
+    assert listing.url.params["q"] == f"after:{int(since.timestamp())}" and listing.url.params["labelIds"] == "INBOX"

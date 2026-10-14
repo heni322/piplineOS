@@ -69,6 +69,40 @@ class GmailInbox:
     def fetch_new(self) -> list[InboundEmail]:  # push-based: see fetch_since
         return []
 
+    def recent_ids(self, since: datetime, limit: int = 200) -> list[tuple[str, str]]:
+        """Safety-net sweep: (Gmail id, Message-ID) of INBOX messages received since `since`. Headers only; a message
+        is fetched in full only if it was never processed. Also covers a history cursor that became too old."""
+        out: list[tuple[str, str]] = []
+        page: str | None = None
+        with self.creds.api(GMAIL, self.mailbox, SCOPE_READ) as g:
+            ids: list[str] = []
+            while len(ids) < limit:
+                params: dict[str, str | int] = {
+                    "q": f"after:{int(since.timestamp())}",
+                    "labelIds": "INBOX",
+                    "maxResults": min(100, limit),
+                }
+                if page:
+                    params["pageToken"] = page
+                data = check(g.get("/users/me/messages", params=params)).json()
+                ids += [str(m["id"]) for m in data.get("messages", [])]
+                page = data.get("nextPageToken")
+                if not page:
+                    break
+            for mid in ids[:limit]:
+                meta = check(
+                    g.get(f"/users/me/messages/{mid}", params={"format": "metadata", "metadataHeaders": "Message-ID"})
+                ).json()
+                headers = {h["name"].lower(): h["value"] for h in (meta.get("payload") or {}).get("headers", [])}
+                if "SENT" not in meta.get("labelIds", []):
+                    out.append((mid, str(headers.get("message-id", "")).strip()))
+        return out
+
+    def fetch_message(self, message_id: str) -> InboundEmail:
+        with self.creds.api(GMAIL, self.mailbox, SCOPE_READ) as g:
+            raw = check(g.get(f"/users/me/messages/{message_id}", params={"format": "raw"})).json()["raw"]
+        return parse_raw(b64url_decode(raw))
+
     def fetch_since(self, start_history_id: int, limit: int = 100) -> tuple[list[InboundEmail], int]:
         """Messages added to INBOX after start_history_id, and the newest historyId seen.
         If the start point is too old (404), returns nothing and the caller restarts from the current historyId."""

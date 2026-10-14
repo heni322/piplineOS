@@ -300,3 +300,25 @@ def test_subscriptions_are_created_and_renewed_before_expiry() -> None:
     body = json.loads(rec.calls[-1].content)
     assert body["clientState"] == client_state(b"s" * 32, "a@x.example") and body["changeType"] == "created"
     assert renew_all(creds, now) == 1 and patched == ["/v1.0/subscriptions/soon"]
+
+
+def test_graph_sweep_lists_ids_only_across_pages() -> None:
+    mb = "jordan@outreach.northwind-demo.example"
+    path = f"/v1.0/users/{mb}/mailFolders('Inbox')/messages"
+    pages = {
+        None: {
+            "value": [{"id": "A1", "internetMessageId": "<a1@x>"}],
+            "@odata.nextLink": f"https://graph.microsoft.com{path}?$skiptoken=2",
+        },
+        "2": {"value": [{"id": "A2", "internetMessageId": "<a2@x>"}]},
+    }
+
+    def listing(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=pages[req.url.params.get("$skiptoken")])
+
+    creds, rec = graph({("GET", path): listing})
+    ids = GraphInbox(creds, mb).recent_ids(datetime(2026, 10, 11, tzinfo=UTC))
+    assert ids == [("A1", "<a1@x>"), ("A2", "<a2@x>")]
+    first = next(c for c in rec.calls if c.url.path == path)
+    assert first.url.params["$select"] == "id,internetMessageId"  # no bodies are read when listing
+    assert first.url.params["$filter"] == "receivedDateTime ge 2026-10-11T00:00:00Z"
