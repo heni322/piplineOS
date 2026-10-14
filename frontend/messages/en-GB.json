@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "PipelineOS",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "tagline": "Compliance-first B2B meeting generation"
   },
   "login": {
     "title": "Sign in",
@@ -124,7 +125,13 @@
     "leads": "Leads",
     "inboxes": "Inboxes",
     "clientCrm": "Your CRM",
-    "tasks": "Contact tasks"
+    "tasks": "Contact tasks",
+    "groupWork": "Work",
+    "groupMoney": "Clients and money",
+    "groupSystem": "System",
+    "console": "Operator console",
+    "portal": "Client portal",
+    "menu": "Menu"
   },
   "approvals": {
     "title": "Approvals",
