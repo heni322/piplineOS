@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, date, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -214,6 +214,7 @@ class CountryOut(BaseModel):
     source: str | None
     can_enable: bool
     blocked_by: list[str]
+    build: dict[str, Any] | None = None  # what is built and what is still needed (app.domain.golive.countries)
 
 
 def _enable_blockers(row: dict[str, object]) -> list[str]:
@@ -228,14 +229,23 @@ def _enable_blockers(row: dict[str, object]) -> list[str]:
 
 
 _COUNTRIES_SQL = """SELECT r.country_code, r.name, r.stage, r.enabled, r.enabled_at, c.mode, c.regime,
+         r.languages, r.eu_representative_required,
          coalesce(c.verified_by_counsel, false) AS verified_by_counsel, c.last_reviewed, c.source
   FROM current_country_rollout r LEFT JOIN current_compliance_rules c ON c.country_code = r.country_code"""
 
 
 @router.get("/countries", response_model=list[CountryOut])
-def countries(user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))]) -> list[CountryOut]:
+def countries(
+    user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))],
+    settings: Annotated[Settings, Depends(settings_dep)],
+) -> list[CountryOut]:
+    from dataclasses import asdict
+
+    from app.domain.golive.countries import country_build
+
     with transaction(user.db_context(), get_engine()) as conn:
         rows = conn.execute(text(_COUNTRIES_SQL + " ORDER BY r.stage, r.country_code")).mappings().all()
+        builds = {r["country_code"]: asdict(country_build(conn, settings, dict(r))) for r in rows}
     out = []
     for r in rows:
         blockers = [] if r["enabled"] else _enable_blockers(dict(r))
@@ -253,6 +263,7 @@ def countries(user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_G
                 source=r["source"],
                 can_enable=not r["enabled"] and not blockers,
                 blocked_by=blockers,
+                build=builds[r["country_code"]],
             )
         )
     return out

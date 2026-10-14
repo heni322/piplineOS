@@ -520,7 +520,20 @@
     "stateTodo": "To do",
     "stateInfo": "In progress",
     "whoYou": "You",
-    "whoSystem": "Automatic"
+    "whoSystem": "Automatic",
+    "built": "What is built",
+    "stillNeeded": "Still needed",
+    "register": "Company register",
+    "texts": "Texts",
+    "englishFor": "English for {lang}",
+    "safetyTested": "Reply safety tested",
+    "nothingLeft": "Nothing left",
+    "who": {
+      "you": "You",
+      "lawyer": "Lawyer",
+      "native speaker": "Native speaker",
+      "each client": "Each client"
+    }
   },
   "leads": {
     "title": "Leads",

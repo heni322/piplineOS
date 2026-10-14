@@ -227,7 +227,8 @@ export default function GovernancePage() {
         <div className="table-wrap">
           <table>
             <thead><tr><th scope="col">{t.country}</th><th scope="col">{t.stage}</th><th scope="col">{t.rule}</th>
-              <th scope="col">{t.counsel}</th><th scope="col">{t.status}</th><th scope="col"><span className="sr-only">{t.status}</span></th></tr></thead>
+              <th scope="col">{t.counsel}</th><th scope="col">{t.built}</th><th scope="col">{t.stillNeeded}</th>
+              <th scope="col">{t.status}</th><th scope="col"><span className="sr-only">{t.status}</span></th></tr></thead>
             <tbody>
               {countries.map((c) => (
                 <tr key={c.code}>
@@ -235,6 +236,23 @@ export default function GovernancePage() {
                   <td>{label(t.stages, c.stage)}</td>
                   <td>{c.rule_mode ? label(t.modes, c.rule_mode) : "–"}</td>
                   <td>{c.verified_by_counsel && c.last_reviewed ? fill(t.reviewed, { date: day(c.last_reviewed) }) : t.notReviewed}</td>
+                  <td className="hint" style={{ minWidth: 220 }}>
+                    {c.build ? (
+                      <>
+                        <div>{t.register}: {c.build.register_name} <span className={c.build.register_ready ? "outcome-allow" : undefined}>({c.build.register_detail})</span></div>
+                        <div>{t.texts}: {[...c.build.languages_with_texts, ...c.build.languages_in_english.map((l) => fill(t.englishFor, { lang: l }))].join(", ") || "–"}</div>
+                        <div>{t.safetyTested}: {c.build.safety_tested.join(", ")}</div>
+                        {c.build.note && <div>{c.build.note}</div>}
+                      </>
+                    ) : "–"}
+                  </td>
+                  <td style={{ minWidth: 220 }}>
+                    {c.build && c.build.still_needed.length > 0 ? (
+                      <ul className="reasons" style={{ margin: 0 }}>
+                        {c.build.still_needed.map((n) => <li key={n.what}><strong>{label(t.who, n.who)}</strong>: {n.what}</li>)}
+                      </ul>
+                    ) : <span className="outcome-allow">{t.nothingLeft}</span>}
+                  </td>
                   <td>
                     {c.enabled ? <strong className="outcome-allow">{t.enabled}</strong> : t.disabled}
                     {!c.enabled && c.blocked_by.length > 0 && <div className="hint">{c.blocked_by.map((b) => label(t.blockers, b)).join("; ")}</div>}
