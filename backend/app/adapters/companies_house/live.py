@@ -6,6 +6,7 @@ confidence returns legal_form "unknown", which the compliance engine blocks rath
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import httpx
 
@@ -81,6 +82,14 @@ class CompaniesHouseRegistry:
         return self._profile(
             number, check(self._http.get(f"/company/{number}")).json(), active[0].get("title", company_name)
         )
+
+    def profile(self, company_number: str) -> dict[str, Any] | None:
+        """The raw company profile (name, status, SIC codes...), or None when the number is unknown."""
+        resp = self._http.get(f"/company/{company_number}")
+        if resp.status_code == 404:
+            return None
+        data = check(resp).json()
+        return data if isinstance(data, dict) else None
 
     @staticmethod
     def _profile(number: str, profile: dict[str, str], fallback_name: str) -> RegistryCompany:

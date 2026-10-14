@@ -28,6 +28,17 @@ class Icp(_Strict):
     exclude_keywords: list[str] = []
     # roles whose hiring is a trigger on a watched company's job board ("-x" excludes); empty = any new role
     hiring_keywords: list[str] = []
+    # UK SIC 2007 codes of the target market (e.g. "62020" IT consultancy): market-wide funding signals from the
+    # Companies House filing stream; empty = off
+    sic_codes: list[str] = Field(default=[], max_length=50)
+
+    @field_validator("sic_codes")
+    @classmethod
+    def _sic_format(cls, v: list[str]) -> list[str]:
+        bad = [c for c in v if not (c.isdigit() and len(c) == 5)]
+        if bad:
+            raise ValueError(f"SIC codes are 5 digits: {bad}")
+        return v
 
 
 class WatchedCompany(_Strict):

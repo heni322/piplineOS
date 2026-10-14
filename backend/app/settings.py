@@ -71,6 +71,13 @@ class Settings(BaseSettings):
 
     # Real providers (Phase 6). Unused unless the matching adapter mode is sandbox/live.
     companies_house_api_key: SecretStr | None = None
+    # Companies House streaming key (free, a separate "streaming" key in the developer hub): market-wide funding
+    # signals (new share allotments and charges) for clients with SIC codes. Read every N minutes; 0 = off.
+    companies_house_stream_key: SecretStr | None = None
+    filing_stream_interval_minutes: int = Field(default=5, ge=0, le=1440)
+    # Skip triggers from companies being wound up (the Gazette's corporate insolvency notices, free and open, plus
+    # the register status). Real signal sources only.
+    insolvency_filter: bool = True
     bolagsverket_client_id: str | None = None  # Sweden register (OAuth client credentials, free)
     bolagsverket_client_secret: SecretStr | None = None
     cvr_username: str | None = None  # Denmark register (system-to-system access, free, issued by Erhvervsstyrelsen)

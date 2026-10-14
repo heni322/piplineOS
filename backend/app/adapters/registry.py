@@ -3,7 +3,8 @@ misconfiguration fails loudly (AdapterNotConfigured) instead of silently calling
 
 - signals: mock -> the synthetic demo dataset; sandbox/live -> Contracts Finder + Find a Tender award notices
   (free, public, read-only), searched with the client's ICP keywords, plus the client's watchlist: its companies'
-  public job boards (Greenhouse, Lever, Ashby; free, no key) and new directors on the Companies House register
+  public job boards (Greenhouse, Lever, Ashby; free, no key) and new directors on the Companies House register,
+  plus, for clients with SIC codes, market-wide funding filings (SH01/MR01) from the Companies House stream ingest
 - FREE_ONLY=true: no paid provider is ever built. Enrichment -> the Companies House officers list (free; no email
   addresses), verifier -> none ("unknown"), AI -> the local model
 - companies house: free, read-only register (needs a free API key); France, Norway, Finland: free open registers;
@@ -22,6 +23,8 @@ from app.adapters.inbound.mock import MockInbox
 from app.settings import Settings
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+
     from app.agents.base import AgentContext
     from app.agents.trigger_hunter.agent import SourceBinding
     from app.domain.tenants.config import TenantConfig
@@ -38,7 +41,9 @@ def hiring_query(cfg: TenantConfig) -> str:
     return "; ".join(cfg.icp.hiring_keywords)
 
 
-def live_sources(cfg: TenantConfig, settings: Settings | None = None) -> list[SourceBinding]:
+def live_sources(
+    cfg: TenantConfig, settings: Settings | None = None, engine: Engine | None = None
+) -> list[SourceBinding]:
     """Free sources only: public award notices for everyone; for the client's watchlist, its companies' public job
     boards and (with the free Companies House key) new directors on the register."""
     from app.adapters.signals.job_boards import JobBoardSource, WatchedBoard
@@ -52,6 +57,10 @@ def live_sources(cfg: TenantConfig, settings: Settings | None = None) -> list[So
     ]
     if boards:
         out.append(SourceBinding(JobBoardSource(boards), hiring_query(cfg)))
+    if cfg.icp.sic_codes and engine is not None:  # market-wide, from the filing-stream ingest (no key needed here)
+        from app.adapters.signals.register_filings import RegisterFilingSource
+
+        out.append(SourceBinding(RegisterFilingSource(engine, cfg.icp.sic_codes), ""))
     numbered = [w for w in cfg.watchlist if w.company_number]
     key = settings.companies_house_api_key if settings is not None else None
     if numbered and key is not None and key.get_secret_value():
@@ -72,7 +81,14 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
     if needs_ctx and ctx is None:
         raise AdapterNotConfigured(f"{', '.join(needs_ctx)}: a tenant context is required for real providers")
     if ctx is not None and settings.signals_adapter_mode != "mock":
-        p.sources = live_sources(ctx.config, settings)
+        p.sources = live_sources(ctx.config, settings, ctx.engine)
+        if settings.insolvency_filter:
+            from app.adapters.companies_house.live import CompaniesHouseRegistry
+            from app.adapters.insolvency import GazetteNotices, InsolvencyFilter
+
+            key = settings.companies_house_api_key
+            register = CompaniesHouseRegistry(key.get_secret_value()) if key and key.get_secret_value() else None
+            p.insolvency = InsolvencyFilter(GazetteNotices(), register)
     if settings.free_only:
         if settings.enrichment_adapter_mode != "mock":  # the free register replaces the paid enrichment provider
             if settings.companies_house_api_key is None or not settings.companies_house_api_key.get_secret_value():

@@ -16,6 +16,7 @@ from app.adapters.companies_house.base import CompaniesRegistry
 from app.adapters.enrichment.base import EnrichmentProvider
 from app.adapters.inbound.base import InboundEmail, Inbox
 from app.adapters.inbound.mock import MockInbox
+from app.adapters.insolvency import InsolvencyCheck
 from app.adapters.verifier.base import EmailVerifier
 from app.agents.base import AgentContext
 from app.agents.decision_maker.agent import find_decision_maker
@@ -48,6 +49,7 @@ class Providers:
     verifier: EmailVerifier
     registry: CompaniesRegistry
     inbox: Inbox = field(default_factory=MockInbox)
+    insolvency: InsolvencyCheck | None = None  # real sources only: skip companies being wound up
 
 
 @dataclass
@@ -96,7 +98,7 @@ def process_lead(ctx: AgentContext, lead_id: uuid.UUID, providers: Providers) ->
 
 
 def run_campaign(ctx: AgentContext, providers: Providers, since: datetime | None = None) -> CampaignRun:
-    stats = hunt(ctx, providers.sources, since or datetime.now(UTC) - timedelta(days=30))
+    stats = hunt(ctx, providers.sources, since or datetime.now(UTC) - timedelta(days=30), providers.insolvency)
     run = CampaignRun(stats)
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
         lead_ids = (

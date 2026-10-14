@@ -40,6 +40,16 @@ celery_app.conf.update(
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
         "renew-gmail-watches": {"task": "pipelineos.replies.renew_gmail_watches", "schedule": 24 * 3600.0},
         **(
+            {
+                "ingest-filings": {
+                    "task": "pipelineos.signals.ingest_filings",
+                    "schedule": settings.filing_stream_interval_minutes * 60.0,
+                }
+            }
+            if settings.filing_stream_interval_minutes > 0 and settings.companies_house_stream_key is not None
+            else {}
+        ),
+        **(
             {"hunt": {"task": "pipelineos.pipeline.hunt", "schedule": settings.hunt_interval_hours * 3600.0}}
             if settings.hunt_interval_hours > 0
             else {}
@@ -79,6 +89,24 @@ def hunt_task() -> dict[str, int]:
     from app.workflows.pipeline import hunt_active_campaigns
 
     return hunt_active_campaigns(get_engine(), settings, PiiCipher(settings.key("pii_master_key")))
+
+
+@celery_app.task(name="pipelineos.signals.ingest_filings")
+def ingest_filings_task() -> dict[str, object]:
+    """Market-wide funding triggers from the Companies House filing stream (app.workflows.register_ingest)."""
+    from app.adapters.companies_house.live import CompaniesHouseRegistry
+    from app.adapters.companies_house.stream import FilingStream
+    from app.workflows.register_ingest import ingest_filings
+
+    if settings.companies_house_stream_key is None or settings.companies_house_api_key is None:
+        return {"skipped": "COMPANIES_HOUSE_STREAM_KEY and COMPANIES_HOUSE_API_KEY are both needed"}
+    stats = ingest_filings(
+        get_engine(),
+        FilingStream(settings.companies_house_stream_key.get_secret_value()),
+        CompaniesHouseRegistry(settings.companies_house_api_key.get_secret_value()),
+        max_seconds=min(240.0, settings.filing_stream_interval_minutes * 60.0 * 0.8),
+    )
+    return dict(stats.__dict__)
 
 
 @celery_app.task(name="pipelineos.system.daily_deliverability")
