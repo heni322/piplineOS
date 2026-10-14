@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     # Companies House officers list, email addresses are never bought or verified, and the AI runs on the free local
     # model (LOCAL_LLM_URL) instead of the paid API.
     free_only: bool = False
+    # Free-only: take the generic business address (sales@, info@...) the company publishes on its own website,
+    # once a page of that site states the company's registered number. Off = register contacts stay without email.
+    website_contacts: bool = True
 
     # Three-key live switch, key 3 (keys 1 and 2: adapter mode + tenant.live_mode). Default OFF.
     global_go_live: bool = False

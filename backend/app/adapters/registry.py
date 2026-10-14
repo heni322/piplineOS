@@ -57,6 +57,10 @@ def live_sources(
     ]
     if boards:
         out.append(SourceBinding(JobBoardSource(boards), hiring_query(cfg)))
+    if any(c != "GB" for c in cfg.icp.countries):  # EU awards (TED: free, no key) for the client's EU countries
+        from app.adapters.signals.ted import TedAwardSource
+
+        out.append(SourceBinding(TedAwardSource(cfg.icp.countries), q))
     if cfg.icp.sic_codes and engine is not None:  # market-wide, from the filing-stream ingest (no key needed here)
         from app.adapters.signals.register_filings import RegisterFilingSource
 
@@ -95,11 +99,18 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
                 raise AdapterNotConfigured("FREE_ONLY enrichment needs COMPANIES_HOUSE_API_KEY (free)")
             from app.adapters.companies_house.officers import CompaniesHouseOfficers
 
-            p.enrichment = CompaniesHouseOfficers(settings.companies_house_api_key.get_secret_value())
+            officers = CompaniesHouseOfficers(settings.companies_house_api_key.get_secret_value())
+            p.enrichment = officers
+            if settings.website_contacts:  # + the company's published business address, checked on its own site
+                from app.adapters.website_contacts import WebsiteContacts, WebsiteFinder
+
+                p.enrichment = WebsiteContacts(officers, WebsiteFinder())
         if settings.verifier_adapter_mode != "mock":
             from app.adapters.verifier.none import NoVerifier
+            from app.adapters.website_contacts import WebsiteContacts
 
-            p.verifier = NoVerifier()
+            # "valid" only for an address found published on the company's own verified site; else "unknown"
+            p.verifier = p.enrichment if isinstance(p.enrichment, WebsiteContacts) else NoVerifier()
     elif ctx is not None and (settings.enrichment_adapter_mode != "mock" or settings.verifier_adapter_mode != "mock"):
         from app.domain.paid.providers import enrichment_for, verifier_for
 

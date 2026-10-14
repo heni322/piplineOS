@@ -26,6 +26,13 @@ item has been signed off. The live view of this list is on the **Go-live** page:
   - **decision-makers:** the free Companies House officers list. There's no email address, so each lead becomes
     a human "published contact" task;
   - **AI:** the free local model.
+- **A stronger free search** (Phase 12):
+  - **funding triggers for the whole UK market** from Companies House filings, chosen by each client's SIC codes;
+  - **EU contract awards** (TED);
+  - an **insolvency filter** (the Gazette and the register);
+  - the **company's own published business address**, taken only from a website proven to be theirs by its
+    company number.
+  - Check each live source once on your PC: `pipelineos signals check …` (`docs/PHASE-12-REPORT.md` §5).
 - **Countries.**
 
   | Situation | Countries |
@@ -72,5 +79,5 @@ item has been signed off. The live view of this list is on the **Go-live** page:
    (`docs/GO-LIVE-RUNBOOK.md`).
 
 ## Code
-- Phases 2–10.1 are on `main`; Phase 11 is on branch `phase/11-free-sources`.
+- Phases 2–10.1 are on `main`; Phases 11 and 12 are on branch `phase/11-free-sources`.
 - Merging into `main` (by pull request, no history rewritten) is your call, whenever you are happy with the review.

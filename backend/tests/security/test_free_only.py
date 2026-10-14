@@ -57,8 +57,11 @@ def test_free_only_builds_no_paid_provider(clean_db, settings, cipher) -> None: 
     s = free(settings)
     ctx = agent_context(clean_db, s, cipher, demo.tenant_id, demo.campaign_id)
     p = providers_for(s, ctx)
-    assert p.enrichment.name == "companies_house.officers" and p.verifier.name == "verifier.none"
-    assert p.verifier.verify("anyone@lakeside-net.example") == "unknown"  # never reported valid
+    assert p.enrichment.name == "website.published_contacts" and p.verifier is p.enrichment
+    assert p.verifier.verify("anyone@lakeside-net.example") == "unknown"  # never valid unless found published
+    off = s.model_copy(update={"website_contacts": False})
+    q = providers_for(off, agent_context(clean_db, off, cipher, demo.tenant_id, demo.campaign_id))
+    assert q.enrichment.name == "companies_house.officers" and q.verifier.name == "verifier.none"
     no_key = s.model_copy(update={"companies_house_api_key": None})
     with pytest.raises(AdapterNotConfigured):
         providers_for(no_key, agent_context(clean_db, no_key, cipher, demo.tenant_id, demo.campaign_id))
@@ -144,3 +147,48 @@ def test_a_director_outside_the_buyer_personas_is_still_rejected(clean_db, setti
         states = conn.execute(text("SELECT state FROM leads")).scalars().all()
         tasks = conn.execute(text("SELECT count(*) FROM alternative_channel_tasks")).scalar_one()
     assert states == ["rejected_by_compliance"] and tasks == 0
+
+
+def test_free_only_pipeline_uses_the_address_published_on_the_companys_own_site(clean_db, settings, cipher) -> None:  # type: ignore[no-untyped-def]
+    from app.adapters.website_contacts import WebsiteContacts, WebsiteFinder
+    from tests.contract.test_website_contacts import CONTACT, finder
+
+    demo = seed_demo(clean_db, settings)
+    s = free(settings)
+    ctx = agent_context(clean_db, s, cipher, demo.tenant_id, demo.campaign_id)
+    p = providers_for(s, ctx)
+    p.sources = [
+        SourceBinding(
+            contracts_finder(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=NOTICES))),
+            signal_query(ctx.config),
+        )
+    ]
+    officers = CompaniesHouseOfficers(
+        "free-key", transport=httpx.MockTransport(lambda r: httpx.Response(200, json=OFFICERS))
+    )
+    site: WebsiteFinder = finder({"lakesidenetworks.co.uk/contact": CONTACT})
+    p.enrichment = p.verifier = WebsiteContacts(officers, site)
+    p.registry = MockCompaniesHouse({COMPANY: RegistryCompany(NUMBER, COMPANY, "ltd", "active", "GB")})
+    run_campaign(ctx, p, since=SINCE)
+
+    with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
+        lead = conn.execute(
+            text(
+                "SELECT l.id, l.state, l.prospect_id, c.domain_normalised FROM leads l "
+                "JOIN companies c ON c.id = l.company_id WHERE c.company_number = :n"
+            ),
+            {"n": NUMBER},
+        ).one()
+        pr = conn.execute(
+            text("SELECT email_enc, email_verification FROM prospects WHERE id = :p"), {"p": lead.prospect_id}
+        ).one()
+        email = cipher.decrypt(conn, demo.tenant_id, "prospects.email", pr.email_enc)
+        decision = conn.execute(
+            text("SELECT outcome FROM compliance_decisions WHERE lead_id = :l ORDER BY created_at LIMIT 1"),
+            {"l": lead.id},
+        ).scalar_one()
+        sent = conn.execute(text("SELECT count(*) FROM messages WHERE status = 'sent'")).scalar_one()
+    assert email == "sales@lakesidenetworks.co.uk" and pr.email_verification == "valid"
+    assert lead.domain_normalised == "lakesidenetworks.co.uk"
+    assert decision == "allow" and lead.state not in ("alternative_channel", "rejected_by_compliance")
+    assert sent == 0  # drafted for human approval; nothing goes out by itself

@@ -18,6 +18,7 @@ operator-signed go-live checklist with `GLOBAL_GO_LIVE=true` in production).
 | 3 MVP vertical slice (UK) | Done — demo in `docs/DEMO.md` |
 | 4–10.1 Replies, billing, production readiness, real adapters, countries, replies safety net | Done — `docs/PHASE-*-REPORT.md` |
 | 11 Free sources only (`FREE_ONLY`) | **Done, awaiting review** — `docs/PHASE-11-REPORT.md` |
+| 12 Stronger free search: market-wide funding, EU awards, insolvency filter, published contacts | **Done, awaiting review** — `docs/PHASE-12-REPORT.md` |
 
 The current state, and what is still needed from you, is in `docs/STATUS.md`.
 

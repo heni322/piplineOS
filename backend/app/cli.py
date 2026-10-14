@@ -26,11 +26,13 @@ config_app = typer.Typer(help="Versioned configuration")
 users_app = typer.Typer(help="Users")
 demo_app = typer.Typer(help="Synthetic demo data (dev/test only)")
 registers_app = typer.Typer(help="Public company registers")
+signals_app = typer.Typer(help="Free signal and contact sources: one live check each (read-only)")
 app.add_typer(keys_app, name="keys")
 app.add_typer(config_app, name="config")
 app.add_typer(users_app, name="users")
 app.add_typer(demo_app, name="demo")
 app.add_typer(registers_app, name="registers")
+app.add_typer(signals_app, name="signals")
 
 
 @app.callback()
@@ -69,6 +71,66 @@ def import_register(country: str, source: Path) -> None:
         raise typer.BadParameter("country must be 'be' or 'ie'")
     r = importers[country.lower()](get_engine(get_settings().database_owner_url), source)
     typer.echo(json.dumps(r.__dict__, indent=2, default=str))
+
+
+@signals_app.command("check")
+def check_sources(
+    source: str = typer.Argument(..., help="ted | job-board | gazette | website | officers | stream"),
+    target: str = typer.Option("", help="ted: country (FR); job-board: greenhouse:name; others: company number"),
+    name: str = typer.Option("", help="website: the company name"),
+    query: str = typer.Option("IT; software; service", help="keywords for ted / job-board"),
+    days: int = typer.Option(14, help="look back this many days"),
+) -> None:
+    """Call one free source once, live, and print what came back: counts and company-level samples only (no
+    personal data is printed and nothing is stored). Use it to confirm a source's real format after setup."""
+    from datetime import UTC, datetime, timedelta
+
+    settings = get_settings()
+    since = datetime.now(UTC) - timedelta(days=days)
+    out: dict[str, object] = {"source": source}
+    if source == "ted":
+        from app.adapters.signals.ted import TedAwardSource
+
+        sigs = TedAwardSource([target or "FR"], max_pages=1).fetch(query, since)
+        out |= {"signals": len(sigs), "sample": [(s.company_name, s.country_hint, s.title) for s in sigs[:5]]}
+    elif source == "job-board":
+        from app.adapters.signals.job_boards import JobBoardSource, WatchedBoard
+
+        jb = JobBoardSource([WatchedBoard("checked company", target)])
+        sigs = jb.fetch("" if query == "IT; software; service" else query, since)
+        out |= {"failed": jb.failed, "signals": [s.text for s in sigs]}
+    elif source == "gazette":
+        from app.adapters.insolvency import GazetteNotices
+
+        out |= {"insolvency_notices": GazetteNotices().recent(target)}
+    elif source == "website":
+        from app.adapters.website_contacts import WebsiteFinder
+
+        site = WebsiteFinder().find(target, name or None, None)
+        out |= {"site": site.__dict__ if site else None}
+    elif source == "officers":
+        from app.adapters.companies_house.officers import CompaniesHouseOfficers
+
+        key = settings.companies_house_api_key
+        if key is None:
+            raise typer.BadParameter("COMPANIES_HOUSE_API_KEY is not set")
+        people = CompaniesHouseOfficers(key.get_secret_value()).find_people("", [], company_number=target)
+        out |= {"current_officers": len(people), "titles": [p.title for p in people]}  # titles only, no names
+    elif source == "stream":
+        from app.adapters.companies_house.stream import FilingStream
+
+        skey = settings.companies_house_stream_key
+        if skey is None:
+            raise typer.BadParameter("COMPANIES_HOUSE_STREAM_KEY is not set")
+        sl = FilingStream(skey.get_secret_value()).read(None, max_events=500, max_seconds=60)
+        out |= {
+            "events_read": sl.read,
+            "last_timepoint": sl.last_timepoint,
+            "triggers": [(e.company_number, e.filing_type, str(e.filed_on)) for e in sl.events[:10]],
+        }
+    else:
+        raise typer.BadParameter("source must be ted, job-board, gazette, website, officers or stream")
+    typer.echo(json.dumps(out, indent=2, default=str))
 
 
 @users_app.command("create-operator")
