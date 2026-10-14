@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Problem } from "@/lib/api";
+import { webUrl } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { ContactTask, Unmasked } from "@/lib/types";
 
 const t = getMessages().tasks;
-/** Only web links are rendered: source data must never become a javascript: link. */
-const webUrl = (u: string | null) => (u && /^https?:\/\//i.test(u) ? u : null);
 const channelLabel = (c: string) => (t.channels as Record<string, string>)[c] ?? c.replaceAll("_", " ");
 
 export default function TasksPage() {

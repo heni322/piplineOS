@@ -19,3 +19,14 @@ describe("CitedLetter", () => {
     expect(container.textContent).toContain("<img src=x onerror=alert(1)>");
   });
 });
+
+describe("CitedLetter links", () => {
+  it("never renders a non-web source as a link", () => {
+    const bad = [{ text: "new service desk role", source_url: "javascript:alert(1)" }];
+    const { container } = render(
+      <CitedLetter text="We saw your new service desk role." claims={bad} numbering={new Map([["javascript:alert(1)", 1]])} />,
+    );
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.textContent).toContain("[1]");
+  });
+});

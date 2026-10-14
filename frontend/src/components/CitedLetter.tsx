@@ -1,3 +1,4 @@
+import { webUrl } from "@/lib/format";
 import type { Claim } from "@/lib/types";
 
 /**
@@ -21,7 +22,9 @@ export function CitedLetter({ text, claims, numbering }: { text: string; claims:
       <span key={k}>
         <mark>{text.slice(h.start, h.end)}</mark>
         <sup>
-          <a href={h.claim.source_url} target="_blank" rel="noopener noreferrer" aria-label={`Source ${n}: opens in a new tab`}>[{n}]</a>
+          {webUrl(h.claim.source_url)
+            ? <a href={webUrl(h.claim.source_url)!} target="_blank" rel="noopener noreferrer" aria-label={`Source ${n}: opens in a new tab`}>[{n}]</a>
+            : <span>[{n}]</span>}
         </sup>
       </span>,
     );

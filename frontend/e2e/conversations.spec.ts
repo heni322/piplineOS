@@ -69,14 +69,14 @@ test("operator works the contact tasks queue", async ({ page }) => {
   await row.getByRole("button", { name: "Show name" }).click();
   await row.getByLabel("Why do you need to see this? (logged)").fill("Preparing the introduction");
   await row.getByRole("button", { name: "Show", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText("Your view was logged.");
+  await expect(page.getByRole("status").filter({ hasText: "Your view was logged." })).toBeVisible();
 
   await row.getByRole("button", { name: "Close task" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Skipped: not contacted").check();
   await dialog.getByLabel("What did you do? (kept with the task)").fill("Client asked us to wait until Q1");
   await dialog.getByRole("button", { name: "Close task" }).click();
-  await expect(page.getByRole("status")).toHaveText("Task closed.");
+  await expect(page.getByRole("status").filter({ hasText: "Task closed." })).toBeVisible();
   await expect(page.getByRole("row", { name: /Fabrikam Cloud Ltd/ })).toHaveCount(0);
   await accessible(page, "contact-tasks-closed");
 });

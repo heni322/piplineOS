@@ -34,6 +34,8 @@ close them.
 - Frontend: lint, types, unit tests and build pass. A new full-stack browser test signs in, opens Contact tasks,
   reveals a name (logged), closes a task, and runs the WCAG 2.1 AA checks before and after.
 
-## 4. Suggested next
-- The existing `CitedLetter` and Approvals pages render citation links without a scheme check. The new hunter
-  guard protects new signals; a front-end check there would add defence in depth.
+## 4. Also fixed
+- **Older pages:** the Approvals page and the cited-letter view now render source links only when they are web
+  addresses (a shared `webUrl` helper), with a unit test.
+- **Browser-test sign-in:** operator codes are single-use, and parallel tests could compete for the same one, so the
+  helper now tries up to four 30-second windows. Before this, an unrelated governance test failed now and then.

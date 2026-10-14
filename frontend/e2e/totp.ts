@@ -14,10 +14,11 @@ export function totp(base32: string, at = Date.now()): string {
   return code.padStart(6, "0");
 }
 
-/** Signs the operator in. Login codes are single-use, so if this 30-second code was already used by an earlier test,
- * wait for the next one and try again. */
+/** Signs the operator in. Login codes are single-use, so if this 30-second code was already used by another test,
+ * wait for the next one and try again. Tests run in parallel, so several may wait for the same next code: each
+ * window lets at least one in, hence up to four attempts. */
 export async function signInOperator(page: import("@playwright/test").Page, email: string, password: string, secret: string) {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 4; attempt++) {
     await page.goto("/login");
     await page.getByLabel("Work email").fill(email);
     await page.getByLabel("Password").fill(password);
@@ -30,5 +31,5 @@ export async function signInOperator(page: import("@playwright/test").Page, emai
       await page.waitForTimeout(30_000 - (Date.now() % 30_000) + 1000);
     }
   }
-  throw new Error("operator sign-in failed twice");
+  throw new Error("operator sign-in failed four times");
 }
