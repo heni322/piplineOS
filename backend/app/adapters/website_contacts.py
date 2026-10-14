@@ -43,7 +43,8 @@ MAX_BYTES = 512_000
 MAX_CANDIDATES = 6
 # preferred first; anything else is ignored
 GENERIC = ["sales", "enquiries", "enquiry", "hello", "contact", "info", "office", "newbusiness", "business", "team"]
-_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}")
+# bounded (RFC 5321 limits): an unbounded local part makes a long run of letters quadratic to scan (ReDoS)
+_EMAIL = re.compile(r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}")
 _TAGS = re.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", re.IGNORECASE | re.DOTALL)
 _DOMAIN = re.compile(r"^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$")
 WIKIDATA = "https://query.wikidata.org"
