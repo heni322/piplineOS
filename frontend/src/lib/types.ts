@@ -48,7 +48,8 @@ export type Dispute = { id: string; tenant_id: string; meeting_id: string; compa
   status: string; resolution_note: string | null; created_at: string; window_ends_at: string | null };
 export type Tenant = { id: string; slug: string; legal_name: string; status: string; live_mode: boolean; approval_mode: string };
 export type Client = { id: string; slug: string; legal_name: string; status: string; billing_currency: string;
-  checklist: { key: string; done: boolean; detail: string }[]; paused_reason: string | null; paused_at: string | null };
+  checklist: { key: string; done: boolean; detail: string }[]; paused_reason: string | null; paused_at: string | null;
+  company_number: string | null; registered_address: string | null };
 export type Metrics = {
   period: { start: string; end: string }; leads_discovered: number; contacted: number; replied: number; positive_replies: number;
   reply_rate: number | null; positive_reply_rate: number | null; meetings_booked: number; meetings_attended: number;

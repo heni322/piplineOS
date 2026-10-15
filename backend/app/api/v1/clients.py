@@ -52,13 +52,16 @@ class ClientOut(BaseModel):
     checklist: list[ItemOut]
     paused_reason: str | None = None
     paused_at: datetime | None = None
+    company_number: str | None = None
+    registered_address: str | None = None
 
 
 def _client(conn: Any, tenant_id: uuid.UUID) -> ClientOut:
     t = (
         conn.execute(
             text(
-                "SELECT id, slug, legal_name, status, billing_currency, paused_reason, paused_at FROM tenants "
+                "SELECT id, slug, legal_name, status, billing_currency, paused_reason, paused_at, company_number, "
+                "registered_address FROM tenants "
                 "WHERE id = :t"
             ),
             {"t": tenant_id},
@@ -78,6 +81,8 @@ def _client(conn: Any, tenant_id: uuid.UUID) -> ClientOut:
         checklist=items,
         paused_reason=t["paused_reason"],
         paused_at=t["paused_at"],
+        company_number=t["company_number"],
+        registered_address=t["registered_address"],
     )
 
 
@@ -400,6 +405,50 @@ def activate(tenant_id: uuid.UUID, user: Operator) -> ClientOut:
             return _client(conn, tenant_id)
     except onboarding.OnboardingError as exc:
         raise ProblemError(409, "Onboarding incomplete", ", ".join(exc.missing)) from exc
+
+
+class DetailsIn(BaseModel):
+    legal_name: str = Field(min_length=2, max_length=200)
+    company_number: str | None = Field(default=None, max_length=20)
+    registered_address: str | None = Field(default=None, max_length=500)
+    vat_number: str | None = Field(default=None, max_length=30)
+
+
+@router.put("/clients/{tenant_id}/details", response_model=ClientOut)
+def put_details(tenant_id: uuid.UUID, body: DetailsIn, user: Operator) -> ClientOut:
+    """The client's legal identity, printed in every email footer and on invoices. Audited with before/after.
+    Issued invoices keep the details they were issued with (they are snapshots)."""
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        before = (
+            conn.execute(
+                text("SELECT legal_name, company_number, registered_address, vat_number FROM tenants WHERE id = :t"),
+                {"t": tenant_id},
+            )
+            .mappings()
+            .first()
+        )
+        if before is None:
+            raise ProblemError(404, "Client not found")
+        # Only the fields sent change (a form that leaves out the VAT number must not erase it).
+        after = {
+            k: (v.strip() if isinstance(v, str) else v) or None
+            for k, v in body.model_dump().items()
+            if k in body.model_fields_set
+        }
+        sets = ", ".join(f"{k} = :{k}" for k in after)  # keys are DetailsIn's own field names only
+        conn.execute(text(f"UPDATE tenants SET {sets} WHERE id = :t"), after | {"t": tenant_id})  # noqa: S608
+        write_audit(
+            conn,
+            action="tenant.details_changed",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=tenant_id,
+            entity_type="tenant",
+            entity_id=tenant_id,
+            before={k: before[k] for k in after},
+            after=after,
+        )
+        return _client(conn, tenant_id)
 
 
 # ------------------------------------------------------------------------------------------- emergency stop

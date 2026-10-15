@@ -15,7 +15,7 @@ const stepNames = t.steps as Record<string, string>;
 // The order an onboarding call goes in: the first item not done is the client's next step.
 const ORDER = ["company_details", "lia", "dpa", "config", "pricing", "eu_representative", "client_user", "criteria_signed",
   "pricing_signed", "sending_domain"];
-type Form = "lia" | "dpa" | "user" | "eurep" | "pause" | null;
+type Form = "lia" | "dpa" | "user" | "eurep" | "pause" | "details" | null;
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[] | null>(null);
@@ -54,6 +54,12 @@ export default function ClientsPage() {
     if (kind === "dpa") await api(`/api/v1/clients/${id}/dpa`, { method: "POST", body: JSON.stringify({ version: fields.a, signed_on: fields.b }) });
     if (kind === "eurep") await api(`/api/v1/clients/${id}/eu-representative`, { method: "POST",
       body: JSON.stringify({ name: fields.a, contact_email: fields.b, country_code: fields.c.toUpperCase() }) });
+    if (kind === "details") {
+      await api(`/api/v1/clients/${id}/details`, { method: "PUT", body: JSON.stringify({ legal_name: fields.a,
+        company_number: fields.b || null, registered_address: fields.c || null }) });
+      setForm({ id: "", kind: null });
+      return t.detailsSaved;
+    }
     if (kind === "pause") {
       await api(`/api/v1/clients/${id}/pause`, { method: "POST", body: JSON.stringify({ reason: fields.a }) });
       setForm({ id: "", kind: null });
@@ -157,6 +163,19 @@ export default function ClientsPage() {
                       <button type="button" className="secondary" onClick={() => setForm({ id: "", kind: null })}>{t.cancel}</button>
                     </div>
                   </div>
+                ) : form.id === c.id && form.kind === "details" ? (
+                  <div>
+                    <label htmlFor={`fa-${c.id}`}>{t.legalName}</label>
+                    <input id={`fa-${c.id}`} value={fields.a} onChange={(e) => setFields({ ...fields, a: e.target.value })} />
+                    <label htmlFor={`fb-${c.id}`}>{t.companyNumber}</label>
+                    <input id={`fb-${c.id}`} value={fields.b} onChange={(e) => setFields({ ...fields, b: e.target.value })} />
+                    <label htmlFor={`fc-${c.id}`}>{t.address}</label>
+                    <input id={`fc-${c.id}`} value={fields.c} onChange={(e) => setFields({ ...fields, c: e.target.value })} />
+                    <div className="row-actions" style={{ marginTop: 10 }}>
+                      <button type="button" disabled={busy || fields.a.trim().length < 2} onClick={submitForm}>{t.save}</button>
+                      <button type="button" className="secondary" onClick={() => setForm({ id: "", kind: null })}>{t.cancel}</button>
+                    </div>
+                  </div>
                 ) : form.id === c.id && form.kind === "pause" ? (
                   <div>
                     <p className="hint">{t.pauseHint}</p>
@@ -188,6 +207,7 @@ export default function ClientsPage() {
                       <button key={k} type="button" className="secondary" onClick={() => { setForm({ id: c.id, kind: k }); setFields({ a: "", b: "", c: "" }); }}>{t[k]}</button>
                     ))}
                     <button type="button" className="secondary" onClick={() => { setPanel({ id: c.id, name: c.legal_name, kind: "offer" }); setStatus(null); }}>{t.offer}</button>
+                    <button type="button" className="secondary" onClick={() => { setForm({ id: c.id, kind: "details" }); setFields({ a: c.legal_name, b: c.company_number ?? "", c: c.registered_address ?? "" }); }}>{t.details}</button>
                     <button type="button" className="secondary" onClick={() => { setTargeting({ id: c.id, name: c.legal_name }); setStatus(null); }}>{t.targeting}</button>
                     <button type="button" className="secondary" onClick={() => { setPanel({ id: c.id, name: c.legal_name, kind: "sending" }); setStatus(null); }}>{t.sending}</button>
                     {c.checklist.some((i) => i.key === "eu_representative") && (

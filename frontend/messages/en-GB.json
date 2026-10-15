@@ -489,7 +489,9 @@
     },
     "abLabel": "Subject-line test",
     "abOff": "Off: always the first subject line",
-    "abOn": "Test {n} subject lines (each lead gets one; compare in Reports)"
+    "abOn": "Test {n} subject lines (each lead gets one; compare in Reports)",
+    "details": "Edit company details",
+    "detailsSaved": "Company details saved. Issued invoices keep the details they were issued with."
   },
   "reports": {
     "title": "Reports",

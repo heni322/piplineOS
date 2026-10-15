@@ -148,3 +148,32 @@ def test_a_new_client_goes_from_nothing_to_a_running_pilot(op, clean_db, setting
     c.put(f"/api/v1/clients/{tid}/setup", json=SETUP | {"pricing": {"per_meeting_minor": 30_000}})
     terms = {t["kind"]: t["signed"] for t in client.get("/api/v1/terms").json()}
     assert terms == {"qualification_criteria": True, "pricing": False}
+
+
+def test_company_details_can_be_corrected_and_are_audited(op, clean_db) -> None:  # type: ignore[no-untyped-def]
+    from sqlalchemy import text
+
+    from app.db.session import DbContext, transaction
+
+    c, tid = op
+    r = c.put(
+        f"/api/v1/clients/{tid}/details",
+        json={
+            "legal_name": "Acme IT Services Ltd",
+            "company_number": "01234567",
+            "registered_address": "3 New Rd, Leeds",
+            "vat_number": " ",
+        },
+    )
+    assert r.status_code == 200 and r.json()["legal_name"] == "Acme IT Services Ltd"
+    assert c.put(f"/api/v1/clients/{tid}/details", json={"legal_name": "A"}).status_code == 422
+    with transaction(DbContext(role="operator"), clean_db) as conn:
+        a = conn.execute(text("SELECT before, after FROM audit_log WHERE action = 'tenant.details_changed'")).one()
+    assert a.before["legal_name"] == "Acme IT Ltd" and a.after["registered_address"] == "3 New Rd, Leeds"
+    assert a.after["vat_number"] is None
+    # A field left out is kept, not erased.
+    c.put(f"/api/v1/clients/{tid}/details", json={"legal_name": "Acme IT Services Ltd", "vat_number": "GB123456789"})
+    c.put(f"/api/v1/clients/{tid}/details", json={"legal_name": "Acme IT Services Limited"})
+    with transaction(DbContext(role="operator"), clean_db) as conn:
+        t = conn.execute(text("SELECT vat_number, company_number FROM tenants WHERE id = :t"), {"t": tid}).one()
+    assert (t.vat_number, t.company_number) == ("GB123456789", "01234567")
