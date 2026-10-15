@@ -11,7 +11,15 @@ BASE="${ADMIN_URL%/*}"
 EXISTS="$(psql "$ADMIN_URL" -tAc "SELECT 1 FROM pg_database WHERE datname = '$TARGET'")"
 [ -z "$EXISTS" ] || { echo "database $TARGET already exists; refusing to overwrite"; exit 1; }
 psql "$ADMIN_URL" -q -c "CREATE DATABASE $TARGET OWNER pipelineos_owner"
+# From here on the target is ours (created just now): if anything fails, drop it rather than leave a half-restore.
+trap 'echo "restore failed; dropping the half-restored $TARGET"; psql "$ADMIN_URL" -q -c "DROP DATABASE IF EXISTS $TARGET"' EXIT
 psql "$BASE/$TARGET" -q -c "CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS pgcrypto;"
-${BACKUPCRYPT_CMD:-python3 /opt/pipelineos/backupcrypt.py} decrypt --passphrase-file "$BACKUP_PASSPHRASE_FILE" < "$FILE" \
-  | pg_restore --exit-on-error --no-password --dbname="$BASE/$TARGET"
+# Decrypt fully (and authenticate) BEFORE restoring: in a pipe, a decryption failure half-way would go unnoticed.
+umask 077
+PLAIN="$(mktemp)"
+trap 'rm -f "$PLAIN"; echo "restore failed; dropping the half-restored $TARGET"; psql "$ADMIN_URL" -q -c "DROP DATABASE IF EXISTS $TARGET"' EXIT
+${BACKUPCRYPT_CMD:-python3 /opt/pipelineos/backupcrypt.py} decrypt --passphrase-file "$BACKUP_PASSPHRASE_FILE" < "$FILE" > "$PLAIN"
+pg_restore --exit-on-error --no-password --dbname="$BASE/$TARGET" "$PLAIN"
+rm -f "$PLAIN"
+trap - EXIT
 echo "restored into $TARGET at schema $(psql "$BASE/$TARGET" -tAc 'SELECT version_num FROM alembic_version')"

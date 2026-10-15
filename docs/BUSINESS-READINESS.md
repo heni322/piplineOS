@@ -5,7 +5,7 @@
 
 ## 1. Verdict
 
-**Business readiness: 4.8 / 10.** It was about 4.0 before this phase.
+**Business readiness: 5.0 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
 - 785 backend tests, 17 browser tests with WCAG checks, strict typing;
@@ -28,7 +28,7 @@ What 9/10 needs, and what is missing today:
 | Solicitor's review of UK outreach, LIA, notice, DPA, terms | **MISSING**: `LEGAL REVIEW REQUIRED` throughout |
 | Deliverability validated on real domains and mailboxes | **MISSING**: no domain bought, no warm-up run |
 | Payment validated (an invoice issued and paid) | **MISSING**: invoices are drafts, there is no payment provider, and tax rules are not checked by an accountant |
-| Backups restored and tested in production | **PARTIAL**: scripts and a restore test exist; no production server yet |
+| Backups restored and tested in production | **PARTIAL**: restore drill run for real on 2026-10-15 (encrypted backup → new database → 63 tables identical; a tampered backup refused and cleaned up). Not on a production server yet |
 | External security test | **MISSING**: internal tests, scans and threat model only |
 
 ## 2. Audit
@@ -54,7 +54,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | Customer success | Portal: results, meetings with evidence, disputes, CRM, emergency stop, ROI, **testimonials with consent scope** | Reviews and renewal with real clients | No real client; renewal is manual | Medium | P2 | 5 |
 | Scalability | Celery workers, per-tenant caps, load test (Phase 6) | Proven at 10+ clients | Single server design | Low now | P2 | 5 |
 
-**Overall: 4.8 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
+**Overall: 5.0 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
 
 ## 3. Top 20 blockers
 
@@ -288,6 +288,27 @@ source link, the relevance score, every claim with its source, and the quality s
   accessibility check.
 - **Remaining risk.** None technically. There will be nothing to show until a real client is happy.
 
+### 6.11 Security sweep, free MX check, restore drill (P1)
+- **Cross-tenant sweep.** `tests/security/test_cross_tenant_sweep.py` covers the API from another client's side:
+  - It calls **every API route that takes an id** with another client's real ids (leads, messages, meetings,
+    invoices and the rest), and every list and report.
+  - No request may succeed on another client's data, show any of it, or crash.
+  - A new route without an id mapping fails the test, so future routes can't slip past it.
+  - **It found two real bugs:** two 500 errors for clients not configured yet. Fixed: `ConfigMissing` now maps to
+    409 everywhere.
+- **Free MX check.** A published address only counts as verified if its domain actually accepts email:
+  - an MX record means valid;
+  - a null MX or no records means invalid;
+  - an A record only means risky, and the gate doesn't send to risky.
+
+  This prevents the commonest hard bounce at no cost. Also fixed: a case mismatch meant mixed-case published
+  addresses could never verify.
+- **Restore drill, executed.**
+  - The encrypted backup was restored into a fresh database, with identical row counts on all 63 tables.
+  - A tampered backup was refused by both the checksum and the encryption.
+  - `restore.sh` now decrypts **fully before** restoring (a failure half-way through a pipe could go unnoticed), and
+    drops the half-restored database it created if anything fails.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -295,20 +316,20 @@ source link, the relevance score, every claim with its source, and the quality s
 | Product | 7 | 7 |
 | Onboarding | 5 | **7** (guided, no JSON) |
 | Lead acquisition | 4 | 4 |
-| Data quality | 5 | 5 |
+| Data quality | 5 | **5.5** (MX check) |
 | Outreach | 6 | 6 |
 | Deliverability | 4 | 4 |
 | Compliance (technical / legal) | 8 / 0 | **8.5** / 0 (retention schedule) |
-| Security | 7 | 7 |
+| Security | 7 | **7.5** (automated cross-tenant sweep; external test still missing) |
 | Sales workflow | 6 | 6 |
 | Meeting booking | 5 | 5 |
 | Billing | 5 | **6** (payments, paid, overdue) |
 | Analytics | 4 | **7** |
-| Operations | 5 | **6** (emergency stop, stop alerts) |
+| Operations | 5 | **6.5** (emergency stop, stop alerts, restore drill run) |
 | Customer success | 3 | **5** (client stop, ROI, consented proof) |
 | Scalability | 5 | 5 |
 | Go-to-market | 1 | **4** (model, pricing, ICP, plan, landing page, economics) |
-| **Overall** | **~4.0** | **4.8** |
+| **Overall** | **~4.0** | **5.0** |
 
 The next big jumps are all external:
 - the solicitor's review takes compliance from 0 to 6–8 on the legal side;
