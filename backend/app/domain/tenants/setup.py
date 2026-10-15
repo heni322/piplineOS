@@ -37,6 +37,7 @@ class SetupIn(BaseModel):
     outreach_purpose: str = Field(min_length=5, max_length=200)
     criteria: list[CriterionIn] | None = Field(default=None, min_length=1, max_length=8)
     pricing: PricingIn
+    subject_variants: int | None = Field(default=None, ge=1, le=3)  # A/B test of subject lines; None = unchanged
 
 
 class SetupError(Exception):
@@ -77,6 +78,8 @@ def build(current: TenantConfig | None, template: dict[str, Any] | None, body: S
         "value_proposition": body.value_proposition.strip(),
     }
     data["outreach_purpose"] = body.outreach_purpose.strip()
+    if body.subject_variants is not None:
+        data["sequence"] = (data.get("sequence") or {}) | {"subject_variants": body.subject_variants}
     if body.criteria is not None:
         old = {c["question"].strip(): c for c in (data.get("qualification") or {}).get("criteria", [])}
         taken: set[str] = set()

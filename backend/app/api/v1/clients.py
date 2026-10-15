@@ -124,6 +124,7 @@ class SetupOut(BaseModel):
     criteria: list[dict[str, Any]]
     pricing: dict[str, Any]
     currency: str
+    subject_variants: int = 1
 
 
 @router.get("/clients/{tenant_id}/setup", response_model=SetupOut)
@@ -172,6 +173,7 @@ def get_setup(tenant_id: uuid.UUID, user: Operator) -> SetupOut:
         ],
         pricing=(cfg.pricing.model_dump(exclude={"currency"}) if cfg.pricing else setup.PricingIn().model_dump()),
         currency=currency,
+        subject_variants=cfg.sequence.subject_variants,
     )
 
 

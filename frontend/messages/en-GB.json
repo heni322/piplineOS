@@ -486,7 +486,10 @@
       "pricing_signed": "Client accepts the pricing",
       "sending_domain": "Sending domain verified",
       "eu_representative": "EU representative"
-    }
+    },
+    "abLabel": "Subject-line test",
+    "abOff": "Off: always the first subject line",
+    "abOn": "Test {n} subject lines (each lead gets one; compare in Reports)"
   },
   "reports": {
     "title": "Reports",

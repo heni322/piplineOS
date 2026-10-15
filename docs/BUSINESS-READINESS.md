@@ -309,6 +309,24 @@ source link, the relevance score, every claim with its source, and the quality s
   - `restore.sh` now decrypts **fully before** restoring (a failure half-way through a pipe could go unnoticed), and
     drops the half-restored database it created if anything fails.
 
+### 6.12 Staging environment and subject-line A/B testing (P1)
+- **Staging.**
+  - `docker-compose.prod.yml` hard-coded `ENVIRONMENT: prod`, so a staging copy would have run as production and
+    skipped the staging guards. It is now `DEPLOY_ENVIRONMENT`, defaulting to `prod`, so production is unchanged.
+  - There is a new `.env.staging.example`.
+  - The app now **refuses to start in staging with a live email, calendar or CRM adapter**, so staging can never
+    reach real people.
+  - `docs/DEPLOYMENT.md` §7 describes dev, staging and production and the release flow.
+- **A/B testing of subject lines.**
+  - The writer always produced three subject lines and used the first.
+  - Now an operator can test 2 or 3 of them (Offer & pricing). Each lead gets a fixed variant, and the report
+    shows positive replies per 100 people reached by variant.
+  - A two-proportion test is included, and **no winner is shown until every variant has 100 people and p < 0.05**.
+  - It is off by default.
+- **Tests.** The staging guard, the significance test (checked by hand: 40/200 vs 20/200 gives p = 0.0051),
+  stable variants through the real pipeline, and the "not enough data" verdict.
+- **Remaining risk.** Testing levers are only useful once real emails are sent.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -317,7 +335,7 @@ source link, the relevance score, every claim with its source, and the quality s
 | Onboarding | 5 | **7** (guided, no JSON) |
 | Lead acquisition | 4 | 4 |
 | Data quality | 5 | **5.5** (MX check) |
-| Outreach | 6 | 6 |
+| Outreach | 6 | **6.5** (A/B testing with honest statistics) |
 | Deliverability | 4 | 4 |
 | Compliance (technical / legal) | 8 / 0 | **8.5** / 0 (retention schedule) |
 | Security | 7 | **7.5** (automated cross-tenant sweep; external test still missing) |
@@ -325,7 +343,7 @@ source link, the relevance score, every claim with its source, and the quality s
 | Meeting booking | 5 | 5 |
 | Billing | 5 | **6** (payments, paid, overdue) |
 | Analytics | 4 | **7** |
-| Operations | 5 | **6.5** (emergency stop, stop alerts, restore drill run) |
+| Operations | 5 | **7** (emergency stop, stop alerts, restore drill run, staging) |
 | Customer success | 3 | **5** (client stop, ROI, consented proof) |
 | Scalability | 5 | 5 |
 | Go-to-market | 1 | **4** (model, pricing, ICP, plan, landing page, economics) |

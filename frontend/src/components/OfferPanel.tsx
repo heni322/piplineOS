@@ -8,7 +8,7 @@ const t = getMessages().clients;
 type Crit = { question: string; required: boolean; evidence_from: "reply" | "profile" };
 type Price = { setup_fee_minor: number; monthly_retainer_minor: number; per_meeting_minor: number; payment_terms_days: number; dispute_window_days: number };
 type Setup = { configured: boolean; templates: Record<string, string>; niche: string | null; sender_name: string; sender_title: string;
-  value_proposition: string; outreach_purpose: string; criteria: Crit[]; pricing: Price; currency: string };
+  value_proposition: string; outreach_purpose: string; criteria: Crit[]; pricing: Price; currency: string; subject_variants: number };
 
 const major = (minor: number) => (minor / 100).toString();
 const minor = (s: string) => Math.round((parseFloat(s) || 0) * 100);
@@ -36,7 +36,7 @@ export function OfferPanel({ id, name, onClose, onSaved }: { id: string; name: s
       const r = await api<{ version: number }>(`/api/v1/clients/${id}/setup`, { method: "PUT", body: JSON.stringify({
         niche: s.configured ? null : s.niche, sender_name: s.sender_name, sender_title: s.sender_title,
         value_proposition: s.value_proposition, outreach_purpose: s.outreach_purpose,
-        criteria: s.criteria.filter((c) => c.question.trim()),
+        criteria: s.criteria.filter((c) => c.question.trim()), subject_variants: s.subject_variants ?? 1,
         pricing: { ...s.pricing, setup_fee_minor: minor(money.setup), monthly_retainer_minor: minor(money.retainer), per_meeting_minor: minor(money.meeting) },
       }) });
       onSaved(t.offerSaved.replace("{v}", String(r.version)));
@@ -73,6 +73,12 @@ export function OfferPanel({ id, name, onClose, onSaved }: { id: string; name: s
           </div>
           {field("value_proposition", t.valueProp)}
           {field("outreach_purpose", t.purpose)}
+          <label htmlFor="o-ab">{t.abLabel}</label>
+          <select id="o-ab" value={s.subject_variants ?? 1} onChange={(e) => setS({ ...s, subject_variants: Number(e.target.value) })}>
+            <option value={1}>{t.abOff}</option>
+            <option value={2}>{t.abOn.replace("{n}", "2")}</option>
+            <option value={3}>{t.abOn.replace("{n}", "3")}</option>
+          </select>
           <fieldset>
             <legend>{t.criteriaTitle}</legend>
             {s.criteria.map((c, i) => (

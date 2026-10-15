@@ -53,7 +53,9 @@ def test_new_client_gets_a_configuration_from_a_template(op) -> None:  # type: i
     r = c.put(f"/api/v1/clients/{tid}/setup", json=SETUP)
     assert r.status_code == 200, r.text
     after = c.get(f"/api/v1/clients/{tid}/setup").json()
-    assert after["configured"] and after["sender_name"] == "Sam Carter"
+    assert after["configured"] and after["sender_name"] == "Sam Carter" and after["subject_variants"] == 1
+    assert c.put(f"/api/v1/clients/{tid}/setup", json=SETUP | {"subject_variants": 2}).status_code == 200
+    assert c.get(f"/api/v1/clients/{tid}/setup").json()["subject_variants"] == 2
     assert after["pricing"]["per_meeting_minor"] == 25_000 and after["currency"] == "GBP"
     items = {i["key"]: i["done"] for i in c.get("/api/v1/clients").json()[0]["checklist"]}
     assert items["config"] and items["pricing"] and not items["criteria_signed"]
