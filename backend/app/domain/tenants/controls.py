@@ -6,7 +6,8 @@ continues exactly where it stopped. The outbound gateway and the lead pipeline b
 compliance check, so a pause never reads as a compliance rejection).
 
 The pilot limit caps how many NEW people a campaign may ever email (first emails only). Follow-ups to people already
-contacted, replies and meeting reminders continue. Default 100 (migration 0019)."""
+contacted, replies and meeting reminders continue. Default 100 for new campaigns; campaigns that existed before
+migration 0019 were left unlimited, so a deploy never silently stops a running campaign."""
 
 from __future__ import annotations
 
@@ -62,14 +63,25 @@ def pilot_usage(conn: Connection, campaign_id: uuid.UUID) -> PilotUsage:
 
 
 def is_held(conn: Connection, tenant_id: uuid.UUID, campaign_id: uuid.UUID | None) -> str | None:
-    """The hold reason for new work on this client/campaign, or None. Used by the pipeline before AI work."""
+    """The hold reason for new work on this client/campaign, or None. Used by the pipeline before AI work: a paused
+    client or campaign, or a campaign whose pilot limit is reached."""
     status = conn.execute(text("SELECT status FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar()
     if status == "paused":
         return "CLIENT_PAUSED"
     if campaign_id is not None:
-        cs = conn.execute(text("SELECT status FROM campaigns WHERE id = :c"), {"c": campaign_id}).scalar()
-        if cs in ("paused", "auto_paused"):
+        c = conn.execute(
+            text("SELECT status, pilot_max_contacts FROM campaigns WHERE id = :c"), {"c": campaign_id}
+        ).first()
+        if c is not None and c.status in ("paused", "auto_paused"):
             return "CAMPAIGN_PAUSED"
+        # A full pilot: drafting more first emails would only spend AI and review time on emails that can't be
+        # sent. New leads wait (state unchanged) and continue if the operator raises the limit.
+        if (
+            c is not None
+            and c.pilot_max_contacts is not None
+            and contacts_used(conn, campaign_id) >= c.pilot_max_contacts
+        ):
+            return "PILOT_LIMIT_REACHED"
     return None
 
 

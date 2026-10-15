@@ -5,8 +5,8 @@
 - client_pause(reason): the client's OWN emergency stop. A client admin may pause their own account (never another
   client's, never resume: resuming is the operator's deliberate act, after talking to the client).
 - campaigns.pilot_max_contacts: the most NEW people a campaign may ever email (first emails only; follow-ups to
-  people already contacted continue). Default 100, so every campaign starts as a pilot. NULL = no limit, which only
-  an operator can set, and it is audited.
+  people already contacted continue). Default 100 for every NEW campaign; campaigns that existed before this
+  migration keep running unlimited (NULL). NULL = no limit, which only an operator can set, and it is audited.
 
 Revision ID: 0019
 Revises: 0018
@@ -26,8 +26,10 @@ def upgrade() -> None:
     op.execute(f"""
 ALTER TABLE tenants ADD COLUMN paused_reason text CHECK (char_length(paused_reason) <= 500),
   ADD COLUMN paused_at timestamptz;
-ALTER TABLE campaigns ADD COLUMN pilot_max_contacts integer DEFAULT 100
-  CHECK (pilot_max_contacts BETWEEN 1 AND 100000);
+-- Existing campaigns keep running as they were (NULL = no limit): a deploy must never silently stop a campaign
+-- that has already emailed more than 100 people. Every NEW campaign starts as a 100-person pilot.
+ALTER TABLE campaigns ADD COLUMN pilot_max_contacts integer CHECK (pilot_max_contacts BETWEEN 1 AND 100000);
+ALTER TABLE campaigns ALTER COLUMN pilot_max_contacts SET DEFAULT 100;
 
 -- The owner role (migrations and SECURITY DEFINER functions only; the app role never has it) may set its own
 -- tenant to 'paused' and nothing else: the only write client_pause needs that the operator-only policy forbids.

@@ -19,6 +19,7 @@ from app.core.audit import write_audit
 from app.core.errors import ProblemError
 from app.core.security import Permission
 from app.db.session import DbContext, get_engine, transaction
+from app.domain.tenants.controls import CONTACTED_STATUSES
 from app.settings import Settings
 
 if TYPE_CHECKING:
@@ -254,9 +255,9 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
                         """SELECT count(*) FROM campaigns c WHERE c.status = 'active'
                            AND c.pilot_max_contacts IS NOT NULL
                            AND (SELECT count(DISTINCT m.lead_id) FROM messages m WHERE m.campaign_id = c.id
-                                AND m.kind = 'outreach' AND m.sequence_step = 0 AND m.status IN
-                                ('sending','sent','dry_run_sent','needs_reconciliation','bounced','complained'))
-                               >= c.pilot_max_contacts"""
+                                AND m.kind = 'outreach' AND m.sequence_step = 0 AND m.status = ANY(:contacted))
+                               >= c.pilot_max_contacts""",
+                        contacted=list(CONTACTED_STATUSES),
                     ),
                 )
             ],

@@ -160,3 +160,25 @@ def test_paused_client_leads_wait_in_the_pipeline(clean_db, op, settings, cipher
     # Providers are never touched while paused: passing None proves no enrichment or AI step runs.
     assert process_lead(ctx, lead.lead_id, Providers([], None, None, None)) == "enriched"  # type: ignore[arg-type]
     assert _one(clean_db, lead.tenant_id, "SELECT count(*) FROM compliance_decisions") == 0
+
+
+def test_a_full_pilot_spends_nothing_on_new_leads(clean_db, op, settings, cipher) -> None:  # type: ignore[no-untyped-def]
+    from app.workflows.pipeline import Providers, agent_context, process_lead
+
+    t = _tenant(clean_db)
+    first = make_lead(clean_db, settings, cipher, t)
+    waiting = make_lead(clean_db, settings, cipher, t)
+    with transaction(DbContext.system(t), clean_db) as conn:
+        conn.execute(
+            text("UPDATE leads SET campaign_id = :c WHERE id = :l"), {"c": first.campaign_id, "l": waiting.lead_id}
+        )
+    _operator(clean_db, op, controls.set_pilot_limit, campaign_id=first.campaign_id, max_contacts=1)
+    assert (
+        gw(clean_db, settings, cipher).send_message(t, approved_message(clean_db, settings, cipher, first)).status
+        == "dry_run_sent"
+    )
+    with transaction(DbContext.system(t), clean_db) as conn:
+        assert controls.is_held(conn, t, first.campaign_id) == "PILOT_LIMIT_REACHED"
+    ctx = agent_context(clean_db, settings, cipher, t, first.campaign_id)
+    # Providers are never touched: no enrichment, gate or AI work for a lead that could not be emailed.
+    assert process_lead(ctx, waiting.lead_id, Providers([], None, None, None)) == "enriched"  # type: ignore[arg-type]

@@ -143,7 +143,9 @@ source link, the relevance score, every claim with its source, and the quality s
   in total.
 - **Business impact.** A pilot has to be small and safe by default: 100 people, not "50 a day for ever".
 - **Change.**
-  - `campaigns.pilot_max_contacts` defaults to **100** for every campaign, existing ones included.
+  - `campaigns.pilot_max_contacts` defaults to **100** for every new campaign. Campaigns that existed before the
+    migration keep running unlimited, so a deploy never silently stops one that has already emailed more than 100
+    people (changed after the code review).
   - Once reached, new first emails are **held** (`PILOT_LIMIT_REACHED`); follow-ups to people already contacted
     continue.
   - The limit check locks the campaign row, so concurrent sends can't overshoot.
@@ -361,6 +363,22 @@ source link, the relevance score, every claim with its source, and the quality s
   - The `SET` keys are fixed field names.
   - YAML is read with `safe_load`, and the template name is never used as a file path.
 - **This is not an external penetration test.** That still needs an outside tester.
+
+### 6.16 Code review of this phase, and the fixes (P0/P1)
+A correctness review of the whole branch found ten issues. All are fixed and tested:
+
+| # | Issue | Why it mattered | Fix |
+|---|---|---|---|
+| 1 | **A paused client's replies were not read** (reply polling, sweep, reply time limit and kill switch only looked at active clients) | An "unsubscribe" during a pause went unprocessed; after resuming, a held follow-up could reach that person: a PECR/GDPR breach | They now run for paused clients too. Sending stays held. Referrals created during a pause wait, and are checked after resuming. Test: unsubscribe during a pause, resume, and no follow-up is sent |
+| 2 | A DNS timeout looked like "this domain takes no mail" | A good published address could be rejected for ever | A resolver failure now defers the lead, which is retried on the next run. IPv6-only domains count. One DNS check per domain |
+| 3 | The migration capped **existing** campaigns at 100 | A running campaign past 100 would silently stop on deploy | Only new campaigns start as pilots |
+| 4 | A full pilot kept spending AI and enrichment on new leads | Cost and review time for emails that can't be sent | New leads wait while the pilot is full |
+| 5 | The send loop re-counted contacts for every queued message | Send latency growing with the queue | Counted once per campaign |
+| 6 | A DNS check for every address | Slow enrichment | Cached per domain (part of #2) |
+| 7 | A blank company name gave a 500 | An error instead of a message | Rejected as invalid (422) |
+| 8 | An own-account slug clash or a double click gave a 500 | Same | A unique slug and 409 |
+| 9 | The definition of "contacted" was copied in four places | The gateway, scheduler and metrics could disagree | One shared status list |
+| 10 | The client's stop reported any database error as "not active" | A client could believe sending had stopped when it hadn't | Only the function's own refusals are mapped; anything else is an error |
 
 ## 7. New score per area (after this phase)
 

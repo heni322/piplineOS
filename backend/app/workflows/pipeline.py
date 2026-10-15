@@ -235,16 +235,18 @@ def send_due(
             conn.execute(
                 # Held work (paused client or campaign, pilot limit reached) is skipped here so it is not
                 # re-examined every tick; the gateway enforces the same holds for any other caller.
-                text("""SELECT m.id FROM messages m
+                text("""WITH used AS (  -- people first-emailed per campaign, counted once per campaign
+                SELECT campaign_id, count(DISTINCT lead_id) AS n FROM messages
+                WHERE kind = 'outreach' AND sequence_step = 0 AND status = ANY(:contacted) GROUP BY campaign_id)
+              SELECT m.id FROM messages m
               JOIN tenants t ON t.id = m.tenant_id LEFT JOIN campaigns cp ON cp.id = m.campaign_id
+              LEFT JOIN used u ON u.campaign_id = m.campaign_id
               WHERE m.status IN ('approved','queued','failed_retryable')
               AND (m.scheduled_for IS NULL OR m.scheduled_for <= :now)
               AND (m.sequence_step = 0 OR m.scheduled_for IS NOT NULL)
               AND t.status <> 'paused' AND coalesce(cp.status, 'active') NOT IN ('paused','auto_paused')
               AND NOT (m.kind = 'outreach' AND m.sequence_step = 0 AND cp.pilot_max_contacts IS NOT NULL
-                       AND (SELECT count(DISTINCT x.lead_id) FROM messages x WHERE x.campaign_id = cp.id
-                            AND x.kind = 'outreach' AND x.sequence_step = 0 AND x.status = ANY(:contacted))
-                           >= cp.pilot_max_contacts)
+                       AND coalesce(u.n, 0) >= cp.pilot_max_contacts)
               ORDER BY m.sequence_step, m.created_at LIMIT 500"""),
                 {"now": at, "contacted": list(controls.CONTACTED_STATUSES)},
             )

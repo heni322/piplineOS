@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
@@ -423,10 +423,13 @@ def create_own_account(body: OwnAccountIn, user: Operator) -> ClientOut:
     with transaction(user.db_context(), get_engine()) as conn:
         if conn.execute(text("SELECT 1 FROM tenants WHERE is_operator_own")).first():
             raise ProblemError(409, "Your own account already exists")
+        slug = "own-outreach"
+        if conn.execute(text("SELECT 1 FROM tenants WHERE slug = :s"), {"s": slug}).first():
+            slug = f"own-outreach-{uuid.uuid4().hex[:6]}"  # a client already uses the plain slug
         tid = onboarding.create_client(
             conn,
             operator_id=user.id,
-            slug="own-outreach",
+            slug=slug,
             legal_name=body.legal_name.strip(),
             company_number=body.company_number,
             registered_address=body.registered_address,
@@ -434,7 +437,13 @@ def create_own_account(body: OwnAccountIn, user: Operator) -> ClientOut:
             billing_currency=body.billing_currency,
             vat_number=None,
         )
-        conn.execute(text("UPDATE tenants SET is_operator_own = true, role = 'controller' WHERE id = :t"), {"t": tid})
+        try:
+            with conn.begin_nested():  # two clicks at once: the unique index allows one own account only
+                conn.execute(
+                    text("UPDATE tenants SET is_operator_own = true, role = 'controller' WHERE id = :t"), {"t": tid}
+                )
+        except IntegrityError as exc:
+            raise ProblemError(409, "Your own account already exists") from exc
         return _client(conn, tid)
 
 
@@ -443,6 +452,13 @@ class DetailsIn(BaseModel):
     company_number: str | None = Field(default=None, max_length=20)
     registered_address: str | None = Field(default=None, max_length=500)
     vat_number: str | None = Field(default=None, max_length=30)
+
+    @field_validator("legal_name")
+    @classmethod
+    def _name_not_blank(cls, v: str) -> str:
+        if len(v.strip()) < 2:
+            raise ValueError("the legal name is required")
+        return v
 
 
 @router.put("/clients/{tenant_id}/details", response_model=ClientOut)
@@ -551,7 +567,14 @@ def client_pause(body: PauseIn, user: Annotated[CurrentUser, Depends(require(Per
                 text("SELECT status, paused_reason, paused_at FROM tenants WHERE id = :t"), {"t": user.tenant_id}
             ).one()
     except DBAPIError as exc:
-        raise ProblemError(409, "The account is not active") from exc
+        # Only the function's own refusals are answered as such. Anything else (a lock timeout, a lost connection)
+        # must NOT read as "already stopped": the client would believe sending stopped when it did not.
+        code = getattr(exc.orig, "sqlstate", None)
+        if code == "P0002":
+            raise ProblemError(409, "The account is not active") from exc
+        if code == "42501":
+            raise ProblemError(403, "Only an active client admin can stop the account") from exc
+        raise
     return AccountOut(status=r.status, paused_reason=r.paused_reason, paused_at=r.paused_at)
 
 

@@ -167,6 +167,7 @@ def test_company_details_can_be_corrected_and_are_audited(op, clean_db) -> None:
     )
     assert r.status_code == 200 and r.json()["legal_name"] == "Acme IT Services Ltd"
     assert c.put(f"/api/v1/clients/{tid}/details", json={"legal_name": "A"}).status_code == 422
+    assert c.put(f"/api/v1/clients/{tid}/details", json={"legal_name": "   "}).status_code == 422  # not a 500
     with transaction(DbContext(role="operator"), clean_db) as conn:
         a = conn.execute(text("SELECT before, after FROM audit_log WHERE action = 'tenant.details_changed'")).one()
     assert a.before["legal_name"] == "Acme IT Ltd" and a.after["registered_address"] == "3 New Rd, Leeds"
@@ -196,6 +197,7 @@ def test_pipelineos_selling_itself_as_controller(op, clean_db) -> None:  # type:
     assert r.status_code == 201 and r.json()["own"] is True
     own = r.json()["id"]
     assert c.post("/api/v1/own-account", json={"legal_name": "Again Ltd"}).status_code == 409  # only one
+    assert r.json()["slug"] == "own-outreach"
     keys = {i["key"] for i in r.json()["checklist"]}
     assert {"lia", "config", "sending_domain", "company_details"} <= keys
     assert not keys & {"dpa", "client_user", "criteria_signed", "pricing_signed", "pricing"}  # we are the controller
@@ -218,3 +220,10 @@ def test_pipelineos_selling_itself_as_controller(op, clean_db) -> None:  # type:
     assert c.post(f"/api/v1/clients/{own}/activate").json()["status"] == "active"
     listed = c.get("/api/v1/clients").json()
     assert listed[-1]["id"] == own and listed[-1]["own"] and not listed[0]["own"]  # listed after the clients
+
+
+def test_own_account_slug_clash_is_not_a_500(op) -> None:  # type: ignore[no-untyped-def]
+    c, _ = op
+    assert c.post("/api/v1/clients", json={"slug": "own-outreach", "legal_name": "Own Outreach Ltd"}).status_code == 201
+    r = c.post("/api/v1/own-account", json={"legal_name": "PipelineOS Ltd"})
+    assert r.status_code == 201 and r.json()["slug"].startswith("own-outreach-")
