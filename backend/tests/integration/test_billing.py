@@ -313,6 +313,8 @@ def test_rejected_dispute_after_issue_keeps_the_meeting_billed(world, clean_db) 
 
 def test_dispute_window_and_duplicates(world, clean_db) -> None:  # type: ignore[no-untyped-def]
     m = contoso_meeting(clean_db)
+    # the window runs from when attendance was recorded (the database's real clock), so dates are relative to it
+    attended = q(clean_db, "SELECT max(recorded_at) AS at FROM attendance_events WHERE meeting_id = :m", m=m.id)[0].at
     uid, ctx = client_ctx(world, clean_db)
     with pytest.raises(billing.BillingError) as e, ctx as conn:
         billing.raise_dispute(
@@ -322,7 +324,7 @@ def test_dispute_window_and_duplicates(world, clean_db) -> None:  # type: ignore
             user_id=uid,
             kind="other",
             reason="Far too late to dispute this.",
-            now=datetime(2027, 1, 30, tzinfo=UTC),
+            now=attended + timedelta(days=90),
         )
     assert e.value.code == "DISPUTE_WINDOW_CLOSED"
     uid, ctx = client_ctx(world, clean_db)
@@ -334,7 +336,7 @@ def test_dispute_window_and_duplicates(world, clean_db) -> None:  # type: ignore
             user_id=uid,
             kind="other",
             reason="First dispute on this meeting.",
-            now=datetime(2026, 10, 20, tzinfo=UTC),
+            now=attended + timedelta(days=1),
         )
     uid, ctx = client_ctx(world, clean_db)
     with pytest.raises(billing.BillingError) as e, ctx as conn:
@@ -345,7 +347,7 @@ def test_dispute_window_and_duplicates(world, clean_db) -> None:  # type: ignore
             user_id=uid,
             kind="other",
             reason="Second dispute on the same meeting.",
-            now=datetime(2026, 10, 21, tzinfo=UTC),
+            now=attended + timedelta(days=2),
         )
     assert e.value.code == "ALREADY_DISPUTED"
 
