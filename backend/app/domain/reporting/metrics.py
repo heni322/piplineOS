@@ -15,6 +15,63 @@ def _ratio(a: int, b: int) -> float | None:
     return round(a / b, 3) if b else None
 
 
+def two_proportion_p(x1: int, n1: int, x2: int, n2: int) -> float | None:
+    """Two-sided p-value of a two-proportion z-test (normal approximation); None when either group is empty."""
+    import math
+
+    if not n1 or not n2:
+        return None
+    p = (x1 + x2) / (n1 + n2)
+    se = math.sqrt(p * (1 - p) * (1 / n1 + 1 / n2))
+    if se == 0:
+        return 1.0
+    z = abs(x1 / n1 - x2 / n2) / se
+    return round(math.erfc(z / math.sqrt(2)), 4)
+
+
+MIN_PER_VARIANT = 100  # people reached per variant before any comparison is shown as meaningful
+
+
+def subject_test(conn: Connection, p: dict[str, Any]) -> dict[str, Any] | None:
+    """Per subject-line variant: people reached, replies and positive replies per 100 reached, and whether the
+    best variant's lead on positive replies is statistically meaningful (p < 0.05 with enough people)."""
+    rows = conn.execute(
+        text("""SELECT m.subject_variant AS v, count(DISTINCT m.lead_id) AS reached,
+               count(DISTINCT r.lead_id) AS replied,
+               count(DISTINCT r.lead_id) FILTER (WHERE r.classification = 'interested') AS positive
+        FROM messages m LEFT JOIN replies r ON r.lead_id = m.lead_id
+        WHERE m.tenant_id = :t AND m.kind = 'outreach' AND m.sequence_step = 0 AND m.subject_variant IS NOT NULL
+          AND m.status IN ('sent','dry_run_sent','complained') AND m.sent_at >= :s AND m.sent_at < :e
+        GROUP BY m.subject_variant ORDER BY m.subject_variant"""),
+        p,
+    ).all()
+    if not rows:
+        return None
+    counts = [(int(r.v), int(r.reached), int(r.replied), int(r.positive)) for r in rows]
+    variants = [
+        {
+            "variant": v,
+            "reached": n,
+            "replied": rep,
+            "positive": pos,
+            "replies_per_100": _per100(rep, n),
+            "positive_per_100": _per100(pos, n),
+        }
+        for v, n, rep, pos in counts
+    ]
+    ranked = sorted(counts, key=lambda c: c[3] / c[1] if c[1] else 0.0, reverse=True)
+    enough = len(counts) > 1 and all(c[1] >= MIN_PER_VARIANT for c in counts)
+    pval = two_proportion_p(ranked[0][3], ranked[0][1], ranked[1][3], ranked[1][1]) if len(ranked) > 1 else None
+    significant = enough and pval is not None and pval < 0.05
+    return {
+        "variants": variants,
+        "leader": ranked[0][0] if significant else None,
+        "p_value": pval,
+        "verdict": "significant" if significant else ("not_significant" if enough else "not_enough_data"),
+        "min_reached_per_variant": MIN_PER_VARIANT,
+    }
+
+
 def _per100(n: int, base: int) -> float | None:
     return round(100 * n / base, 1) if base else None
 
@@ -110,6 +167,7 @@ def metrics(conn: Connection, tenant_id: uuid.UUID, start: date, end: date) -> d
             "qualified_meetings": _per100(qualified, reached),
         },
         "qualified_meetings": qualified,
+        "subject_test": subject_test(conn, p),
         "leads_discovered": discovered,
         "contacted": contacted,
         "replied": replies,

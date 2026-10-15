@@ -205,12 +205,15 @@ def _store(
         PersonalizationSource(claim=c.text, source_id=c.source_id, source_url=source_urls[c.source_id])
         for c in draft.claims
     ]
+    # A/B: a stable variant per lead (the same lead always gets the same subject, retries included).
+    variant = lead_id.int % ctx.config.sequence.subject_variants
+    chosen = draft.subject_lines[variant]
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
         ids = []
         for step, (subject, body) in enumerate(
             [
-                (draft.subject_lines[0], draft.email_body),
-                *[(f"Re: {draft.subject_lines[0]}", fu) for fu in draft.follow_ups],
+                (chosen, draft.email_body),
+                *[(f"Re: {chosen}", fu) for fu in draft.follow_ups],
             ]
         ):
             mid = create_draft(
@@ -232,7 +235,8 @@ def _store(
             )
             conn.execute(
                 text("""UPDATE messages SET status = 'pending_approval', critique = CAST(:cr AS jsonb),
-                  sources_snapshot = CAST(:ss AS jsonb), subject_options_enc = :so WHERE id = :id"""),
+                  sources_snapshot = CAST(:ss AS jsonb), subject_options_enc = :so, subject_variant = :sv
+                  WHERE id = :id"""),
                 {
                     "cr": json.dumps(
                         {"scores": critique.scores.model_dump(), "issues": critique.issues, "rewrites": rewrites}
@@ -243,6 +247,7 @@ def _store(
                     )
                     if step == 0
                     else None,
+                    "sv": variant if step == 0 and ctx.config.sequence.subject_variants > 1 else None,
                     "id": mid,
                 },
             )

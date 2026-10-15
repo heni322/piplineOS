@@ -60,6 +60,9 @@ export type Metrics = {
   per_100_reached: { replies: number | null; positive_replies: number | null; meetings_booked: number | null;
     meetings_attended: number | null; qualified_meetings: number | null };
   roi?: Roi;
+  subject_test: null | { variants: { variant: number; reached: number; replied: number; positive: number;
+    replies_per_100: number | null; positive_per_100: number | null }[]; leader: number | null; p_value: number | null;
+    verdict: "significant" | "not_significant" | "not_enough_data"; min_reached_per_variant: number };
 };
 export type Roi = { status: "not_configured" } | { status: "estimate"; currency: string; average_deal_value_minor: number;
   close_rate_pct: number; pipeline_value_minor: number; expected_revenue_minor: number; invoiced_minor: number; roi_multiple: number | null };

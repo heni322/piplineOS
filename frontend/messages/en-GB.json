@@ -536,7 +536,15 @@
     "invoiced": "Invoiced by us",
     "multiple": "Return",
     "saveRoi": "Save figures",
-    "roiSaved": "Saved. Your report now shows an estimated return."
+    "roiSaved": "Saved. Your report now shows an estimated return.",
+    "abTitle": "Subject-line test",
+    "abVariant": "Subject {n}",
+    "abReached": "people reached",
+    "abVerdicts": {
+      "significant": "Subject {n} gets more positive replies, and the difference is statistically meaningful (p = {p}).",
+      "not_significant": "No meaningful difference yet (p = {p}). Keep testing, or keep the simplest subject.",
+      "not_enough_data": "Not enough data yet: at least {m} people per subject are needed before comparing."
+    }
   },
   "account": {
     "forgotTitle": "Reset your password",

@@ -63,6 +63,9 @@ class BrandVoice(_Strict):
 class Sequence(_Strict):
     follow_ups: int = Field(default=2, ge=0, le=3)
     spacing_business_days: int = Field(default=3, ge=2, le=10)
+    # Subject-line A/B test: 1 = off (always the writer's first subject line); 2 or 3 = each lead gets one of the
+    # first N subject lines, fixed per lead, and the report compares replies per 100 people reached by variant.
+    subject_variants: int = Field(default=1, ge=1, le=3)
 
 
 class Criterion(_Strict):

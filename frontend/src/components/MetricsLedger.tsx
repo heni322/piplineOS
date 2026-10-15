@@ -41,6 +41,20 @@ export function MetricsLedger({ m, detailed = false }: { m: Metrics; detailed?: 
         <div><dt>{t.bounces}</dt><dd className={over(m.bounce_rate, 0.03)}>{m.bounces} <small className="muted">{pct(m.bounce_rate)} · {t.bounceLimit}</small></dd></div>
         <div><dt>{t.complaints}</dt><dd className={over(m.complaint_rate, 0.003)}>{m.complaints} <small className="muted">{pct(m.complaint_rate)} · {t.complaintLimit}</small></dd></div>
       </dl>
+      {m.subject_test && (
+        <>
+          <h2 style={{ marginTop: 24 }}>{t.abTitle}</h2>
+          <dl className="ledger">
+            {m.subject_test.variants.map((v) => (
+              <div key={v.variant}><dt>{t.abVariant.replace("{n}", String(v.variant + 1))}</dt>
+                <dd>{per(v.positive_per_100)} <small className="muted">{t.per100Positive} · {v.reached} {t.abReached}</small></dd></div>
+            ))}
+          </dl>
+          <p className="muted">{((t.abVerdicts as Record<string, string>)[m.subject_test.verdict] ?? "")
+            .replace("{n}", String((m.subject_test.leader ?? 0) + 1)).replace("{p}", String(m.subject_test.p_value ?? "–"))
+            .replace("{m}", String(m.subject_test.min_reached_per_variant))}</p>
+        </>
+      )}
       {m.roi && m.roi.status === "estimate" && (
         <>
           <h2 style={{ marginTop: 24 }}>{t.roiTitle}</h2>
