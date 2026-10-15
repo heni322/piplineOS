@@ -19,6 +19,10 @@ from sqlalchemy.engine import Connection
 from app.core.audit import write_audit
 
 PILOT_MAX = 100_000
+# Clients whose replies, bounces and complaints are still handled. A paused client's SENDING is held (gateway,
+# send_due), but an unsubscribe or objection that arrives during a pause must be honoured at once, before any
+# held follow-up can go out after resuming.
+LISTENING_STATUSES = ("active", "paused")
 # A lead counts as "contacted by this campaign" once its first email left (or was recorded in dry-run).
 CONTACTED_STATUSES = ("sending", "sent", "dry_run_sent", "needs_reconciliation", "bounced", "complained")
 

@@ -109,7 +109,11 @@ def run_campaign(ctx: AgentContext, providers: Providers, since: datetime | None
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
         lead_ids = (
             conn.execute(
-                text("SELECT id FROM leads WHERE campaign_id = :c AND state = 'discovered' ORDER BY created_at"),
+                # 'enriched' too: leads held by a pause (e.g. referrals) get their compliance check after resuming.
+                text(
+                    "SELECT id FROM leads WHERE campaign_id = :c AND state IN ('discovered', 'enriched') "
+                    "ORDER BY created_at"
+                ),
                 {"c": ctx.campaign_id},
             )
             .scalars()

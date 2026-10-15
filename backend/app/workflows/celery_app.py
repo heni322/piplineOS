@@ -11,6 +11,7 @@ from sqlalchemy import text
 from app.core.logging import configure_logging, get_logger
 from app.db.session import DbContext, get_engine, transaction
 from app.domain.outbound.gateway import reconcile_stuck_sends
+from app.domain.tenants.controls import LISTENING_STATUSES
 from app.settings import get_settings
 from app.workflows.outbox import relay_batch
 
@@ -230,7 +231,8 @@ def fetch_inbound_task() -> int:
     with transaction(DbContext.system(), engine) as conn:
         rows = conn.execute(
             text("""SELECT t.id, (SELECT c.id FROM campaigns c WHERE c.tenant_id = t.id ORDER BY c.created_at
-              LIMIT 1) AS campaign_id FROM tenants t WHERE t.status = 'active'""")
+              LIMIT 1) AS campaign_id FROM tenants t WHERE t.status = ANY(:s)"""),
+            {"s": list(LISTENING_STATUSES)},
         ).all()
     cipher, handled = PiiCipher(settings.key("pii_master_key")), 0
     for tenant_id, campaign_id in rows:
@@ -257,8 +259,12 @@ def reply_sla_task() -> int:
     from app.workflows.pipeline import reply_sla_breaches
 
     engine = get_engine()
-    with transaction(DbContext.system(), engine) as conn:
-        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
+    with transaction(DbContext.system(), engine) as conn:  # paused clients' replies are still handled
+        tenant_ids = (
+            conn.execute(text("SELECT id FROM tenants WHERE status = ANY(:s)"), {"s": list(LISTENING_STATUSES)})
+            .scalars()
+            .all()
+        )
     total = 0
     for t in tenant_ids:
         n = reply_sla_breaches(engine, t)
@@ -380,8 +386,12 @@ def deliverability_task() -> int:
 
     th = Thresholds.load(config_root())
     engine = get_engine()
-    with transaction(DbContext.system(), engine) as conn:
-        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
+    with transaction(DbContext.system(), engine) as conn:  # bounces and complaints still count during a pause
+        tenant_ids = (
+            conn.execute(text("SELECT id FROM tenants WHERE status = ANY(:s)"), {"s": list(LISTENING_STATUSES)})
+            .scalars()
+            .all()
+        )
     paused = 0
     for t in tenant_ids:
         with transaction(DbContext.system(t), engine) as conn:

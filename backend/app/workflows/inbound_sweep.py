@@ -22,6 +22,7 @@ from app.adapters.inbound.base import InboundEmail
 from app.core.audit import write_audit
 from app.core.crypto import PiiCipher
 from app.db.session import DbContext, transaction
+from app.domain.tenants.controls import LISTENING_STATUSES
 from app.settings import Settings
 
 log = structlog.get_logger("pipelineos.inbound_sweep")
@@ -70,8 +71,8 @@ def sweep_inboxes(
                       (SELECT c.id FROM campaigns c WHERE c.tenant_id = i.tenant_id
                        ORDER BY c.created_at LIMIT 1) AS cid
                     FROM inboxes i JOIN tenants t ON t.id = i.tenant_id
-                    WHERE t.status = 'active' AND i.provider = ANY(:p) ORDER BY i.address"""),
-            {"p": list(PROVIDERS)},
+                    WHERE t.status = ANY(:s) AND i.provider = ANY(:p) ORDER BY i.address"""),
+            {"p": list(PROVIDERS), "s": list(LISTENING_STATUSES)},
         ).all()
     totals = {"mailboxes": 0, "listed": 0, "recovered": 0, "no_message_id": 0, "failed_mailboxes": 0}
     for box in boxes:

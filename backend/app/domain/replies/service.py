@@ -50,6 +50,7 @@ from app.domain.outbound.calendar import CalendarGateway
 from app.domain.outbound.messages import create_draft
 from app.domain.outbound.tenant_footer import tenant_footer
 from app.domain.suppression.service import RecipientHashes, suppress_email
+from app.domain.tenants import controls
 
 if TYPE_CHECKING:
     from app.workflows.pipeline import Providers
@@ -812,6 +813,18 @@ def _referral(
         {"t": ctx.tenant_id, "c": lead.campaign_id, "co": lead.company_id, "p": pid, "s": lead.signal_id, "r": lead_id},
     ).scalar_one()
     transition(conn, new_id, State.ENRICHED, actor_type="agent", actor_id="reply_handler", reason="referral contact")
+    if controls.is_held(conn, ctx.tenant_id, lead.campaign_id) is not None:
+        # Paused: the referral waits (enriched) and gets its compliance check on the first run after resuming,
+        # instead of being rejected now because the client is paused.
+        transition(
+            conn,
+            lead_id,
+            State.DISQUALIFIED,
+            actor_type="agent",
+            actor_id="reply_handler",
+            reason="referred to a colleague",
+        )
+        return ["referral:new_lead:held_while_paused", "original_lead_closed"], None
     _, d = run_gate(
         conn,
         tenant_id=ctx.tenant_id,

@@ -493,3 +493,34 @@ def test_reseeding_upgrades_an_outdated_demo_config(clean_db, settings) -> None:
     seed_demo(clean_db, settings)
     with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
         assert load_config(conn, demo.tenant_id)[1] == DEMO_CONFIG
+
+
+def test_an_unsubscribe_during_a_pause_is_honoured_before_anything_resumes(world: World) -> None:
+    """A pause holds SENDING only: replies are still handled, so a held follow-up never reaches someone who asked
+    to stop while the client was paused."""
+    from app.domain.tenants import controls
+
+    demo = world.demo
+    with transaction(DbContext(role="operator", user_id=demo.operator_id), world.ctx.engine) as conn:  # type: ignore[attr-defined]
+        controls.pause_client(conn, tenant_id=demo.tenant_id, operator_id=demo.operator_id, reason="client asked")  # type: ignore[attr-defined]
+        listening = (
+            conn.execute(
+                text("SELECT id FROM tenants WHERE status = ANY(:s)"), {"s": list(controls.LISTENING_STATUSES)}
+            )
+            .scalars()
+            .all()
+        )
+    assert demo.tenant_id in listening  # type: ignore[attr-defined]  # the schedulers still read its replies
+    out = world.say(PROSEWARE, "Please remove me from your mailing list.", START + timedelta(hours=1))
+    assert out.classification == "unsubscribe" and lead_state(world, PROSEWARE) == "objected"
+    with transaction(DbContext(role="operator", user_id=demo.operator_id), world.ctx.engine) as conn:  # type: ignore[attr-defined]
+        controls.resume_client(conn, tenant_id=demo.tenant_id, operator_id=demo.operator_id)  # type: ignore[attr-defined]
+    later = START + timedelta(days=10)
+    send_due(world.ctx.engine, world.ctx.settings, world.ctx.cipher, demo.tenant_id, now=later)  # type: ignore[attr-defined]
+    sent = q(
+        world,
+        "SELECT count(*) AS n FROM messages m JOIN leads l ON l.id = m.lead_id JOIN companies c ON c.id = l.company_id "
+        "WHERE c.name = :n AND m.sequence_step > 0 AND m.status IN ('sent', 'dry_run_sent')",
+        n=PROSEWARE,
+    )
+    assert sent[0].n == 0
