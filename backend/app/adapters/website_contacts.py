@@ -220,14 +220,28 @@ class WebsiteFinder:
         return None
 
 
+Lookup = Callable[[str, str], list[str]]  # (name, "MX" | "A") -> records; same shape as dns_check.dns_lookup()
+
+
+def mail_domain_status(domain: str, lookup: Lookup) -> Verification:
+    """Can this domain receive email at all? Free (public DNS), and it catches the commonest hard bounce: an address
+    on a domain that no longer takes mail. MX present -> valid; null MX (RFC 7505) -> invalid; no MX but an A record
+    (implicit MX, RFC 5321) -> risky, which the compliance gate does not send to; nothing -> invalid."""
+    mx = lookup(domain, "MX")
+    if mx:
+        return "invalid" if all(not h for h in mx) else "valid"
+    return "risky" if lookup(domain, "A") else "invalid"
+
+
 class WebsiteContacts:
     """Enrichment (register people + the company's published address) and verifier in one: `verify` says "valid"
-    only for an address this object found published on the company's own verified website."""
+    only for an address this object found published on the company's own verified website, on a domain that
+    accepts email (MX check, when a DNS lookup is given)."""
 
     name = "website.published_contacts"
 
-    def __init__(self, people: EnrichmentProvider, finder: WebsiteFinder) -> None:
-        self._people, self._finder = people, finder
+    def __init__(self, people: EnrichmentProvider, finder: WebsiteFinder, lookup: Lookup | None = None) -> None:
+        self._people, self._finder, self._lookup = people, finder, lookup
         self._published: set[str] = set()
 
     def find_people(
@@ -246,7 +260,7 @@ class WebsiteContacts:
         if site is None:
             return people
         if site.address:
-            self._published.add(site.address)
+            self._published.add(site.address.lower())
         return [
             replace(
                 p,
@@ -258,7 +272,12 @@ class WebsiteContacts:
         ]
 
     def verify(self, email: str) -> Verification:
-        return "valid" if email.lower() in self._published else "unknown"
+        email = email.lower()
+        if email not in self._published:
+            return "unknown"
+        if self._lookup is None:
+            return "valid"
+        return mail_domain_status(email.rsplit("@", 1)[1], self._lookup)
 
 
 def _number_from(people: list[EnrichedPerson]) -> str | None:

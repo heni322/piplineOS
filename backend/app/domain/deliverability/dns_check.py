@@ -18,7 +18,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-Lookup = Callable[[str, str], list[str]]  # (name, "TXT" | "CNAME") -> records ([] when none)
+Lookup = Callable[[str, str], list[str]]  # (name, "TXT" | "CNAME" | "MX" | "A") -> records ([] when none)
 
 SPF_INCLUDE = {"msgraph": "spf.protection.outlook.com", "google": "_spf.google.com"}
 DKIM_SELECTORS = {"msgraph": [("selector1", "CNAME"), ("selector2", "CNAME")], "google": [("google", "TXT")]}
@@ -53,6 +53,10 @@ def dns_lookup(timeout: float = 5.0) -> Lookup:
             return []
         if rdtype == "TXT":
             return [b"".join(r.strings).decode("utf-8", "replace") for r in answer]
+        if rdtype == "MX":
+            return [str(r.exchange).rstrip(".") for r in answer]  # "" = null MX (RFC 7505: accepts no mail)
+        if rdtype == "A":
+            return [str(r.address) for r in answer]
         return [str(r.target).rstrip(".") for r in answer]
 
     return lookup
