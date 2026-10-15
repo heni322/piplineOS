@@ -20,8 +20,8 @@ jobs:
       TEST_PG_ADMIN_URL: postgresql://postgres:postgres_ci_only@127.0.0.1:5433/postgres
     defaults: { run: { working-directory: backend } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with: { version: "0.9.26" }
       - run: uv sync --frozen
       - run: uv run ruff check . && uv run ruff format --check .
@@ -35,8 +35,9 @@ jobs:
     runs-on: ubuntu-24.04
     defaults: { run: { working-directory: frontend } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with: { version: 10.28.0 }  # the same pnpm as frontend/package.json "packageManager"
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
       - run: pnpm install --frozen-lockfile
@@ -56,10 +57,11 @@ jobs:
     env:
       TEST_PG_ADMIN_URL: postgresql://postgres:postgres_ci_only@127.0.0.1:5433/postgres
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with: { version: "0.9.26" }
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
+        with: { version: 10.28.0 }  # the same pnpm as frontend/package.json "packageManager"
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
       - run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -72,7 +74,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions: { contents: read, security-events: write }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - name: Secret scan (full history)
         uses: gitleaks/gitleaks-action@v2
@@ -83,14 +85,14 @@ jobs:
           docker build -t pipelineos/web:ci frontend
           docker build -t pipelineos/backup:ci -f deploy/backup.Dockerfile .
       - name: Scan images (fail on high/critical with a fix available)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: pipelineos/backend:ci
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with: { scan-type: image, image-ref: pipelineos/web:ci, severity: "HIGH,CRITICAL", ignore-unfixed: true, exit-code: "1" }
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with: { scan-type: config, scan-ref: ., severity: "HIGH,CRITICAL", exit-code: "1" }
