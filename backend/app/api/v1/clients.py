@@ -12,6 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.api.deps import CurrentUser, cipher_dep, require, settings_dep
+from app.api.v1.control_errors import problem_for
 from app.core.audit import write_audit
 from app.core.crypto import PiiCipher
 from app.core.errors import ProblemError
@@ -503,20 +504,6 @@ class PauseIn(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
-_CONTROL_ERRORS = {
-    "NOT_ACTIVE": (409, "Only an active client or campaign can be paused"),
-    "NOT_PAUSED": (409, "It is not paused"),
-    "NOT_FOUND": (404, "Not found"),
-    "REASON_REQUIRED": (422, "Give a reason"),
-    "OUT_OF_RANGE": (422, "Choose between 1 and 100000, or no limit"),
-}
-
-
-def _control_error(exc: controls.ControlError) -> ProblemError:
-    status, title = _CONTROL_ERRORS.get(exc.code, (409, exc.code))
-    return ProblemError(status, title)
-
-
 @router.post("/clients/{tenant_id}/pause", response_model=ClientOut)
 def pause_client(tenant_id: uuid.UUID, body: PauseIn, user: Operator) -> ClientOut:
     """Emergency stop: holds every queued message and lead in flight. Nothing is cancelled; resume continues."""
@@ -525,7 +512,7 @@ def pause_client(tenant_id: uuid.UUID, body: PauseIn, user: Operator) -> ClientO
             controls.pause_client(conn, tenant_id=tenant_id, operator_id=user.id, reason=body.reason)
             return _client(conn, tenant_id)
     except controls.ControlError as exc:
-        raise _control_error(exc) from exc
+        raise problem_for(exc) from exc
 
 
 @router.post("/clients/{tenant_id}/resume", response_model=ClientOut)
@@ -535,7 +522,7 @@ def resume_client(tenant_id: uuid.UUID, user: Operator) -> ClientOut:
             controls.resume_client(conn, tenant_id=tenant_id, operator_id=user.id)
             return _client(conn, tenant_id)
     except controls.ControlError as exc:
-        raise _control_error(exc) from exc
+        raise problem_for(exc) from exc
 
 
 class AccountOut(BaseModel):

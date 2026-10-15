@@ -18,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection, RowMapping
 
 from app.api.deps import CurrentUser, cipher_dep, require, settings_dep
+from app.api.v1.control_errors import problem_for
 from app.core.crypto import PiiCipher
 from app.core.errors import ProblemError
 from app.core.idempotency import run_idempotent
@@ -568,9 +569,7 @@ def _campaign_control(campaign_id: uuid.UUID, user: CurrentUser, act: Callable[[
             act(conn)
             return _campaign(conn, campaign_id)
     except controls.ControlError as exc:
-        status = {"NOT_FOUND": 404, "REASON_REQUIRED": 422, "OUT_OF_RANGE": 422}.get(exc.code, 409)
-        title = {"NOT_ACTIVE": "Only an active campaign can be paused", "NOT_PAUSED": "The campaign is not paused"}
-        raise ProblemError(status, title.get(exc.code, exc.code)) from exc
+        raise problem_for(exc) from exc
 
 
 @router.post("/campaigns/{campaign_id}/pause", response_model=CampaignOut)
