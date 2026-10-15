@@ -41,7 +41,10 @@ def sign(
     method: Literal["portal", "recorded_by_operator"],
     evidence_ref: str | None = None,
 ) -> uuid.UUID:
-    config_id, cfg = load_config(conn, tenant_id)
+    try:
+        config_id, cfg = load_config(conn, tenant_id)
+    except LookupError as exc:
+        raise NothingToSign(kind) from exc
     content = terms_of(cfg, kind)
     if content is None:
         raise NothingToSign(kind)
@@ -83,6 +86,9 @@ def signed(conn: Connection, tenant_id: uuid.UUID, kind: Kind) -> list[tuple[str
 
 
 def current_is_signed(conn: Connection, tenant_id: uuid.UUID, kind: Kind) -> bool:
-    _, cfg = load_config(conn, tenant_id)
+    try:
+        _, cfg = load_config(conn, tenant_id)
+    except LookupError:  # not configured yet: there is nothing to have signed
+        return False
     content = terms_of(cfg, kind)
     return content is not None and any(h == terms_hash(content) for h, _ in signed(conn, tenant_id, kind))

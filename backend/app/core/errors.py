@@ -63,6 +63,12 @@ def install_error_handlers(app: FastAPI) -> None:
         errors = [{"loc": list(e["loc"]), "msg": e["msg"], "type": e["type"]} for e in exc.errors()]
         return problem(422, "Validation error", "Request body or parameters are invalid.", request, errors=errors)
 
+    from app.domain.tenants.config import ConfigMissing
+
+    @app.exception_handler(ConfigMissing)
+    async def _not_configured(request: Request, exc: ConfigMissing) -> JSONResponse:
+        return problem(409, "Not configured yet", "This client's offer and pricing are not set up yet.", request)
+
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
         log.error("unhandled_error", error_type=type(exc).__name__)

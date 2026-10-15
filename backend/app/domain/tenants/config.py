@@ -181,12 +181,16 @@ def save_config(conn: Connection, tenant_id: uuid.UUID, cfg: TenantConfig, creat
     return version
 
 
+class ConfigMissing(LookupError):
+    """The client has no configuration yet (it is still being onboarded). The API answers 409, never 500."""
+
+
 def load_config(conn: Connection, tenant_id: uuid.UUID) -> tuple[uuid.UUID, TenantConfig]:
     row = conn.execute(
         text("SELECT id, config FROM tenant_configs WHERE tenant_id = :t ORDER BY version DESC LIMIT 1"),
         {"t": tenant_id},
     ).one_or_none()
     if row is None:
-        raise LookupError(f"tenant {tenant_id} has no configuration")
+        raise ConfigMissing(f"tenant {tenant_id} has no configuration")
     cfg = row.config if isinstance(row.config, dict) else json.loads(row.config)
     return row.id, TenantConfig.model_validate(cfg)
