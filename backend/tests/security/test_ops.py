@@ -79,6 +79,7 @@ def test_metrics_need_the_token_and_hold_no_personal_data(world) -> None:  # typ
         'pipelineos_clients_paused{by="client"} 0.0',
         'pipelineos_clients_paused{by="operator"} 0.0',
         "pipelineos_campaigns_pilot_full",
+        "pipelineos_invoices_overdue 0.0",
         'pipelineos_sends_last_hour{mode="dry_run"}',
         "pipelineos_vat_threshold_pct",
     ):

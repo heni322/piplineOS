@@ -224,3 +224,16 @@ def test_client_sets_their_own_roi_figures(world) -> None:  # type: ignore[no-un
     assert op.put("/api/v1/account/roi", json={"average_deal_value_minor": 1, "close_rate_pct": 1}).status_code == 403
     # Signed terms are untouched by the new configuration version.
     assert all(t["signed"] for t in client.get("/api/v1/terms").json())
+
+
+def test_only_the_operator_records_payments_with_their_code(world) -> None:  # type: ignore[no-untyped-def]
+    op, client, demo = world
+    inv = _draft(op, demo)["invoice_id"]
+    body = {"amount_minor": 1000, "received_on": "2026-10-10", "method": "bank_transfer", "totp_code": "000000"}
+    assert client.post(f"/api/v1/invoices/{inv}/payments", json=body).status_code == 403
+    assert op.post(f"/api/v1/invoices/{inv}/payments", json=body).status_code == 403  # wrong code
+    code = pyotp.TOTP(demo.operator_totp_secret or "").now()
+    r = op.post(f"/api/v1/invoices/{inv}/payments", json=body | {"totp_code": code})
+    assert r.status_code in (409, 403)  # a draft takes no payment (403 only if the code was already used)
+    listed = op.get("/api/v1/invoices", params={"tenant_id": str(demo.tenant_id)}).json()
+    assert listed and {"paid_minor", "due_minor", "overdue"} <= set(listed[0])

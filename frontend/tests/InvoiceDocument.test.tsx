@@ -6,7 +6,7 @@ import type { Invoice } from "@/lib/types";
 const inv: Invoice = {
   id: "i1", tenant_id: "t1", number: "DRAFT-ABC", status: "draft", period_start: "2026-10-01", period_end: "2026-10-31",
   issue_date: "2026-11-02", due_date: "2026-11-16", currency: "GBP", subtotal_minor: 105000, tax_minor: 0, total_minor: 105000,
-  tax_wording: "Not registered for VAT.", blocked_reasons: [], disputes_open: 0,
+  tax_wording: "Not registered for VAT.", blocked_reasons: [], disputes_open: 0, paid_minor: 0, due_minor: 0, overdue: false, payments: [],
   supplier: { legal_name: "Example Supplier Ltd", registered_address: "1 Test St", company_number: "123", vat_number: null, payment_details: null },
   customer: { legal_name: "Northwind Demo Services Ltd", registered_address: "1 Example Street", company_number: "000" },
   lines: [

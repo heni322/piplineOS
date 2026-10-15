@@ -5,7 +5,7 @@
 
 ## 1. Verdict
 
-**Business readiness: 4.7 / 10.** It was about 4.0 before this phase.
+**Business readiness: 4.8 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
 - 781 backend tests, 16 browser tests with WCAG checks, strict typing;
@@ -48,13 +48,13 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | Security | RLS forced, MFA, CSRF, encrypted PII, blind indexes, append-only audit, gitleaks/trivy in CI, threat model | External penetration test | No external test | High | P1 (external) | 7 |
 | Sales workflow (replies) | Classification with confidence; safety classes always go to a human; objection playbook | Accuracy measured on real replies | Local-model accuracy measured on synthetic replies only (98.4% English) | Medium | P1 | 6 |
 | Meeting booking | Calendar adapters (M365/Google), slots, reminders, attendance events | Real bookings | Dry-run only | Medium | P1 | 5 |
-| Billing | Billable meeting = system-booked + attended (confirmed by calendar/CRM/client) + qualified against SIGNED criteria + signed pricing + no dispute; evidence chain; dispute window; invoice drafts | An invoice issued and paid | No payment provider; tax rules not checked by an accountant | High | P1 (external) | 5 |
+| Billing | Billable meeting = system-booked + attended (confirmed by calendar/CRM/client) + qualified against SIGNED criteria + signed pricing + no dispute; evidence chain; dispute window; invoices; **payments recorded (append-only, reversals), paid status, overdue alert** | An invoice issued and paid by a real client | No real invoice paid; no payment provider; tax rules not checked by an accountant | High | P1 (external) | 6 |
 | Analytics | **New:** delivered, bounces, complaints, KPIs per 100 people reached, qualified meetings, dry-run flag, client ROI estimate | Measured against a pilot | No real data | Medium | done/P1 | 7 |
 | Operations | Backups and restore scripts, Prometheus metrics, alerts, runbooks, **new emergency stop that holds work** | Staging and production, restore drill done | No staging or production server | High | P1 | 6 |
 | Customer success | Portal: results, meetings with evidence, disputes, CRM, **new emergency stop and ROI** | Proof capture, reviews, renewal | No proof or case-study workflow | Medium | P2 | 4 |
 | Scalability | Celery workers, per-tenant caps, load test (Phase 6) | Proven at 10+ clients | Single server design | Low now | P2 | 5 |
 
-**Overall: 4.7 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
+**Overall: 4.8 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
 
 ## 3. Top 20 blockers
 
@@ -71,7 +71,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 9 | KPIs per 100 people reached; demo numbers labelled as demo | P0 | me | **DONE (this phase)** |
 | 10 | Contactable rate: free registers rarely give an email | P0 (business) | **Owner decision** | see GO-TO-MARKET §7 |
 | 11 | Live check of every free source | P1 | **Owner's PC** (blocked here) | command exists |
-| 12 | Payment collection (bank transfer first; Stripe/GoCardless later) and accountant check of tax rules | P1 | **Accountant, payment provider** | open |
+| 12 | Payment collection and accountant check of tax rules | P1 | me (recording) + **accountant, payment provider** | **recording built (6.9)**; accountant check and provider still open |
 | 13 | Unit-economics model to set prices and pilot size | P1 | me | **DONE (this phase)** |
 | 14 | Public landing page | P1 | me | **DONE (this phase)**; needs a domain and contact email |
 | 15 | Onboarding a client in the console (it needed JSON and SQL) | P1 | me | **DONE (6.8)**: guided by the operator; a client self-serve wizard is still open |
@@ -257,6 +257,23 @@ source link, the relevance score, every claim with its source, and the quality s
   - The client can't onboard themselves yet; the operator runs the call.
   - Company details can only be set when the client is created.
 
+### 6.9 Recording payments (P1)
+- **Problem.** An invoice could be issued, but there was no way to record the money arriving. "Paid" existed in
+  the schema but was unreachable, so payment could never be validated in the system.
+- **Change.**
+  - `invoice_payments`: append-only and isolated per client. A mistake is corrected with a **reversal** entry,
+    never edited.
+  - Recording a payment needs your authenticator code, like issuing.
+  - The invoice becomes **paid** once covered, and a paid invoice can't be reversed (a refund is a credit note).
+  - An invoice with money against it can't be voided.
+  - Invoices show received, still owed and overdue.
+  - An `InvoiceOverdue` alert is added, with a runbook entry.
+  - It works with bank transfer today; a payment provider can feed the same table later.
+- **Tests.**
+  - Part payment, validation, reversal, paid in full, append-only enforced by the database, and client isolation.
+  - The API needs the operator's code and refuses drafts.
+- **Remaining risk.** No real invoice has been paid yet. VAT treatment is still unverified by an accountant.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -271,13 +288,13 @@ source link, the relevance score, every claim with its source, and the quality s
 | Security | 7 | 7 |
 | Sales workflow | 6 | 6 |
 | Meeting booking | 5 | 5 |
-| Billing | 5 | 5 |
+| Billing | 5 | **6** (payments, paid, overdue) |
 | Analytics | 4 | **7** |
 | Operations | 5 | **6** (emergency stop, stop alerts) |
 | Customer success | 3 | **4** (client stop, ROI) |
 | Scalability | 5 | 5 |
 | Go-to-market | 1 | **4** (model, pricing, ICP, plan, landing page, economics) |
-| **Overall** | **~4.0** | **4.7** |
+| **Overall** | **~4.0** | **4.8** |
 
 The next big jumps are all external:
 - the solicitor's review takes compliance from 0 to 6–8 on the legal side;

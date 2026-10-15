@@ -40,6 +40,8 @@ export type Invoice = {
   issue_date: string; due_date: string; currency: "GBP" | "EUR"; subtotal_minor: number; tax_minor: number; total_minor: number;
   tax_wording: string | null; blocked_reasons: string[]; supplier: Record<string, string | null>;
   customer: Record<string, string | null>; lines: InvoiceLine[]; disputes_open: number;
+  paid_minor: number; due_minor: number; overdue: boolean;
+  payments: { amount_minor: number; received_on: string; method: string; reference: string | null }[];
 };
 export type Eligibility = { meeting_id: string; company: string; starts_at: string; status: string; billable: boolean; reasons: string[] };
 export type Dispute = { id: string; tenant_id: string; meeting_id: string; company: string; kind: string; reason: string;

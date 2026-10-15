@@ -24,6 +24,11 @@ groups:
         for: 1h
         labels: { severity: info }
         annotations: { summary: "A campaign reached its pilot contact limit; new first emails are held. Review results before raising it." }
+      - alert: InvoiceOverdue
+        expr: pipelineos_invoices_overdue > 0
+        for: 24h
+        labels: { severity: info }
+        annotations: { summary: "An issued invoice is past its due date and not fully paid." }
       - alert: SendsNeedReconciliation
         expr: pipelineos_needs_reconciliation > 0
         for: 10m

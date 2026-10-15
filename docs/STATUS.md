@@ -6,7 +6,7 @@ item has been signed off. The live view of this list is on the **Go-live** page:
 - **Countries:** what is built for each country, what is still needed, and who acts.
 
 ## Business readiness (Phase 17)
-**4.7 / 10.** The blockers are mostly outside the code: a solicitor's review, a sending domain and warmed
+**4.8 / 10.** The blockers are mostly outside the code: a solicitor's review, a sending domain and warmed
 mailboxes, a first pilot client, and payment. See `docs/BUSINESS-READINESS.md`, `docs/GO-TO-MARKET.md` and
 `docs/LEGAL-REVIEW-CHECKLIST.md`.
 - **Emergency stop** that holds work: the operator pauses a client or campaign, or the client stops their own
@@ -16,6 +16,8 @@ mailboxes, a first pilot client, and payment. See `docs/BUSINESS-READINESS.md`, 
   on dry-run numbers.
 - **Onboarding from the console:** offer, criteria and pricing (from a niche template), sending domain, inbox and
   campaign, with a guided next step for each client.
+- **Payments:** record money received against an invoice (your authenticator code; reversals, never edits); paid
+  and overdue tracking.
 - **Retention schedule**, off until the solicitor sets the periods (`config/retention.yaml`).
 - **Public landing page** at `/`, and `pipelineos economics simulate` for the unit economics.
 

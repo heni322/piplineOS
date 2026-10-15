@@ -318,7 +318,7 @@
     "number": "Number",
     "status": "Status",
     "total": "Total",
-    "due": "Due",
+    "due": "Still owed",
     "cancel": "Cancel",
     "disputes": "Disputes",
     "noDisputes": "No disputes.",
@@ -354,7 +354,26 @@
       "NO_PER_MEETING_FEE": "No per-meeting fee in the pricing",
       "DISPUTE_OPEN": "Dispute open",
       "DISPUTE_UPHELD": "Dispute upheld"
-    }
+    },
+    "paymentsTitle": "Payments received",
+    "paid": "Received",
+    "overdue": "Overdue",
+    "noPayments": "Nothing received yet.",
+    "recordPayment": "Record a payment",
+    "paymentHint": "Record money only once you see it on the bank statement. A mistake is corrected with a reversal (a negative amount), never edited.",
+    "amount": "Amount received",
+    "receivedOn": "Received on",
+    "method": "How it was paid",
+    "reference": "Bank reference (optional)",
+    "methods": {
+      "bank_transfer": "Bank transfer",
+      "card": "Card",
+      "direct_debit": "Direct debit",
+      "other": "Other",
+      "reversal": "Reversal (correct a mistake)"
+    },
+    "recorded": "Payment recorded.",
+    "paidInFull": "Invoice {n} is paid in full."
   },
   "clients": {
     "title": "Clients",

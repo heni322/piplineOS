@@ -263,6 +263,21 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
         )
         _gauge(
             lines,
+            "pipelineos_invoices_overdue",
+            "issued invoices past their due date with money still owed",
+            [
+                (
+                    {},
+                    one(
+                        """SELECT count(*) FROM invoices i WHERE i.status = 'issued' AND i.due_date < current_date
+                           AND i.total_minor > coalesce((SELECT sum(p.amount_minor) FROM invoice_payments p
+                                                         WHERE p.invoice_id = i.id), 0)"""
+                    ),
+                )
+            ],
+        )
+        _gauge(
+            lines,
             "pipelineos_llm_calls_last_hour",
             "AI calls in the last hour by outcome",
             grouped(

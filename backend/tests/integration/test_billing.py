@@ -457,3 +457,76 @@ def test_vat_threshold_monitor_warns_before_the_limit(world, clean_db) -> None: 
         billing.issue(conn, invoice_id=res.invoice_id, user_id=world.operator_id, today=TODAY)  # type: ignore[arg-type]
         s = billing.vat_threshold_status(conn, TODAY)
     assert s["turnover_minor"] == 105_000 and s["pct"] == round(100 * 105_000 / 9_000_000, 1)
+
+
+def _issued(world, engine):  # type: ignore[no-untyped-def]
+    make_issuable(world, engine)
+    res = draft(world, engine)
+    with op(world, engine) as conn:
+        billing.issue(conn, invoice_id=res.invoice_id, user_id=world.operator_id, today=TODAY)  # type: ignore[arg-type]
+    return res.invoice_id
+
+
+def test_payments_mark_an_invoice_paid_only_when_covered(world, clean_db) -> None:  # type: ignore[no-untyped-def]
+    from app.domain.billing import payments
+
+    inv = _issued(world, clean_db)
+    total = q(clean_db, "SELECT total_minor FROM invoices WHERE id = :i", i=inv)[0].total_minor
+
+    def pay(amount: int, method: str = "bank_transfer", on: date = TODAY):  # type: ignore[no-untyped-def]
+        with op(world, clean_db) as conn:
+            return payments.record_payment(
+                conn,
+                invoice_id=inv,
+                user_id=world.operator_id,
+                amount_minor=amount,
+                received_on=on,
+                method=method,
+                reference="BACS 123",
+                today=TODAY,
+            )
+
+    part = pay(total // 2)
+    assert part.due_minor == total - total // 2
+    assert q(clean_db, "SELECT status FROM invoices WHERE id = :i", i=inv)[0].status == "issued"
+    for bad, code in ((0, "ZERO_AMOUNT"), (-1, "REVERSAL_MUST_BE_NEGATIVE")):
+        with pytest.raises(payments.PaymentError, match=code):
+            pay(bad)
+    with pytest.raises(payments.PaymentError, match="DATE_OUT_OF_RANGE"):
+        pay(100, on=TODAY + timedelta(days=1))
+    with pytest.raises(payments.PaymentError, match="REVERSAL_EXCEEDS_RECEIVED"):
+        pay(-(total // 2) - 1, method="reversal")
+    assert pay(-100, method="reversal").paid_minor == total // 2 - 100  # a mistake is reversed, never edited
+    done = pay(total - total // 2 + 100)
+    assert done.due_minor == 0
+    assert q(clean_db, "SELECT status FROM invoices WHERE id = :i", i=inv)[0].status == "paid"
+    with pytest.raises(payments.PaymentError, match="INVOICE_ALREADY_PAID"):
+        pay(-50, method="reversal")
+    # Append-only: entries can't be edited or deleted, even by the app.
+    with pytest.raises(DBAPIError), op(world, clean_db) as conn:
+        conn.execute(text("UPDATE invoice_payments SET amount_minor = 1"))
+    assert q(clean_db, "SELECT count(*) AS n FROM audit_log WHERE action = 'invoice.payment_recorded'")[0].n == 3
+
+
+def test_payments_are_tenant_isolated(world, clean_db) -> None:  # type: ignore[no-untyped-def]
+    inv = _issued(world, clean_db)
+    from app.domain.billing import payments
+
+    with op(world, clean_db) as conn:
+        payments.record_payment(
+            conn,
+            invoice_id=inv,
+            user_id=world.operator_id,
+            amount_minor=1000,
+            received_on=TODAY,
+            method="bank_transfer",
+            reference=None,
+            today=TODAY,
+        )
+    other = uuid.uuid4()
+    with transaction(DbContext(role="operator"), clean_db) as conn:
+        conn.execute(
+            text("INSERT INTO tenants (id, slug, legal_name) VALUES (:t, 'other-co', 'Other Ltd')"), {"t": other}
+        )
+    with transaction(DbContext.system(other), clean_db) as conn:
+        assert conn.execute(text("SELECT count(*) FROM invoice_payments")).scalar() == 0
