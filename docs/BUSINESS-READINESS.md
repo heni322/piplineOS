@@ -8,7 +8,7 @@
 **Business readiness: 5.0 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
-- 785 backend tests, 17 browser tests with WCAG checks, strict typing;
+- 795 backend tests, 17 browser tests with WCAG checks, strict typing;
 - database-enforced tenant isolation and a three-key send switch.
 
 It is **not yet a business**:
@@ -349,6 +349,18 @@ source link, the relevance score, every claim with its source, and the quality s
 - **Tests.** The own-account flow end to end, including activation, the single-account rule and the reduced
   checklist. Partial update of company details.
 - **Remaining risk.** Writing to prospects on our own behalf needs the same legal review as for clients.
+
+### 6.15 Internal security review of this phase (P1)
+- **What was reviewed.** A focused review of every security-relevant change in this phase:
+  - the `client_pause` SECURITY DEFINER function and its owner-only RLS policy;
+  - all new endpoints and the dynamic `SET` clause;
+  - payments, testimonials, templates, retention and the restore script.
+- **Result.** No vulnerability at high confidence. The details:
+  - The client stop can only pause the caller's own active account, and can change only status and reason.
+  - Every operator route is operator-only.
+  - The `SET` keys are fixed field names.
+  - YAML is read with `safe_load`, and the template name is never used as a file path.
+- **This is not an external penetration test.** That still needs an outside tester.
 
 ## 7. New score per area (after this phase)
 
