@@ -5,7 +5,7 @@
 
 ## 1. Verdict
 
-**Business readiness: 4.5 / 10.** It was about 4.0 before this phase.
+**Business readiness: 4.7 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
 - 770 backend tests, 15 browser tests with WCAG checks, strict typing;
@@ -38,7 +38,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | Area | Current state | Target (9/10) | Gap | Impact | Priority | Score |
 |---|---|---|---|---|---|---|
 | Product (core pipeline) | 5 agents, compliance gate, approvals, replies, booking; all dry-run | Proven on real prospects | No real run | High | P0 (external) | 7 |
-| Onboarding | Operator checklist; client signs criteria and pricing in the portal; targeting form | Guided wizard; client self-onboards in under 1 hour | No wizard; operator-driven | Medium | P1 | 5 |
+| Onboarding | **Guided next step per client**; offer, criteria and pricing form from a niche template; sending domain, inbox and campaign from the console; client accepts terms in the portal | Client self-onboards in under 1 hour | Operator-driven, not self-serve | Medium | P2 | 7 |
 | Lead acquisition | Free sources: UK/EU contract awards, Companies House filings and officers, job boards, websites, insolvency filter | Measured leads/week per ICP | **Not tested live from this environment** (network policy); free registers rarely give an email | **High** | P0 | 4 |
 | Data quality | Register-verified companies; website proven by company number; data minimisation | Measured accuracy and bounce rate | No measurement | High | P1 | 5 |
 | Outreach | Writer with sourced claims, critique, rewrites, quality score 0–10, human approval of every email | Reply rate measured and improved | Evals are synthetic | High | P1 | 6 |
@@ -54,7 +54,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | Customer success | Portal: results, meetings with evidence, disputes, CRM, **new emergency stop and ROI** | Proof capture, reviews, renewal | No proof or case-study workflow | Medium | P2 | 4 |
 | Scalability | Celery workers, per-tenant caps, load test (Phase 6) | Proven at 10+ clients | Single server design | Low now | P2 | 5 |
 
-**Overall: 4.5 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
+**Overall: 4.7 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
 
 ## 3. Top 20 blockers
 
@@ -74,7 +74,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 12 | Payment collection (bank transfer first; Stripe/GoCardless later) and accountant check of tax rules | P1 | **Accountant, payment provider** | open |
 | 13 | Unit-economics model to set prices and pilot size | P1 | me | **DONE (this phase)** |
 | 14 | Public landing page | P1 | me | **DONE (this phase)**; needs a domain and contact email |
-| 15 | Client onboarding wizard (self-serve) | P1 | me | open |
+| 15 | Onboarding a client in the console (it needed JSON and SQL) | P1 | me | **DONE (6.8)**: guided by the operator; a client self-serve wizard is still open |
 | 16 | External penetration test | P1 | **Pen tester** | open |
 | 17 | Inbox-placement (seed) test before each campaign | P1 | me + owner (seed mailboxes) | open |
 | 18 | Customer proof capture (consent to quote results) | P2 | me | open |
@@ -219,12 +219,50 @@ source link, the relevance score, every claim with its source, and the quality s
   - The metrics test covers both new gauges.
 - **Remaining risk.** None technically. The periods themselves are a legal decision.
 
+### 6.8 Onboarding a client without JSON or SQL (P1)
+- **Problem (found while building the wizard).** Several onboarding steps had no screen and no API:
+  - giving a new client a configuration;
+  - setting qualification criteria or pricing;
+  - adding a sending domain or an inbox;
+  - creating or starting a campaign.
+
+  So a real client could not be onboarded from the console at all. The demo only worked because the seed script
+  wrote those rows directly.
+- **Business impact.** Every pilot would have needed a developer.
+- **Change.**
+  - **Next step.** Each onboarding client's card shows its next step in the order of an onboarding call, with the
+    button for it.
+  - **Offer & pricing.**
+    - A form for sender, offer, purpose, qualified-meeting criteria (add, edit, remove; required or optional; judged
+      from the reply or the job title) and price in the client's currency.
+    - A new client starts from a niche template, `config/niches/uk-it-msp.yaml`.
+    - Unchanged criteria keep their ids. A changed price or criterion must be accepted again by the client.
+  - **Sending domain + inbox.**
+    - The domain is validated and normalised. The address must be on the domain.
+    - The inbox starts warming at the warm-up start cap.
+  - **Campaigns.** Created in draft in Pilot Mode, targeting the configured countries. **Start** works only for an
+    active client.
+  - Every step is audited.
+- **Files.** `backend/app/domain/tenants/setup.py`, `backend/app/api/v1/clients.py` (setup),
+  `backend/app/api/ops.py` (domain, inbox), `backend/app/api/v1/operations.py` (campaign create/start),
+  `config/niches/uk-it-msp.yaml`, `frontend/src/components/OfferPanel.tsx`,
+  `frontend/src/components/SendingPanel.tsx`, `frontend/src/app/operator/clients/page.tsx`,
+  `frontend/src/app/operator/campaigns/page.tsx`.
+- **Tests.**
+  - `tests/security/test_onboarding_setup.py` (4). One goes **from an empty client to a running pilot through the
+    API alone**: setup, LIA, DPA, the client's acceptance, domain, activation, campaign start. It also proves that
+    a price change needs re-acceptance.
+  - e2e: a brand-new client onboarded in the browser, step by step, with an accessibility check.
+- **Remaining risk.**
+  - The client can't onboard themselves yet; the operator runs the call.
+  - Company details can only be set when the client is created.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
 |---|---|---|
 | Product | 7 | 7 |
-| Onboarding | 5 | 5 |
+| Onboarding | 5 | **7** (guided, no JSON) |
 | Lead acquisition | 4 | 4 |
 | Data quality | 5 | 5 |
 | Outreach | 6 | 6 |
@@ -239,7 +277,7 @@ source link, the relevance score, every claim with its source, and the quality s
 | Customer success | 3 | **4** (client stop, ROI) |
 | Scalability | 5 | 5 |
 | Go-to-market | 1 | **4** (model, pricing, ICP, plan, landing page, economics) |
-| **Overall** | **~4.0** | **4.5** |
+| **Overall** | **~4.0** | **4.7** |
 
 The next big jumps are all external:
 - the solicitor's review takes compliance from 0 to 6–8 on the legal side;
