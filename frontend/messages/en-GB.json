@@ -92,7 +92,15 @@
     "required": "required",
     "optional": "optional",
     "fromReply": "from their reply",
-    "fromProfile": "from their job title"
+    "fromProfile": "from their job title",
+    "stopTitle": "Emergency stop",
+    "stopIntro": "Stop all sending for your account at once, for any reason. Nothing is deleted: queued emails are held and we are notified. We'll contact you before resuming.",
+    "stopReason": "Reason (shared with us)",
+    "stopButton": "Stop all sending",
+    "stopConfirm": "Yes, stop now",
+    "stopped": "Sending is stopped.",
+    "stoppedSince": "Stopped since {d}: {r}",
+    "stopAdminOnly": "Only your account admin can use the emergency stop."
   },
   "privacy": {
     "title": "Privacy notice",
@@ -131,7 +139,8 @@
     "groupSystem": "System",
     "console": "Operator console",
     "portal": "Client portal",
-    "menu": "Menu"
+    "menu": "Menu",
+    "campaigns": "Campaigns"
   },
   "approvals": {
     "title": "Approvals",
@@ -402,7 +411,15 @@
     "removeCompany": "Remove {c}",
     "saveTargeting": "Save targeting",
     "targetingSaved": "Targeting saved (configuration version {v}).",
-    "noConfig": "This client has no configuration yet."
+    "noConfig": "This client has no configuration yet.",
+    "pause": "Pause (emergency stop)",
+    "pauseReason": "Why are you pausing? (kept in the audit log)",
+    "pauseConfirm": "Pause all sending",
+    "pauseHint": "Every queued email and every lead in progress is held, not cancelled. Replies are still read and unsubscribes still honoured. Resuming continues exactly where it stopped.",
+    "paused": "Client paused. Nothing is sent until you resume.",
+    "pausedSince": "Paused since {d}: {r}",
+    "resume": "Resume",
+    "resumed": "Client resumed. Held emails go out on the next send run, within the usual caps."
   },
   "reports": {
     "title": "Reports",
@@ -725,5 +742,31 @@
     "closed": "Task closed.",
     "cancel": "Cancel",
     "logged": "Your view was logged."
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "intro": "Every campaign starts as a pilot: at most 100 new people are emailed until you raise or remove the limit. Follow-ups to people already contacted continue.",
+    "empty": "No campaigns yet.",
+    "client": "Client",
+    "campaign": "Campaign",
+    "status": "Status",
+    "dailyCap": "Daily cap",
+    "pilot": "Pilot: new people emailed",
+    "actions": "Actions",
+    "noLimit": "no limit",
+    "of": "{u} of {l}",
+    "reached": "limit reached, first emails held",
+    "pause": "Pause",
+    "resume": "Resume",
+    "pauseReason": "Reason for pausing",
+    "confirmPause": "Pause campaign",
+    "editLimit": "Change limit",
+    "limit": "Pilot limit (new people)",
+    "limitHint": "Leave empty for no limit (full volume). Raise it only after the pilot thresholds are met: bounces under 3%, no complaints, replies coming in.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Saved.",
+    "pausedOk": "Campaign paused. Its queued emails are held.",
+    "resumedOk": "Campaign resumed."
   }
 }

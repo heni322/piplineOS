@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { EmergencyStop } from "@/components/EmergencyStop";
 import { MetricsLedger } from "@/components/MetricsLedger";
 import { api } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
@@ -20,6 +21,7 @@ export default function ClientHome() {
       <p className="muted">{t.last90}</p>
       <MetricsLedger m={m} />
       {m.meetings_booked === 0 && <p className="muted" style={{ marginTop: 18 }}>{t.emptyMeetings}</p>}
+      <EmergencyStop />
     </>
   );
 }

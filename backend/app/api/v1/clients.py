@@ -9,7 +9,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.api.deps import CurrentUser, cipher_dep, require, settings_dep
 from app.core.crypto import PiiCipher
@@ -17,7 +17,7 @@ from app.core.errors import ProblemError
 from app.core.security import Permission
 from app.db.session import get_engine, transaction
 from app.domain.reporting.metrics import metrics
-from app.domain.tenants import accounts, onboarding, signoffs
+from app.domain.tenants import accounts, controls, onboarding, signoffs
 from app.domain.tenants.config import load_config
 from app.settings import Settings
 
@@ -49,12 +49,18 @@ class ClientOut(BaseModel):
     status: str
     billing_currency: str
     checklist: list[ItemOut]
+    paused_reason: str | None = None
+    paused_at: datetime | None = None
 
 
 def _client(conn: Any, tenant_id: uuid.UUID) -> ClientOut:
     t = (
         conn.execute(
-            text("SELECT id, slug, legal_name, status, billing_currency FROM tenants WHERE id = :t"), {"t": tenant_id}
+            text(
+                "SELECT id, slug, legal_name, status, billing_currency, paused_reason, paused_at FROM tenants "
+                "WHERE id = :t"
+            ),
+            {"t": tenant_id},
         )
         .mappings()
         .first()
@@ -69,6 +75,8 @@ def _client(conn: Any, tenant_id: uuid.UUID) -> ClientOut:
         status=t["status"],
         billing_currency=t["billing_currency"],
         checklist=items,
+        paused_reason=t["paused_reason"],
+        paused_at=t["paused_at"],
     )
 
 
@@ -300,6 +308,79 @@ def activate(tenant_id: uuid.UUID, user: Operator) -> ClientOut:
             return _client(conn, tenant_id)
     except onboarding.OnboardingError as exc:
         raise ProblemError(409, "Onboarding incomplete", ", ".join(exc.missing)) from exc
+
+
+# ------------------------------------------------------------------------------------------- emergency stop
+class PauseIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+_CONTROL_ERRORS = {
+    "NOT_ACTIVE": (409, "Only an active client or campaign can be paused"),
+    "NOT_PAUSED": (409, "It is not paused"),
+    "NOT_FOUND": (404, "Not found"),
+    "REASON_REQUIRED": (422, "Give a reason"),
+    "OUT_OF_RANGE": (422, "Choose between 1 and 100000, or no limit"),
+}
+
+
+def _control_error(exc: controls.ControlError) -> ProblemError:
+    status, title = _CONTROL_ERRORS.get(exc.code, (409, exc.code))
+    return ProblemError(status, title)
+
+
+@router.post("/clients/{tenant_id}/pause", response_model=ClientOut)
+def pause_client(tenant_id: uuid.UUID, body: PauseIn, user: Operator) -> ClientOut:
+    """Emergency stop: holds every queued message and lead in flight. Nothing is cancelled; resume continues."""
+    try:
+        with transaction(user.db_context(tenant_id), get_engine()) as conn:
+            controls.pause_client(conn, tenant_id=tenant_id, operator_id=user.id, reason=body.reason)
+            return _client(conn, tenant_id)
+    except controls.ControlError as exc:
+        raise _control_error(exc) from exc
+
+
+@router.post("/clients/{tenant_id}/resume", response_model=ClientOut)
+def resume_client(tenant_id: uuid.UUID, user: Operator) -> ClientOut:
+    try:
+        with transaction(user.db_context(tenant_id), get_engine()) as conn:
+            controls.resume_client(conn, tenant_id=tenant_id, operator_id=user.id)
+            return _client(conn, tenant_id)
+    except controls.ControlError as exc:
+        raise _control_error(exc) from exc
+
+
+class AccountOut(BaseModel):
+    status: str
+    paused_reason: str | None
+    paused_at: datetime | None
+
+
+@router.get("/account", response_model=AccountOut)
+def account(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_TENANT))]) -> AccountOut:
+    if user.tenant_id is None:
+        raise ProblemError(422, "Only for client accounts")
+    with transaction(user.db_context(), get_engine()) as conn:
+        r = conn.execute(
+            text("SELECT status, paused_reason, paused_at FROM tenants WHERE id = :t"), {"t": user.tenant_id}
+        ).one()
+    return AccountOut(status=r.status, paused_reason=r.paused_reason, paused_at=r.paused_at)
+
+
+@router.post("/account/pause", response_model=AccountOut)
+def client_pause(body: PauseIn, user: Annotated[CurrentUser, Depends(require(Permission.SIGN_TERMS))]) -> AccountOut:
+    """The client's own emergency stop (client admin). Only the operator resumes, after talking to the client."""
+    if user.role != "tenant_admin" or user.tenant_id is None:
+        raise ProblemError(403, "Only the client's admin can pause the account")
+    try:
+        with transaction(user.db_context(), get_engine()) as conn:
+            conn.execute(text("SELECT client_pause(:r)"), {"r": body.reason})
+            r = conn.execute(
+                text("SELECT status, paused_reason, paused_at FROM tenants WHERE id = :t"), {"t": user.tenant_id}
+            ).one()
+    except DBAPIError as exc:
+        raise ProblemError(409, "The account is not active") from exc
+    return AccountOut(status=r.status, paused_reason=r.paused_reason, paused_at=r.paused_at)
 
 
 # ------------------------------------------------------------------------------------------- client terms

@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { TargetingPanel } from "@/components/TargetingPanel";
 import { api, type Problem } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
+import { day } from "@/lib/format";
 import type { Client } from "@/lib/types";
 
 const t = getMessages().clients;
-type Form = "lia" | "dpa" | "user" | "eurep" | null;
+type Form = "lia" | "dpa" | "user" | "eurep" | "pause" | null;
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[] | null>(null);
@@ -45,6 +46,11 @@ export default function ClientsPage() {
     if (kind === "dpa") await api(`/api/v1/clients/${id}/dpa`, { method: "POST", body: JSON.stringify({ version: fields.a, signed_on: fields.b }) });
     if (kind === "eurep") await api(`/api/v1/clients/${id}/eu-representative`, { method: "POST",
       body: JSON.stringify({ name: fields.a, contact_email: fields.b, country_code: fields.c.toUpperCase() }) });
+    if (kind === "pause") {
+      await api(`/api/v1/clients/${id}/pause`, { method: "POST", body: JSON.stringify({ reason: fields.a }) });
+      setForm({ id: "", kind: null });
+      return t.paused;
+    }
     if (kind === "user") {
       const r = await api<{ email: string; dev_invite_link?: string }>(`/api/v1/clients/${id}/users`, { method: "POST", body: JSON.stringify({ email: fields.a }) });
       setForm({ id: "", kind: null });
@@ -94,6 +100,9 @@ export default function ClientsPage() {
               <section key={c.id} className="card" aria-labelledby={`c-${c.id}`}>
                 <h2 id={`c-${c.id}`}>{c.legal_name}</h2>
                 <p className="muted" style={{ margin: 0 }}>{c.status}{c.status === "onboarding" ? `, ${remaining} to do` : ""}</p>
+                {c.status === "paused" && (
+                  <p className="error" role="status">{t.pausedSince.replace("{d}", c.paused_at ? day(c.paused_at) : "").replace("{r}", c.paused_reason ?? "")}</p>
+                )}
                 <ul className="checklist">
                   {c.checklist.map((i) => <li key={i.key} data-done={i.done}>{i.detail}</li>)}
                 </ul>
@@ -107,6 +116,16 @@ export default function ClientsPage() {
                     <input id={`fc-${c.id}`} maxLength={2} value={fields.c} onChange={(e) => setFields({ ...fields, c: e.target.value })} />
                     <div className="row-actions" style={{ marginTop: 10 }}>
                       <button type="button" disabled={busy || fields.a.length < 2 || !fields.b.includes("@") || fields.c.length !== 2} onClick={submitForm}>{t.save}</button>
+                      <button type="button" className="secondary" onClick={() => setForm({ id: "", kind: null })}>{t.cancel}</button>
+                    </div>
+                  </div>
+                ) : form.id === c.id && form.kind === "pause" ? (
+                  <div>
+                    <p className="hint">{t.pauseHint}</p>
+                    <label htmlFor={`fa-${c.id}`}>{t.pauseReason}</label>
+                    <input id={`fa-${c.id}`} value={fields.a} onChange={(e) => setFields({ ...fields, a: e.target.value })} />
+                    <div className="row-actions" style={{ marginTop: 10 }}>
+                      <button type="button" className="danger" disabled={busy || fields.a.trim().length < 3} onClick={submitForm}>{t.pauseConfirm}</button>
                       <button type="button" className="secondary" onClick={() => setForm({ id: "", kind: null })}>{t.cancel}</button>
                     </div>
                   </div>
@@ -133,6 +152,13 @@ export default function ClientsPage() {
                     <button type="button" className="secondary" onClick={() => { setTargeting({ id: c.id, name: c.legal_name }); setStatus(null); }}>{t.targeting}</button>
                     {c.checklist.some((i) => i.key === "eu_representative") && (
                       <button type="button" className="secondary" onClick={() => { setForm({ id: c.id, kind: "eurep" }); setFields({ a: "", b: "", c: "" }); }}>{t.eurep}</button>
+                    )}
+                    {c.status === "active" && (
+                      <button type="button" className="danger" onClick={() => { setForm({ id: c.id, kind: "pause" }); setFields({ a: "", b: "", c: "" }); }}>{t.pause}</button>
+                    )}
+                    {c.status === "paused" && (
+                      <button type="button" disabled={busy} onClick={() => run(async () => {
+                        await api(`/api/v1/clients/${c.id}/resume`, { method: "POST" }); return t.resumed; })}>{t.resume}</button>
                     )}
                     {c.status === "onboarding" && (
                       <button type="button" disabled={busy || remaining > 0} onClick={() => run(async () => {

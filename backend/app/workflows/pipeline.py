@@ -34,6 +34,7 @@ from app.domain.outbound.calendar import CalendarGateway
 from app.domain.outbound.gateway import OutboundGateway, SendOutcome
 from app.domain.outbound.providers import email_senders
 from app.domain.replies import service as replies
+from app.domain.tenants import controls
 from app.domain.tenants.config import load_config
 from app.llm.client import LLMBackend
 from app.llm.factory import build_llm_client
@@ -75,6 +76,11 @@ def agent_context(
 
 
 def process_lead(ctx: AgentContext, lead_id: uuid.UUID, providers: Providers) -> str:
+    with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+        # Emergency stop: a paused client or campaign keeps its leads exactly where they are (no AI work, no
+        # compliance rejection). They continue on the next run after resuming.
+        if controls.is_held(conn, ctx.tenant_id, ctx.campaign_id) is not None:
+            return str(conn.execute(text("SELECT state FROM leads WHERE id = :l"), {"l": lead_id}).scalar_one())
     find_decision_maker(ctx, lead_id, providers.enrichment, providers.verifier, providers.registry)
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
         state = conn.execute(text("SELECT state FROM leads WHERE id = :l"), {"l": lead_id}).scalar_one()
@@ -223,11 +229,20 @@ def send_due(
     with transaction(DbContext.system(tenant_id), engine) as conn:
         due = (
             conn.execute(
-                text("""SELECT m.id FROM messages m WHERE m.status IN ('approved','queued','failed_retryable')
+                # Held work (paused client or campaign, pilot limit reached) is skipped here so it is not
+                # re-examined every tick; the gateway enforces the same holds for any other caller.
+                text("""SELECT m.id FROM messages m
+              JOIN tenants t ON t.id = m.tenant_id LEFT JOIN campaigns cp ON cp.id = m.campaign_id
+              WHERE m.status IN ('approved','queued','failed_retryable')
               AND (m.scheduled_for IS NULL OR m.scheduled_for <= :now)
               AND (m.sequence_step = 0 OR m.scheduled_for IS NOT NULL)
+              AND t.status <> 'paused' AND coalesce(cp.status, 'active') NOT IN ('paused','auto_paused')
+              AND NOT (m.kind = 'outreach' AND m.sequence_step = 0 AND cp.pilot_max_contacts IS NOT NULL
+                       AND (SELECT count(DISTINCT x.lead_id) FROM messages x WHERE x.campaign_id = cp.id
+                            AND x.kind = 'outreach' AND x.sequence_step = 0 AND x.status = ANY(:contacted))
+                           >= cp.pilot_max_contacts)
               ORDER BY m.sequence_step, m.created_at LIMIT 500"""),
-                {"now": at},
+                {"now": at, "contacted": list(controls.CONTACTED_STATUSES)},
             )
             .scalars()
             .all()
