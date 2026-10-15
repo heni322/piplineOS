@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
+import pytest
 
 from app.adapters.enrichment.base import EnrichedPerson
 from app.adapters.website_contacts import (
@@ -205,5 +206,42 @@ def test_a_published_address_only_verifies_if_its_domain_takes_email() -> None:
     wc = WebsiteContacts(Officers(), finder({"lakesidenetworks.co.uk/contact": CONTACT}), lookup)
     wc.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
     assert wc.verify("sales@lakesidenetworks.co.uk") == "invalid"  # published, but the domain takes no mail
+    fresh = WebsiteContacts(Officers(), finder({"lakesidenetworks.co.uk/contact": CONTACT}), lookup)
+    fresh.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
     dns[("lakesidenetworks.co.uk", "MX")] = ["mail.lakesidenetworks.co.uk"]
-    assert wc.verify("Sales@LakesideNetworks.co.uk") == "valid"
+    assert fresh.verify("Sales@LakesideNetworks.co.uk") == "valid"
+    assert mail_domain_status("v6only.example", lambda n, t: ["2001:db8::1"] if t == "AAAA" else []) == "risky"
+
+
+def test_a_dns_outage_never_condemns_a_good_address() -> None:
+    from app.adapters.website_contacts import mail_domain_status
+
+    calls: list[str] = []
+
+    def down(name: str, rdtype: str) -> list[str]:
+        calls.append(name)
+        raise TimeoutError("resolver unreachable")
+
+    from app.adapters.base import RetryableProviderError
+
+    with pytest.raises(RetryableProviderError):  # not "invalid": nothing is decided on an outage, the lead waits
+        mail_domain_status("ok.example", down)
+    wc = WebsiteContacts(Officers(), finder({"lakesidenetworks.co.uk/contact": CONTACT}), down)
+    wc.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
+    for _ in range(2):
+        with pytest.raises(RetryableProviderError):
+            wc.verify("sales@lakesidenetworks.co.uk")
+    assert len(calls) == 3  # not cached: each attempt asks DNS again
+
+
+def test_one_dns_check_per_domain() -> None:
+    calls: list[tuple[str, str]] = []
+
+    def lookup(name: str, rdtype: str) -> list[str]:
+        calls.append((name, rdtype))
+        return ["mx.example"] if rdtype == "MX" else []
+
+    wc = WebsiteContacts(Officers(), finder({"lakesidenetworks.co.uk/contact": CONTACT}), lookup)
+    wc.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
+    assert wc.verify("sales@lakesidenetworks.co.uk") == wc.verify("SALES@lakesidenetworks.co.uk") == "valid"
+    assert calls == [("lakesidenetworks.co.uk", "MX")]

@@ -30,6 +30,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
+from app.adapters.base import RetryableProviderError
 from app.adapters.companies_house.live import normalise_name
 from app.adapters.enrichment.base import EnrichedPerson, EnrichmentProvider
 from app.adapters.signals.ocds import normalise_company_number
@@ -225,12 +226,17 @@ Lookup = Callable[[str, str], list[str]]  # (name, "MX" | "A") -> records; same 
 
 def mail_domain_status(domain: str, lookup: Lookup) -> Verification:
     """Can this domain receive email at all? Free (public DNS), and it catches the commonest hard bounce: an address
-    on a domain that no longer takes mail. MX present -> valid; null MX (RFC 7505) -> invalid; no MX but an A record
-    (implicit MX, RFC 5321) -> risky, which the compliance gate does not send to; nothing -> invalid."""
-    mx = lookup(domain, "MX")
-    if mx:
-        return "invalid" if all(not h for h in mx) else "valid"
-    return "risky" if lookup(domain, "A") else "invalid"
+    on a domain that no longer takes mail. MX present -> valid; null MX (RFC 7505) -> invalid; no MX but an A/AAAA
+    record (implicit MX, RFC 5321) -> risky, which the compliance gate does not send to; nothing -> invalid; the
+    resolver failing (the lookup raises) -> RetryableProviderError: the lead waits and is retried, so a DNS outage never
+    condemns a good address."""
+    try:
+        mx = lookup(domain, "MX")
+        if mx:
+            return "invalid" if all(not h for h in mx) else "valid"
+        return "risky" if lookup(domain, "A") or lookup(domain, "AAAA") else "invalid"
+    except Exception as exc:  # resolver unavailable: decide nothing now; the lead is retried on the next run
+        raise RetryableProviderError(f"dns unavailable for {domain}") from exc
 
 
 class WebsiteContacts:
@@ -243,6 +249,7 @@ class WebsiteContacts:
     def __init__(self, people: EnrichmentProvider, finder: WebsiteFinder, lookup: Lookup | None = None) -> None:
         self._people, self._finder, self._lookup = people, finder, lookup
         self._published: set[str] = set()
+        self._domain_status: dict[str, Verification] = {}  # one DNS check per domain, not per address
 
     def find_people(
         self,
@@ -277,7 +284,10 @@ class WebsiteContacts:
             return "unknown"
         if self._lookup is None:
             return "valid"
-        return mail_domain_status(email.rsplit("@", 1)[1], self._lookup)
+        domain = email.rsplit("@", 1)[1]
+        if domain not in self._domain_status:  # an outage raises before caching, so it is retried next time
+            self._domain_status[domain] = mail_domain_status(domain, self._lookup)
+        return self._domain_status[domain]
 
 
 def _number_from(people: list[EnrichedPerson]) -> str | None:
