@@ -97,3 +97,11 @@ def test_a_save_on_an_old_version_is_refused_and_row_numbers_match_the_screen(wo
         json={"watchlist": [{"name": " "}, {"name": "A Ltd"}, {"name": "B Ltd", "job_board": "myspace:x"}]},
     )
     assert bad.status_code == 422 and "row 3" in bad.json()["detail"]  # blank rows still count as rows
+
+
+def test_each_admin_sets_only_their_own_email_preferences(world, clean_db) -> None:  # type: ignore[no-untyped-def]
+    assert world["admin"].get("/api/v1/account/preferences").json() == {"weekly_report": True}
+    assert world["admin"].put("/api/v1/account/preferences", json={"weekly_report": False}).status_code == 200
+    assert world["admin"].get("/api/v1/account/preferences").json() == {"weekly_report": False}
+    assert world["other"].get("/api/v1/account/preferences").json() == {"weekly_report": True}  # untouched
+    assert world["viewer"].put("/api/v1/account/preferences", json={"weekly_report": False}).status_code == 403

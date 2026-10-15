@@ -61,3 +61,15 @@ def test_mondays_only_once_per_admin_and_only_their_own_numbers(clean_db, settin
         ).all()
     assert rows and len(rows) == len({r.idempotency_key for r in rows})  # once per admin per week
     assert {r.tenant_id for r in rows} == {demo.tenant_id}  # the quiet client got nothing
+
+
+def test_an_admin_who_turned_it_off_gets_nothing(clean_db, settings, cipher) -> None:  # type: ignore[no-untyped-def]
+    demo = seed_demo(clean_db, settings, operator_email="op@pipelineos.example")
+    ctx = agent_context(clean_db, settings, cipher, demo.tenant_id, demo.campaign_id)
+    run_campaign(ctx, providers())
+    run_conversations(ctx, providers(), demo.operator_id)
+    with transaction(DbContext(role="operator"), clean_db) as conn:
+        conn.execute(text("UPDATE users SET weekly_report = false WHERE tenant_id = :t"), {"t": demo.tenant_id})
+        last = max(conn.execute(text("SELECT sent_at::date FROM messages WHERE sent_at IS NOT NULL")).scalars().all())
+    monday = datetime.combine(last + timedelta(days=7 - last.weekday()), datetime.min.time(), UTC)
+    assert weekly_digest(clean_db, settings, cipher, now=monday.replace(hour=7)) == 0

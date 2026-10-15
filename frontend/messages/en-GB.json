@@ -100,7 +100,10 @@
     "stopConfirm": "Yes, stop now",
     "stopped": "Sending is stopped.",
     "stoppedSince": "Stopped since {d}: {r}",
-    "stopAdminOnly": "Only your account admin can use the emergency stop."
+    "stopAdminOnly": "Only your account admin can use the emergency stop.",
+    "prefsTitle": "Email preferences",
+    "prefsWeekly": "Send me a weekly results email (Mondays)",
+    "prefsSaved": "Saved."
   },
   "privacy": {
     "title": "Privacy notice",

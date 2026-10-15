@@ -654,6 +654,37 @@ def put_watchlist(body: WatchlistIn, user: ClientAdmin) -> WatchlistOut:
     return WatchlistOut(configured=True, watchlist=[WatchedIn(**w) for w in cleaned], config_version=version)
 
 
+class PreferencesIn(BaseModel):
+    weekly_report: bool
+
+
+@router.get("/account/preferences", response_model=PreferencesIn)
+def get_preferences(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_TENANT))]) -> PreferencesIn:
+    with transaction(user.db_context(), get_engine()) as conn:
+        on = conn.execute(text("SELECT weekly_report FROM users WHERE id = :u"), {"u": user.id}).scalar_one()
+    return PreferencesIn(weekly_report=bool(on))
+
+
+@router.put("/account/preferences", response_model=PreferencesIn)
+def put_preferences(body: PreferencesIn, user: ClientAdmin) -> PreferencesIn:
+    """The person's own email preferences (only their own row, whatever they send)."""
+    if user.tenant_id is None:
+        raise ProblemError(403, "Only for client accounts")
+    with transaction(user.db_context(), get_engine()) as conn:
+        conn.execute(text("UPDATE users SET weekly_report = :v WHERE id = :u"), {"v": body.weekly_report, "u": user.id})
+        write_audit(
+            conn,
+            action="user.preferences_set",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=user.tenant_id,
+            entity_type="user",
+            entity_id=user.id,
+            after=body.model_dump(),
+        )
+    return body
+
+
 class ProgressOut(BaseModel):
     status: str
     done: int

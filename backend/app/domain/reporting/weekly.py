@@ -45,6 +45,7 @@ def compose(m: dict[str, Any], start: date, end: date, portal: str) -> tuple[str
         "",
         f"Every meeting, with the evidence behind it, is in your portal: {portal}/client",
         "If anything looks wrong, you can stop all sending from the portal at any time.",
+        f"To stop these weekly emails: {portal}/client (Email preferences).",
     ]
     meetings = m["meetings_booked"]
     subject = f"Your week: {m['people_reached']} reached, {meetings} meeting{'s' if meetings != 1 else ''} booked"
@@ -75,7 +76,7 @@ def weekly_digest(engine: Engine, settings: Settings, cipher: PiiCipher, now: da
             for uid, enc in conn.execute(
                 text(
                     "SELECT id, email_enc FROM users WHERE tenant_id = :t AND role = 'tenant_admin' "
-                    "AND status = 'active'"
+                    "AND status = 'active' AND weekly_report"
                 ),
                 {"t": tid},
             ).all():
