@@ -37,6 +37,7 @@ celery_app.conf.update(
         "deliverability-kill-switch": {"task": "pipelineos.system.deliverability", "schedule": 900.0},
         "crm-sync": {"task": "pipelineos.system.crm_sync", "schedule": 300.0},
         "daily-deliverability": {"task": "pipelineos.system.daily_deliverability", "schedule": 24 * 3600.0},
+        "daily-retention": {"task": "pipelineos.system.retention", "schedule": 24 * 3600.0},
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
         "renew-gmail-watches": {"task": "pipelineos.replies.renew_gmail_watches", "schedule": 24 * 3600.0},
         **(
@@ -117,6 +118,29 @@ def daily_deliverability_task() -> dict[str, int]:
     from app.workflows.daily import daily_deliverability
 
     return daily_deliverability(get_engine(), now=datetime.now(UTC))
+
+
+@celery_app.task(name="pipelineos.system.retention")
+def retention_task() -> dict[str, int]:
+    """Once a day: erase prospects past the retention periods (config/retention.yaml). Does nothing until the
+    solicitor's periods are set there."""
+    from datetime import UTC, datetime
+
+    from app.config_paths import config_root
+    from app.domain.dpr.retention import RetentionPolicy, run_retention
+
+    policy = RetentionPolicy.load(config_root())
+    if not policy.enabled:
+        return {"enabled": 0, "erased": 0}
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        tenant_ids = conn.execute(text("SELECT id FROM tenants")).scalars().all()
+    erased = 0
+    now = datetime.now(UTC)
+    for t in tenant_ids:
+        with transaction(DbContext.system(t), engine) as conn:
+            erased += run_retention(conn, t, policy, now, apply=True).erased
+    return {"enabled": 1, "erased": erased}
 
 
 @celery_app.task(name="pipelineos.system.crm_sync")

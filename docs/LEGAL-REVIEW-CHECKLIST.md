@@ -25,7 +25,7 @@ verification); the system will not enable a country until you do.
 | B2 | Sub-processors list (hosting, Microsoft/Google mailboxes, HubSpot if used) and international transfers | `config/transfers.yaml`, sub-processor table | `LEGAL REVIEW REQUIRED` |
 | B3 | Objections and unsubscribes: honoured across all clients (global suppression). Is cross-client suppression lawful and correctly described? | Global suppression by keyed hash; one-click unsubscribe (RFC 8058) | `LEGAL REVIEW REQUIRED` |
 | B4 | Data-subject requests: access, erasure, objection workflow and the 1-month deadline | DPR queue with deadlines; erasure keeps only hashes needed for suppression | `LEGAL REVIEW REQUIRED` |
-| B5 | Retention periods for leads, messages, replies, audit log | **Not implemented**: erasure on request works, but there is no automatic retention schedule yet (counsel to set the periods; then it is built) | `LEGAL REVIEW REQUIRED` |
+| B5 | Retention periods: how long to keep people never emailed, and people emailed who never replied? How long for people who replied, met or were billed (invoice and dispute evidence)? | Daily retention job built (`config/retention.yaml`, `pipelineos retention run`); erases exactly like an erasure request. **Off: every period is null until you set it.** Repliers, meetings and billing records are never erased by it | `LEGAL REVIEW REQUIRED` (the periods) |
 | B6 | AI disclosure in replies ("drafted with the help of AI") is enough and in the right place? | Always added (configurable) | `LEGAL REVIEW REQUIRED` |
 | B7 | ICO registration (data protection fee) for the operator | n/a | **Owner action** |
 

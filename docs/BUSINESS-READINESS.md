@@ -79,7 +79,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 17 | Inbox-placement (seed) test before each campaign | P1 | me + owner (seed mailboxes) | open |
 | 18 | Customer proof capture (consent to quote results) | P2 | me | open |
 | 19 | PipelineOS selling itself (operator's own tenant) | P2 | owner + solicitor | architecture supports it (`is_operator_own`) |
-| 20 | Automatic data-retention schedule (only on-request erasure exists) | P1 | solicitor sets periods, then me | open |
+| 20 | Automatic data-retention schedule | P1 | me, then solicitor sets the periods | **built (6.7); off until the periods are set** |
 
 The explainable lead score is not on the list: it is mostly built. The approval desk already shows the signal, its
 source link, the relevance score, every claim with its source, and the quality score.
@@ -196,6 +196,29 @@ source link, the relevance score, every claim with its source, and the quality s
   - `api.company-information.service.gov.uk`
   - `stream.companieshouse.gov.uk`
 
+### 6.7 Retention schedule and stop alerts (P1)
+- **Problem.**
+  - Personal data had no storage limit: only on-request erasure existed.
+  - A client pressing their emergency stop alerted nobody.
+- **Change.**
+  - **Retention job.** A daily job and the command `pipelineos retention run [--apply]`, configured in
+    `config/retention.yaml`.
+    - It erases a person exactly as an erasure request does: the anonymisation is now one shared function. It also
+      clears contact-task notes, which can name the person.
+    - It acts only when every lead for that person is past the period, nobody replied or met, and nothing is in
+      flight.
+    - **It is off until the solicitor sets the periods.** It never deletes on a default.
+  - **Alerts.**
+    - `ClientStoppedSending` pages you when a client presses their stop.
+    - `PilotLimitReached` tells you a pilot is full.
+    - Runbook entries cover both.
+- **Tests.**
+  - `tests/integration/test_retention.py` (6): off by default, the period honoured, the preview doesn't erase,
+    repliers and in-flight work kept, a person erased only when all their leads have expired.
+  - The existing erasure tests still pass.
+  - The metrics test covers both new gauges.
+- **Remaining risk.** None technically. The periods themselves are a legal decision.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -206,13 +229,13 @@ source link, the relevance score, every claim with its source, and the quality s
 | Data quality | 5 | 5 |
 | Outreach | 6 | 6 |
 | Deliverability | 4 | 4 |
-| Compliance (technical / legal) | 8 / 0 | 8 / 0 |
+| Compliance (technical / legal) | 8 / 0 | **8.5** / 0 (retention schedule) |
 | Security | 7 | 7 |
 | Sales workflow | 6 | 6 |
 | Meeting booking | 5 | 5 |
 | Billing | 5 | 5 |
 | Analytics | 4 | **7** |
-| Operations | 5 | **6** (emergency stop) |
+| Operations | 5 | **6** (emergency stop, stop alerts) |
 | Customer success | 3 | **4** (client stop, ROI) |
 | Scalability | 5 | 5 |
 | Go-to-market | 1 | **4** (model, pricing, ICP, plan, landing page, economics) |
