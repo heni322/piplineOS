@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PilotForm } from "@/components/PilotForm";
 import { getMessages } from "@/lib/i18n";
 
 const t = getMessages().landing;
@@ -28,8 +29,7 @@ export default function Landing() {
         <h1 id="hero-h">{t.headline}</h1>
         <p className="lede">{t.lede}</p>
         <div className="row-actions">
-          {CONTACT ? <a className="button" href={`mailto:${CONTACT}?subject=${encodeURIComponent("PipelineOS pilot")}`}>{t.ctaPilot}</a>
-            : <p className="muted">{t.ctaNoEmail}</p>}
+          <a className="button" href={CONTACT ? `mailto:${CONTACT}?subject=${encodeURIComponent("PipelineOS pilot")}` : "#pilot"}>{t.ctaPilot}</a>
           <Link className="button secondary" href="/login">{t.ctaSignIn}</Link>
         </div>
       </section>
@@ -44,6 +44,9 @@ export default function Landing() {
         <section className="card" aria-labelledby="pilot-h"><h2 id="pilot-h">{t.pilotTitle}</h2><List items={t.pilot} /></section>
         <section className="card" aria-labelledby="trust-h"><h2 id="trust-h">{t.trustTitle}</h2><List items={t.trust} /></section>
       </div>
+      <section aria-label={t.formTitle} id="pilot" style={{ marginBottom: 32 }}>
+        <PilotForm />
+      </section>
       <section aria-labelledby="honest-h" className="honest">
         <h2 id="honest-h">{t.honestTitle}</h2>
         <p>{t.honest}</p>

@@ -18,6 +18,7 @@ const GROUPS: NavGroup[] = [
     { href: "/operator/meetings", label: t.nav.meetings },
   ] },
   { label: t.nav.groupMoney, links: [
+    { href: "/operator/pilot-requests", label: t.nav.pilotRequests },
     { href: "/operator/clients", label: t.nav.clients },
     { href: "/operator/campaigns", label: t.nav.campaigns },
     { href: "/operator/billing", label: t.nav.billing },

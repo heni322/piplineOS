@@ -161,3 +161,24 @@ test("operator onboards a brand-new client from the console, guided step by step
   await row.getByRole("button", { name: "Start" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Activate the client first" })).toBeVisible();
 });
+
+test("a company asks for a pilot on the landing page and the operator sees it", async ({ page }) => {
+  await page.goto("/");
+  const form = page.getByRole("form", { name: "Ask for a pilot" });
+  await form.getByLabel("Your name").fill("Robin Hart");
+  await form.getByLabel("Company").fill("Litware IT Ltd");
+  await form.getByLabel("Work email").fill("robin@litware.example");
+  await expect(form.getByRole("button", { name: "Send" })).toBeDisabled(); // consent is required
+  await form.getByLabel(/I agree that PipelineOS may contact me/).check();
+  await accessible(page, "landing-form");
+  await form.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("status")).toContainText("We'll be in touch");
+
+  await signIn(page);
+  await page.getByRole("link", { name: "Pilot requests" }).click();
+  const row = page.getByRole("row").filter({ hasText: "Litware IT Ltd" });
+  await expect(row).toContainText("robin@litware.example");
+  await accessible(page, "pilot-requests");
+  await row.getByRole("button", { name: "Mark as Contacted" }).click();
+  await expect(row).toContainText("Contacted");
+});

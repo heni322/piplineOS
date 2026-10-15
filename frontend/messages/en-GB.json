@@ -142,7 +142,8 @@
     "menu": "Menu",
     "campaigns": "Campaigns",
     "proof": "Customer proof",
-    "clientTargets": "Target accounts"
+    "clientTargets": "Target accounts",
+    "pilotRequests": "Pilot requests"
   },
   "approvals": {
     "title": "Approvals",
@@ -944,7 +945,18 @@
     ],
     "honestTitle": "Where we are",
     "honest": "PipelineOS is taking on its first pilot clients. We will publish results when they are measured, not before. Until then we can show you exactly how it works, on demo data, before you commit to anything.",
-    "footer": "PipelineOS"
+    "footer": "PipelineOS",
+    "formTitle": "Ask for a pilot",
+    "formIntro": "Tell us who you are and we'll reply within two working days. We only use these details to answer you.",
+    "fName": "Your name",
+    "fCompany": "Company",
+    "fEmail": "Work email",
+    "fMessage": "Anything we should know (optional)",
+    "fConsent": "I agree that PipelineOS may contact me by email about a pilot. I can ask for my details to be deleted.",
+    "fSend": "Send",
+    "fSent": "Thank you. We'll be in touch within two working days.",
+    "fError": "That didn't go through. Please try again in a few minutes.",
+    "fHoney": "Leave this empty"
   },
   "proof": {
     "title": "Customer proof",
@@ -986,5 +998,21 @@
     "readOnly": "Only your account admin can change this list.",
     "empty": "No target accounts yet.",
     "limit": "Up to {m} companies."
+  },
+  "pilotRequests": {
+    "title": "Pilot requests",
+    "intro": "Companies that asked, on the landing page, to be contacted about a pilot. They opted in: answer within two working days.",
+    "empty": "No requests yet.",
+    "company": "Company",
+    "person": "Person",
+    "message": "Message",
+    "received": "Received",
+    "status": "Status",
+    "statuses": {
+      "new": "New",
+      "contacted": "Contacted",
+      "closed": "Closed"
+    },
+    "mark": "Mark as {s}"
   }
 }
