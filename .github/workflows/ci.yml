@@ -68,7 +68,12 @@ jobs:
       - run: psql "$TEST_PG_ADMIN_URL" -c "CREATE ROLE pipelineos_owner LOGIN PASSWORD 'owner_dev_only'" -c "CREATE ROLE pipelineos_app LOGIN PASSWORD 'app_dev_only' NOBYPASSRLS"
       - run: cd backend && uv sync --frozen
       - run: cd frontend && pnpm install --frozen-lockfile && pnpm exec playwright install --with-deps chromium
-      - run: bash scripts/e2e-fullstack.sh
+      - run: set -o pipefail; bash scripts/e2e-fullstack.sh 2>&1 | tee /tmp/e2e.log
+      - name: Report the end of the e2e output as an annotation
+        if: failure()
+        run: |
+          tail -c 6000 /tmp/e2e.log | sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' > /tmp/e2e.tail
+          python3 -c "import sys; d=open('/tmp/e2e.tail').read(); print('::error title=e2e output::' + d.replace('%','%25').replace('\r','').replace('\n','%0A'))"
 
   security:
     runs-on: ubuntu-24.04
