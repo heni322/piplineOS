@@ -18,7 +18,7 @@ export default function ComplianceLog() {
     <>
       <h1>{t.compliance}</h1>
       {rows.length === 0 ? <p className="muted">{t.emptyCompliance}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.compliance}>
           <table>
             <thead><tr><th scope="col">{t.when}</th><th scope="col">{t.company}</th><th scope="col">{t.prospect}</th>
               <th scope="col">{t.stage}</th><th scope="col">{t.outcome}</th><th scope="col">{t.reasons}</th></tr></thead>

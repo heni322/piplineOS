@@ -18,7 +18,7 @@ export default function DryRunLog() {
       <h1>{t.dryRun}</h1>
       <p className="muted">{t.dryRunNote}</p>
       {rows.length === 0 ? <p className="muted">{t.emptyDryRun}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.dryRun}>
           <table>
             <thead><tr><th scope="col">{t.when}</th><th scope="col">{t.effect}</th><th scope="col">{t.recipient}</th>
               <th scope="col">{t.subject}</th></tr></thead>

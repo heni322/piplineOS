@@ -12,6 +12,9 @@ const config = [
       ...jsxA11y.configs.strict.rules,
       // Replies and scraped content are untrusted: never inject raw HTML.
       "react/no-danger": "error",
+      // A table that scrolls sideways must be reachable by keyboard (WCAG 2.1.1, axe scrollable-region-focusable):
+      // a focusable, labelled role="region" is the accepted pattern.
+      "jsx-a11y/no-noninteractive-tabindex": ["error", { roles: ["tabpanel", "region"], tags: [] }],
     },
   },
 ];
