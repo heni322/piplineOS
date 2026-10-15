@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CitedLetter } from "@/components/CitedLetter";
 import { api, type Problem } from "@/lib/api";
+import { webUrl } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { ApprovalItem, ApprovalPage } from "@/lib/types";
 
@@ -144,7 +145,7 @@ export default function ApprovalsPage() {
                   <dd>
                     <ol className="sources">
                       {[...numbering.entries()].map(([url, n]) => (
-                        <li key={url} value={n}><a href={url} target="_blank" rel="noopener noreferrer">{new URL(url).host}</a></li>
+                        <li key={url} value={n}>{webUrl(url) ? <a href={url} target="_blank" rel="noopener noreferrer">{new URL(url).host}</a> : <span>{url}</span>}</li>
                       ))}
                     </ol>
                   </dd>

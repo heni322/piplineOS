@@ -81,7 +81,12 @@ class GatedEnrichment:
             raise PaidCallDeferred(self.name)
 
     def find_people(
-        self, company_domain: str, persona_titles: list[str], company_name: str | None = None
+        self,
+        company_domain: str,
+        persona_titles: list[str],
+        company_name: str | None = None,
+        *,
+        company_number: str | None = None,
     ) -> list[EnrichedPerson]:
         if not self.gate.allowed:  # defence in depth: never call without the switch, even if preflight was skipped
             self.gate.record(
@@ -91,7 +96,7 @@ class GatedEnrichment:
                 lead_id=self.lead_id,
             )
             raise PaidCallDeferred(self.name)
-        return self.provider.find_people(company_domain, persona_titles, company_name)
+        return self.provider.find_people(company_domain, persona_titles, company_name, company_number=company_number)
 
 
 class GatedVerifier:

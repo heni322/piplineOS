@@ -6,11 +6,13 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 
 from sqlalchemy import Connection, text
 
 from app.adapters.base import RateLimited, TokenBucket
+from app.adapters.insolvency import InsolvencyCheck
 from app.adapters.signals.base import RawSignal, SignalSource
 from app.agents.base import AgentContext
 from app.agents.injection import sanitise_untrusted
@@ -20,6 +22,7 @@ from app.core.crypto import normalise_domain
 from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
 from app.domain.compliance.jurisdiction import parse_location
+from app.domain.sources.health import describe_error, record_run
 from app.llm.client import LLMEscalation, UntrustedSource, wrap_untrusted
 from app.llm.prompts import PromptFile, load_prompt
 
@@ -36,6 +39,9 @@ class HuntStats:
     escalated: int = 0
     rate_limited: int = 0
     injection_flags: int = 0
+    insolvent: int = 0
+    bad_source_url: int = 0
+    source_failures: int = 0
     signals: list[TriggerSignal] = field(default_factory=list)
 
 
@@ -50,21 +56,41 @@ def _bucket(detected_at: datetime, window_days: int) -> int:
     return int(detected_at.timestamp() // (window_days * 86400))
 
 
-def hunt(ctx: AgentContext, bindings: list[SourceBinding], since: datetime) -> HuntStats:
+def hunt(
+    ctx: AgentContext, bindings: list[SourceBinding], since: datetime, insolvency: InsolvencyCheck | None = None
+) -> HuntStats:
     stats = HuntStats()
     prompt = load_prompt(PROMPT)
     policy = load_prompt("common/untrusted_data_policy.v1.md").body
     cfg = ctx.config
     for b in bindings:
+        started = datetime.now(UTC)
         try:
             b.limiter.acquire_or_raise()
             raw = b.source.fetch(b.query, since)
         except RateLimited:
             stats.rate_limited += 1  # nothing lost: the next scheduled run fetches again from `since`
+            record_run(ctx.engine, b.source.name, started_at=started, outcome="rate_limited")
             continue
+        except Exception as exc:
+            stats.source_failures += 1
+            log.warning("signal_source_failed", source=b.source.name, error=describe_error(exc))
+            record_run(ctx.engine, b.source.name, started_at=started, outcome="failed", error=describe_error(exc))
+            continue
+        failed_parts = list(getattr(b.source, "failed", []) or [])
+        record_run(
+            ctx.engine,
+            b.source.name,
+            started_at=started,
+            outcome="partial" if failed_parts else "ok",
+            fetched=len(raw),
+            detail={"failed": failed_parts[:20]} if failed_parts else None,
+        )
         for s in sorted(raw, key=lambda r: r.detected_at):
             stats.fetched += 1
-            _process(ctx, prompt, policy, b.source.name, s, stats, cfg.signal_threshold, cfg.dedupe_window_days)
+            _process(
+                ctx, prompt, policy, b.source.name, s, stats, cfg.signal_threshold, cfg.dedupe_window_days, insolvency
+            )
     return stats
 
 
@@ -95,7 +121,11 @@ def _process(
     stats: HuntStats,
     threshold: int,
     window_days: int,
+    insolvency: InsolvencyCheck | None = None,
 ) -> None:
+    if urlsplit(s.source_url).scheme not in ("https", "http"):  # source data: never store a javascript: link
+        stats.bad_source_url += 1
+        return
     domain = normalise_domain(s.domain) if s.domain else None
     loc = parse_location(s.country_hint)
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
@@ -108,6 +138,12 @@ def _process(
             if recent:
                 stats.deduplicated += 1
                 return
+    if insolvency is not None and s.company_number:  # before any AI is spent on it
+        why = insolvency.is_insolvent(s.company_number)
+        if why:
+            stats.insolvent += 1
+            log.info("trigger_skipped_insolvent", source=source_name, reason=why.split(":", 1)[0])
+            return
     clean = sanitise_untrusted(f"{s.text} (Headline: {s.title})")
     if clean.injection_suspected:
         stats.injection_flags += 1

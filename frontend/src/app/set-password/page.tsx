@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type Problem } from "@/lib/api";
+import { AuthBrand } from "@/components/AuthBrand";
 import { getMessages } from "@/lib/i18n";
 
 const t = getMessages().account;
@@ -37,7 +38,7 @@ export default function SetPassword() {
 
   return (
     <main id="main" className="container narrow">
-      <p className="muted">{getMessages().app.name}</p>
+      <AuthBrand />
       <h1>{t.setTitle}</h1>
       <div className="card">
         {done ? (

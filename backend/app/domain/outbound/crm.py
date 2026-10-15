@@ -68,7 +68,7 @@ def connection_status(conn: Connection, tenant_id: uuid.UUID) -> dict[str, Any] 
     )
     if row is None:
         return None
-    counts = dict(
+    counts: dict[str, int] = dict(
         conn.execute(
             text("SELECT state, count(*) FROM crm_links WHERE tenant_id = :t GROUP BY state"), {"t": tenant_id}
         )

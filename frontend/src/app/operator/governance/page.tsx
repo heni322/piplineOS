@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Problem } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
-import type { AdequacyRow, ChecklistItem, CountryRow, GovernanceStatus, ReadinessItem, TaxRule } from "@/lib/types";
+import type { AdequacyRow, ChecklistItem, CountryRow, GovernanceStatus, ReadinessItem, SourceHealth, TaxRule } from "@/lib/types";
 
 const t = getMessages().governance;
 const fill = (s: string, v: Record<string, string | number>) => Object.entries(v).reduce((a, [k, x]) => a.replaceAll(`{${k}}`, String(x)), s);
@@ -19,6 +19,7 @@ type Form =
 export default function GovernancePage() {
   const [status, setStatus] = useState<GovernanceStatus | null>(null);
   const [readiness, setReadiness] = useState<ReadinessItem[]>([]);
+  const [health, setHealth] = useState<SourceHealth[]>([]);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [countries, setCountries] = useState<CountryRow[]>([]);
   const [tax, setTax] = useState<TaxRule[]>([]);
@@ -32,12 +33,12 @@ export default function GovernancePage() {
 
   const load = useCallback(async () => {
     try {
-      const [s, g, c, x, a, r] = await Promise.all([
+      const [s, g, c, x, a, r, h] = await Promise.all([
         api<GovernanceStatus>("/api/v1/governance/status"), api<ChecklistItem[]>("/api/v1/golive"),
         api<CountryRow[]>("/api/v1/countries"), api<TaxRule[]>("/api/v1/tax-rules"), api<AdequacyRow[]>("/api/v1/governance/adequacy"),
-        api<ReadinessItem[]>("/api/v1/governance/readiness"),
+        api<ReadinessItem[]>("/api/v1/governance/readiness"), api<SourceHealth[]>("/api/v1/sources/health"),
       ]);
-      setStatus(s); setItems(g); setCountries(c); setTax(x); setAdequacy(a); setReadiness(r);
+      setStatus(s); setItems(g); setCountries(c); setTax(x); setAdequacy(a); setReadiness(r); setHealth(h);
     } catch { setError(getMessages().operator.loadError); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -199,6 +200,34 @@ export default function GovernancePage() {
         </ul>
       </section>
 
+      <section aria-labelledby="health-h">
+        <h2 id="health-h" style={{ marginTop: 32 }}>{t.healthTitle}</h2>
+        <p className="muted" style={{ maxWidth: "70ch" }}>{t.healthIntro}</p>
+        {health.length === 0 ? <p className="muted">{t.healthEmpty}</p> : (
+          <div className="table-wrap" tabIndex={0} role="region" aria-label={t.healthTitle}>
+            <table className="health">
+              <thead><tr><th scope="col">{t.healthSource}</th><th scope="col">{t.healthStatus}</th><th scope="col">{t.healthRuns}</th>
+                <th scope="col">{t.healthFailures}</th><th scope="col">{t.healthFound}</th><th scope="col">{t.healthLastRun}</th>
+                <th scope="col">{t.healthLastOk}</th><th scope="col">{t.healthError}</th></tr></thead>
+              <tbody>
+                {health.map((h) => (
+                  <tr key={h.source} data-status={h.status}>
+                    <th scope="row"><code>{h.source}</code></th>
+                    <td><span className="pill">{t.healthStates[h.status]}</span></td>
+                    <td className="num">{h.runs_24h}</td>
+                    <td className="num">{h.failures_24h}</td>
+                    <td className="num">{h.fetched_24h}</td>
+                    <td>{new Date(h.last_run_at).toLocaleString("en-GB")}</td>
+                    <td>{h.last_success_at ? new Date(h.last_success_at).toLocaleString("en-GB") : t.healthNever}</td>
+                    <td className="muted">{h.last_error ?? "–"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <section aria-labelledby="check-h">
         <h2 id="check-h" style={{ marginTop: 32 }}>{t.checklistTitle} ({status.golive_signed}/{status.golive_items})</h2>
         <p className="muted" style={{ maxWidth: "70ch" }}>{t.checklistIntro}</p>
@@ -224,7 +253,7 @@ export default function GovernancePage() {
       <section aria-labelledby="countries-h">
         <h2 id="countries-h" style={{ marginTop: 32 }}>{t.countriesTitle}</h2>
         <p className="muted" style={{ maxWidth: "70ch" }}>{t.countriesIntro}</p>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.countriesTitle}>
           <table>
             <thead><tr><th scope="col">{t.country}</th><th scope="col">{t.stage}</th><th scope="col">{t.rule}</th>
               <th scope="col">{t.counsel}</th><th scope="col">{t.built}</th><th scope="col">{t.stillNeeded}</th>
@@ -278,7 +307,7 @@ export default function GovernancePage() {
       <section aria-labelledby="tax-h">
         <h2 id="tax-h" style={{ marginTop: 32 }}>{t.taxTitle}</h2>
         <p className="muted" style={{ maxWidth: "70ch" }}>{t.taxIntro}</p>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.taxTitle}>
           <table>
             <thead><tr><th scope="col">{t.code}</th><th scope="col">{t.rate}</th><th scope="col">{t.wording}</th>
               <th scope="col">{t.accountant}</th></tr></thead>

@@ -51,7 +51,7 @@ export default function MeetingsPage() {
       {status && <p className="status" role="status">{status}</p>}
       {error && <p role="alert" className="error">{error}</p>}
       {rows.length === 0 ? <p className="muted">{t.empty}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.title}>
           <table>
             <thead><tr><th scope="col">{t.when}</th><th scope="col">{t.company}</th><th scope="col">{t.prospect}</th>
               <th scope="col">{t.status}</th><th scope="col">{t.reschedules}</th><th scope="col"><span className="skip">Actions</span></th></tr></thead>

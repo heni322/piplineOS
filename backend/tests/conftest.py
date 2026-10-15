@@ -32,6 +32,7 @@ def _key() -> str:
 # Settings must exist before any app module that reads them is imported.
 os.environ.update(
     {
+        "PIPELINEOS_IGNORE_ENV_FILE": "1",  # no developer .env (keys, switches) may reach a test
         "ENVIRONMENT": "test",
         "DATABASE_URL": APP_URL,
         "DATABASE_OWNER_URL": OWNER_URL,

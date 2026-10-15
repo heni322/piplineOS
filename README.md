@@ -15,8 +15,16 @@ operator-signed go-live checklist with `GLOBAL_GO_LIVE=true` in production).
 | 0 Investigation | Done |
 | 1 Architecture & plan | Done — see `docs/` |
 | 2 Foundations | Done |
-| 3 MVP vertical slice (UK) | **Done, awaiting approval** — see `docs/PHASE-3-REPORT.md`, demo in `docs/DEMO.md` |
-| 4 Replies, booking, show rate | Not started |
+| 3 MVP vertical slice (UK) | Done — demo in `docs/DEMO.md` |
+| 4–10.1 Replies, billing, production readiness, real adapters, countries, replies safety net | Done — `docs/PHASE-*-REPORT.md` |
+| 11 Free sources only (`FREE_ONLY`) | **Done, awaiting review** — `docs/PHASE-11-REPORT.md` |
+| 12 Stronger free search: market-wide funding, EU awards, insolvency filter, published contacts | **Done, awaiting review** — `docs/PHASE-12-REPORT.md` |
+| 13 Contact tasks queue (operator page) | **Done, awaiting review** — `docs/PHASE-13-REPORT.md` |
+| 14 Client targeting form (keywords, SIC codes, countries, watchlist) | **Done, awaiting review** — `docs/PHASE-14-REPORT.md` |
+| 15 Source health: isolated sources, run log, Go-live table, alert | **Done, awaiting review** — `docs/PHASE-15-REPORT.md` |
+| 16 CI green on GitHub, time-safe tests, dependency review | **Done, awaiting review** — `docs/PHASE-16-REPORT.md` |
+
+The current state, and what is still needed from you, is in `docs/STATUS.md`.
 
 ## Quick start (Windows, PowerShell)
 

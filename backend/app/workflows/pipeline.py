@@ -16,6 +16,7 @@ from app.adapters.companies_house.base import CompaniesRegistry
 from app.adapters.enrichment.base import EnrichmentProvider
 from app.adapters.inbound.base import InboundEmail, Inbox
 from app.adapters.inbound.mock import MockInbox
+from app.adapters.insolvency import InsolvencyCheck
 from app.adapters.verifier.base import EmailVerifier
 from app.agents.base import AgentContext
 from app.agents.decision_maker.agent import find_decision_maker
@@ -48,6 +49,7 @@ class Providers:
     verifier: EmailVerifier
     registry: CompaniesRegistry
     inbox: Inbox = field(default_factory=MockInbox)
+    insolvency: InsolvencyCheck | None = None  # real sources only: skip companies being wound up
 
 
 @dataclass
@@ -96,7 +98,7 @@ def process_lead(ctx: AgentContext, lead_id: uuid.UUID, providers: Providers) ->
 
 
 def run_campaign(ctx: AgentContext, providers: Providers, since: datetime | None = None) -> CampaignRun:
-    stats = hunt(ctx, providers.sources, since or datetime.now(UTC) - timedelta(days=30))
+    stats = hunt(ctx, providers.sources, since or datetime.now(UTC) - timedelta(days=30), providers.insolvency)
     run = CampaignRun(stats)
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
         lead_ids = (
@@ -129,7 +131,7 @@ def hunt_active_campaigns(
 
     factory = providers_factory or providers_for
     since = (now or datetime.now(UTC)) - timedelta(days=settings.hunt_lookback_days)
-    totals = {"campaigns": 0, "discovered": 0, "processed": 0}
+    totals = {"campaigns": 0, "discovered": 0, "processed": 0, "failed": 0}
     with transaction(DbContext.system(), engine) as conn:
         tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
     for tenant_id in tenant_ids:
@@ -140,8 +142,13 @@ def hunt_active_campaigns(
                 .all()
             )
         for campaign_id in campaign_ids:
-            ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
-            run = run_campaign(ctx, factory(settings, ctx), since=since)
+            try:
+                ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
+                run = run_campaign(ctx, factory(settings, ctx), since=since)
+            except Exception as exc:
+                totals["failed"] += 1
+                log.error("campaign_hunt_failed", tenant_id=str(tenant_id), error=type(exc).__name__)
+                continue
             totals["campaigns"] += 1
             totals["discovered"] += run.hunt.discovered
             totals["processed"] += sum(run.outcomes.values())

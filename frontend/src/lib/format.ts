@@ -15,3 +15,8 @@ export function day(iso: string): string {
 export function monthStart(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
+
+/** A link from source data, only when it is a web address: never render a javascript: or data: link. */
+export function webUrl(u: string | null | undefined): string | null {
+  return u && /^https?:\/\//i.test(u) ? u : null;
+}

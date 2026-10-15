@@ -18,6 +18,12 @@ export type Escalation = {
   id: string; lead_id: string; company: string; reason: string; detail: Record<string, unknown>;
   pre_escalation_state: string | null; lead_state: string; status: string; created_at: string; allowed_targets: string[];
 };
+export type ContactTask = {
+  id: string; lead_id: string; tenant_id: string; company: string; company_number: string | null;
+  company_domain: string | null; prospect: string | null; prospect_title: string | null; signal: string | null;
+  signal_url: string | null; channel: string; instructions: string; status: string; outcome_note: string | null;
+  created_at: string;
+};
 export type DataRequest = {
   id: string; tenant_id: string; lead_id: string | null; company: string | null; request_type: string; regime: string;
   controller: string; status: string; received_at: string; deadline_at: string; days_remaining: number; overdue: boolean;
@@ -79,3 +85,12 @@ export type SendingDomain = { id: string; tenant_id: string; tenant_name: string
   spf_ok: boolean; dkim_ok: boolean; dmarc_ok: boolean; dmarc_policy: string | null; issues: string[];
   checked_at: string | null; providers: string[] };
 export type ReadinessItem = { key: string; title: string; state: "done" | "todo" | "info"; who: "you" | "system"; detail: string };
+export type Watched = { name: string; company_number: string | null; domain: string | null; country: string | null; job_board: string | null };
+export type Targeting = {
+  industry_keywords: string[]; exclude_keywords: string[]; hiring_keywords: string[]; sic_codes: string[];
+  countries: string[]; watchlist: Watched[]; config_version: number; available_countries: string[];
+};
+export type SourceHealth = {
+  source: string; status: "healthy" | "degraded" | "failing"; runs_24h: number; failures_24h: number; fetched_24h: number;
+  last_run_at: string; last_outcome: string; last_error: string | null; last_success_at: string | null;
+};

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { AuthBrand } from "@/components/AuthBrand";
 import { getMessages } from "@/lib/i18n";
 
 const t = getMessages().account;
@@ -23,7 +24,7 @@ export default function ForgotPassword() {
 
   return (
     <main id="main" className="container narrow">
-      <p className="muted">{getMessages().app.name}</p>
+      <AuthBrand />
       <h1>{t.forgotTitle}</h1>
       <div className="card">
         {sent ? <p role="status">{t.sent}</p> : (

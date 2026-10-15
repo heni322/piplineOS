@@ -2,7 +2,11 @@
 misconfiguration fails loudly (AdapterNotConfigured) instead of silently calling a real service.
 
 - signals: mock -> the synthetic demo dataset; sandbox/live -> Contracts Finder + Find a Tender award notices
-  (free, public, read-only), searched with the client's ICP keywords
+  (free, public, read-only), searched with the client's ICP keywords, plus the client's watchlist: its companies'
+  public job boards (Greenhouse, Lever, Ashby; free, no key) and new directors on the Companies House register,
+  plus, for clients with SIC codes, market-wide funding filings (SH01/MR01) from the Companies House stream ingest
+- FREE_ONLY=true: no paid provider is ever built. Enrichment -> the Companies House officers list (free; no email
+  addresses), verifier -> none ("unknown"), AI -> the local model
 - companies house: free, read-only register (needs a free API key); France, Norway, Finland: free open registers;
   Sweden, Denmark: free registers with credentials issued on registration
 - enrichment / verifier: Hunter.io, PAID -> built by app.domain.paid behind the three-key gate
@@ -19,6 +23,8 @@ from app.adapters.inbound.mock import MockInbox
 from app.settings import Settings
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+
     from app.agents.base import AgentContext
     from app.agents.trigger_hunter.agent import SourceBinding
     from app.domain.tenants.config import TenantConfig
@@ -30,12 +36,43 @@ def signal_query(cfg: TenantConfig) -> str:
     return "; ".join([*cfg.icp.industry_keywords, *(f"-{x}" for x in cfg.icp.exclude_keywords)])
 
 
-def live_sources(cfg: TenantConfig) -> list[SourceBinding]:
+def hiring_query(cfg: TenantConfig) -> str:
+    """Hiring keywords for the job boards: "a; b; -excluded" (empty: any new role)."""
+    return "; ".join(cfg.icp.hiring_keywords)
+
+
+def live_sources(
+    cfg: TenantConfig, settings: Settings | None = None, engine: Engine | None = None
+) -> list[SourceBinding]:
+    """Free sources only: public award notices for everyone; for the client's watchlist, its companies' public job
+    boards and (with the free Companies House key) new directors on the register."""
+    from app.adapters.signals.job_boards import JobBoardSource, WatchedBoard
     from app.adapters.signals.ocds import contracts_finder, find_a_tender
     from app.agents.trigger_hunter.agent import SourceBinding
 
     q = signal_query(cfg)
-    return [SourceBinding(contracts_finder(), q), SourceBinding(find_a_tender(), q)]
+    out = [SourceBinding(contracts_finder(), q), SourceBinding(find_a_tender(), q)]
+    boards = [
+        WatchedBoard(w.name, w.job_board, w.domain, w.company_number, w.country) for w in cfg.watchlist if w.job_board
+    ]
+    if boards:
+        out.append(SourceBinding(JobBoardSource(boards), hiring_query(cfg)))
+    if any(c != "GB" for c in cfg.icp.countries):  # EU awards (TED: free, no key) for the client's EU countries
+        from app.adapters.signals.ted import TedAwardSource
+
+        out.append(SourceBinding(TedAwardSource(cfg.icp.countries), q))
+    if cfg.icp.sic_codes and engine is not None:  # market-wide, from the filing-stream ingest (no key needed here)
+        from app.adapters.signals.register_filings import RegisterFilingSource
+
+        out.append(SourceBinding(RegisterFilingSource(engine, cfg.icp.sic_codes), ""))
+    numbered = [w for w in cfg.watchlist if w.company_number]
+    key = settings.companies_house_api_key if settings is not None else None
+    if numbered and key is not None and key.get_secret_value():
+        from app.adapters.companies_house.officers import OfficerAppointmentSource, WatchedCompany
+
+        watched = [WatchedCompany(w.name, w.company_number or "", w.domain) for w in numbered]
+        out.append(SourceBinding(OfficerAppointmentSource(watched, key.get_secret_value()), ""))
+    return out
 
 
 def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Providers:
@@ -48,8 +85,33 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
     if needs_ctx and ctx is None:
         raise AdapterNotConfigured(f"{', '.join(needs_ctx)}: a tenant context is required for real providers")
     if ctx is not None and settings.signals_adapter_mode != "mock":
-        p.sources = live_sources(ctx.config)
-    if ctx is not None and (settings.enrichment_adapter_mode != "mock" or settings.verifier_adapter_mode != "mock"):
+        p.sources = live_sources(ctx.config, settings, ctx.engine)
+        if settings.insolvency_filter:
+            from app.adapters.companies_house.live import CompaniesHouseRegistry
+            from app.adapters.insolvency import GazetteNotices, InsolvencyFilter
+
+            key = settings.companies_house_api_key
+            register = CompaniesHouseRegistry(key.get_secret_value()) if key and key.get_secret_value() else None
+            p.insolvency = InsolvencyFilter(GazetteNotices(), register)
+    if settings.free_only:
+        if settings.enrichment_adapter_mode != "mock":  # the free register replaces the paid enrichment provider
+            if settings.companies_house_api_key is None or not settings.companies_house_api_key.get_secret_value():
+                raise AdapterNotConfigured("FREE_ONLY enrichment needs COMPANIES_HOUSE_API_KEY (free)")
+            from app.adapters.companies_house.officers import CompaniesHouseOfficers
+
+            officers = CompaniesHouseOfficers(settings.companies_house_api_key.get_secret_value())
+            p.enrichment = officers
+            if settings.website_contacts:  # + the company's published business address, checked on its own site
+                from app.adapters.website_contacts import WebsiteContacts, WebsiteFinder
+
+                p.enrichment = WebsiteContacts(officers, WebsiteFinder())
+        if settings.verifier_adapter_mode != "mock":
+            from app.adapters.verifier.none import NoVerifier
+            from app.adapters.website_contacts import WebsiteContacts
+
+            # "valid" only for an address found published on the company's own verified site; else "unknown"
+            p.verifier = p.enrichment if isinstance(p.enrichment, WebsiteContacts) else NoVerifier()
+    elif ctx is not None and (settings.enrichment_adapter_mode != "mock" or settings.verifier_adapter_mode != "mock"):
         from app.domain.paid.providers import enrichment_for, verifier_for
 
         if settings.enrichment_adapter_mode != "mock":

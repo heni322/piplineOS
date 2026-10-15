@@ -7,7 +7,9 @@ they live in versioned YAML under config/ (ADR-0007).
 from __future__ import annotations
 
 import base64
+import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -26,8 +28,14 @@ def decode_key(value: SecretStr) -> bytes:
     return raw
 
 
+# The repository root's .env (where scripts/dev-setup.ps1 writes it), then a .env in the working directory, which
+# wins. The test suite sets PIPELINEOS_IGNORE_ENV_FILE so a developer's own keys and switches never reach a test.
+_REPO_ENV = Path(__file__).resolve().parents[2] / ".env"
+_ENV_FILES = None if os.environ.get("PIPELINEOS_IGNORE_ENV_FILE") else (str(_REPO_ENV), ".env")
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_ENV_FILES, env_file_encoding="utf-8", extra="ignore")
 
     environment: Environment = "dev"
     log_level: str = "INFO"
@@ -43,6 +51,14 @@ class Settings(BaseSettings):
     blind_index_key: SecretStr
     suppression_hash_key: SecretStr
     unsubscribe_signing_key: SecretStr
+
+    # Free-only: no paid provider is ever built, whatever the adapter modes say. Decision-makers come from the free
+    # Companies House officers list, email addresses are never bought or verified, and the AI runs on the free local
+    # model (LOCAL_LLM_URL) instead of the paid API.
+    free_only: bool = False
+    # Free-only: take the generic business address (sales@, info@...) the company publishes on its own website,
+    # once a page of that site states the company's registered number. Off = register contacts stay without email.
+    website_contacts: bool = True
 
     # Three-key live switch, key 3 (keys 1 and 2: adapter mode + tenant.live_mode). Default OFF.
     global_go_live: bool = False
@@ -66,6 +82,13 @@ class Settings(BaseSettings):
 
     # Real providers (Phase 6). Unused unless the matching adapter mode is sandbox/live.
     companies_house_api_key: SecretStr | None = None
+    # Companies House streaming key (free, a separate "streaming" key in the developer hub): market-wide funding
+    # signals (new share allotments and charges) for clients with SIC codes. Read every N minutes; 0 = off.
+    companies_house_stream_key: SecretStr | None = None
+    filing_stream_interval_minutes: int = Field(default=5, ge=0, le=1440)
+    # Skip triggers from companies being wound up (the Gazette's corporate insolvency notices, free and open, plus
+    # the register status). Real signal sources only.
+    insolvency_filter: bool = True
     bolagsverket_client_id: str | None = None  # Sweden register (OAuth client credentials, free)
     bolagsverket_client_secret: SecretStr | None = None
     cvr_username: str | None = None  # Denmark register (system-to-system access, free, issued by Erhvervsstyrelsen)

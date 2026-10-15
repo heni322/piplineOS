@@ -75,7 +75,12 @@ class HunterEnrichment(_Hunter):
     name = "hunter.enrichment"
 
     def find_people(
-        self, company_domain: str, persona_titles: list[str], company_name: str | None = None
+        self,
+        company_domain: str,
+        persona_titles: list[str],
+        company_name: str | None = None,
+        *,
+        company_number: str | None = None,
     ) -> list[EnrichedPerson]:
         params: dict[str, Any] = {"type": "personal", "limit": DOMAIN_SEARCH_LIMIT}
         if company_domain:

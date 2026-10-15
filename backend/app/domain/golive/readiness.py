@@ -123,13 +123,18 @@ def readiness(conn: Connection, settings: Settings) -> list[dict[str, str]]:
         _secret(settings, "msgraph_client_secret") or _secret(settings, "google_service_account_json")
     ):
         needed.append("Microsoft 365 or Google credentials")
-    if settings.llm_adapter_mode == "live" and not _secret(settings, "anthropic_api_key"):
+    if settings.llm_adapter_mode == "live" and not settings.free_only and not _secret(settings, "anthropic_api_key"):
         needed.append("Anthropic API key")
-    if "live" in (settings.enrichment_adapter_mode, settings.verifier_adapter_mode) and not _secret(
-        settings, "hunter_api_key"
+    if (
+        "live" in (settings.enrichment_adapter_mode, settings.verifier_adapter_mode)
+        and not settings.free_only
+        and not _secret(settings, "hunter_api_key")
     ):
         needed.append("Hunter API key")
-    if settings.companies_house_adapter_mode != "mock" and not _secret(settings, "companies_house_api_key"):
+    free_enrichment = settings.free_only and settings.enrichment_adapter_mode == "live"
+    if (settings.companies_house_adapter_mode != "mock" or free_enrichment) and not _secret(
+        settings, "companies_house_api_key"
+    ):
         needed.append("Companies House API key")
     live_modes = [
         k

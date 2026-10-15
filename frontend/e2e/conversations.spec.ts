@@ -55,3 +55,53 @@ test("operator works the escalations, data-request and meeting pages", async ({ 
   await expect(page.getByRole("dialog").locator(".brief")).toContainText("Contoso");
   await accessible(page, "meetings");
 });
+
+test("operator works the contact tasks queue", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Contact tasks" }).click();
+  await expect(page.getByRole("heading", { name: "Contact tasks" })).toBeVisible();
+  // the demo's Germany-based IT Director: email blocked by country rules -> a task to reach them by hand
+  const row = page.getByRole("row", { name: /Fabrikam Cloud Ltd/ });
+  await expect(row).toBeVisible();
+  await expect(row.getByText("Personal, by hand")).toBeVisible();
+  await accessible(page, "contact-tasks");
+
+  await row.getByRole("button", { name: "Show name" }).click();
+  await row.getByLabel("Why do you need to see this? (logged)").fill("Preparing the introduction");
+  await row.getByRole("button", { name: "Show", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Your view was logged." })).toBeVisible();
+
+  await row.getByRole("button", { name: "Close task" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Skipped: not contacted").check();
+  await dialog.getByLabel("What did you do? (kept with the task)").fill("Client asked us to wait until Q1");
+  await dialog.getByRole("button", { name: "Close task" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Task closed." })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Fabrikam Cloud Ltd/ })).toHaveCount(0);
+  await accessible(page, "contact-tasks-closed");
+});
+
+test("operator sets a client's targeting for the free sources", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await page.getByRole("button", { name: "Targeting" }).first().click();
+  const panel = page.getByRole("dialog");
+  await expect(panel.getByRole("heading", { name: /^Targeting:/ })).toBeVisible();
+  await panel.getByLabel("SIC codes (five digits, one per line)").fill("62020\n62090");
+  await panel.getByRole("checkbox", { name: "FR" }).check();
+  await panel.getByRole("button", { name: "Add company" }).click();
+  await panel.getByLabel("Company name 1").fill("Contoso Managed IT Ltd");
+  await panel.getByLabel("UK company number 1").fill("01234567");
+  await panel.getByLabel("Job board (e.g. greenhouse:contoso) 1").fill("greenhouse:contoso");
+  await accessible(page, "client-targeting");
+  await panel.getByRole("button", { name: "Save targeting" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Targeting saved \(configuration version \d+\)/ })).toBeVisible();
+
+  // an invalid SIC code is refused with a reason the operator can act on
+  await page.getByRole("button", { name: "Targeting" }).first().click();
+  await expect(panel.getByLabel("SIC codes (five digits, one per line)")).toHaveValue("62020\n62090");
+  await expect(panel.getByLabel("Company name 1")).toHaveValue("Contoso Managed IT Ltd");
+  await panel.getByLabel("SIC codes (five digits, one per line)").fill("6202");
+  await panel.getByRole("button", { name: "Save targeting" }).click();
+  await expect(panel.getByRole("alert")).toContainText("SIC codes are 5 digits");
+});

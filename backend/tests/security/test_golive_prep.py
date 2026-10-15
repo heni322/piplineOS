@@ -107,9 +107,11 @@ def test_warmup_advances_only_on_days_with_real_sends(clean_db, settings, cipher
     assert any(o.mode == "live" and o.status == "sent" for o in out)
     with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
         inbox = conn.execute(text("SELECT id FROM inboxes")).scalar()
-        steps = warmup.advance(conn, plan, day=nxt.date(), healthy={inbox: True})
+        # the gateway stamps sent_at with the database's real clock, so warm up the day the send really happened
+        sent_day = conn.execute(text("SELECT max(sent_at) FROM messages WHERE status = 'sent'")).scalar().date()
+        steps = warmup.advance(conn, plan, day=sent_day, healthy={inbox: True})
         assert [(s.warmup_day, s.daily_cap, s.promoted) for s in steps] == [(1, 12, True)]
-        assert warmup.advance(conn, plan, day=nxt.date(), healthy={inbox: True}) == []  # once per day
+        assert warmup.advance(conn, plan, day=sent_day, healthy={inbox: True}) == []  # once per day
         assert conn.execute(text("SELECT status, daily_cap FROM inboxes")).one() == ("active", 12)
         assert conn.execute(text("SELECT count(*) FROM audit_log WHERE action = 'inbox.warmup_complete'")).scalar() == 1
 

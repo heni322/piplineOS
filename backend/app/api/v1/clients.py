@@ -104,6 +104,92 @@ def put_config(tenant_id: uuid.UUID, body: dict[str, Any], user: Operator) -> di
         raise ProblemError(422, "Invalid configuration", str(exc.errors()[:5])) from exc
 
 
+class WatchedIn(BaseModel):
+    name: str
+    company_number: str | None = None
+    domain: str | None = None
+    country: str | None = None
+    job_board: str | None = None
+
+
+class TargetingIn(BaseModel):
+    """Who to look for and where: the parts of a client's configuration the free sources use."""
+
+    industry_keywords: list[str]
+    exclude_keywords: list[str] = []
+    hiring_keywords: list[str] = []
+    sic_codes: list[str] = []
+    countries: list[str] = ["GB"]
+    watchlist: list[WatchedIn] = []
+
+
+class TargetingOut(TargetingIn):
+    config_version: int
+    available_countries: list[str]
+
+
+def _clean(items: list[str]) -> list[str]:
+    return list(dict.fromkeys(i.strip() for i in items if i.strip()))
+
+
+@router.get("/clients/{tenant_id}/targeting", response_model=TargetingOut)
+def get_targeting(tenant_id: uuid.UUID, user: Operator) -> TargetingOut:
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        try:
+            _, cfg = load_config(conn, tenant_id)
+        except LookupError as exc:
+            raise ProblemError(409, "This client has no configuration yet") from exc
+        version = conn.execute(
+            text("SELECT max(version) FROM tenant_configs WHERE tenant_id = :t"), {"t": tenant_id}
+        ).scalar_one()
+        countries = conn.execute(text("SELECT DISTINCT country_code FROM compliance_rules ORDER BY 1")).scalars().all()
+    return TargetingOut(
+        industry_keywords=cfg.icp.industry_keywords,
+        exclude_keywords=cfg.icp.exclude_keywords,
+        hiring_keywords=cfg.icp.hiring_keywords,
+        sic_codes=cfg.icp.sic_codes,
+        countries=cfg.icp.countries,
+        watchlist=[WatchedIn(**w.model_dump()) for w in cfg.watchlist],
+        config_version=int(version),
+        available_countries=list(countries),
+    )
+
+
+@router.put("/clients/{tenant_id}/targeting")
+def put_targeting(tenant_id: uuid.UUID, body: TargetingIn, user: Operator) -> dict[str, int]:
+    """Saves a new configuration version with only the targeting changed. Qualification criteria and pricing are
+    untouched, so nothing the client signed needs signing again."""
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        try:
+            _, cfg = load_config(conn, tenant_id)
+        except LookupError as exc:
+            raise ProblemError(409, "This client has no configuration yet") from exc
+        known = set(conn.execute(text("SELECT DISTINCT country_code FROM compliance_rules")).scalars())
+        countries = [c.upper() for c in _clean(body.countries)]
+        unknown = [c for c in countries if c not in known]
+        if unknown or not countries:
+            raise ProblemError(422, "Unknown country", f"No country rules for: {', '.join(unknown) or 'none chosen'}")
+        data = cfg.model_dump()
+        data["icp"] |= {
+            "industry_keywords": _clean(body.industry_keywords),
+            "exclude_keywords": _clean(body.exclude_keywords),
+            "hiring_keywords": _clean(body.hiring_keywords),
+            "sic_codes": _clean(body.sic_codes),
+            "countries": countries,
+        }
+        data["watchlist"] = [
+            {k: (v.strip() if isinstance(v, str) else v) or None for k, v in w.model_dump().items()}
+            | {"name": w.name.strip()}
+            for w in body.watchlist
+        ]
+        try:
+            version = onboarding.set_config(conn, tenant_id=tenant_id, operator_id=user.id, config=data)
+        except ValidationError as exc:
+            problems = "; ".join(f"{'.'.join(str(x) for x in e['loc'])}: {e['msg']}" for e in exc.errors()[:5])
+            raise ProblemError(422, "Invalid targeting", problems) from exc
+    return {"version": version}
+
+
 class LiaIn(BaseModel):
     reference: str = Field(min_length=3, max_length=100)
     document_url: str | None = Field(default=None, max_length=1000)

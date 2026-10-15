@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "PipelineOS",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "tagline": "Compliance-first B2B meeting generation"
   },
   "login": {
     "title": "Sign in",
@@ -123,7 +124,14 @@
     "governance": "Go-live",
     "leads": "Leads",
     "inboxes": "Inboxes",
-    "clientCrm": "Your CRM"
+    "clientCrm": "Your CRM",
+    "tasks": "Contact tasks",
+    "groupWork": "Work",
+    "groupMoney": "Clients and money",
+    "groupSystem": "System",
+    "console": "Operator console",
+    "portal": "Client portal",
+    "menu": "Menu"
   },
   "approvals": {
     "title": "Approvals",
@@ -370,7 +378,31 @@
     "eurep": "Record EU representative",
     "repName": "Representative's name",
     "repEmail": "Representative's contact email",
-    "repCountry": "Representative's country (two letters, e.g. IE)"
+    "repCountry": "Representative's country (two letters, e.g. IE)",
+    "targeting": "Targeting",
+    "targetingTitle": "Targeting: {c}",
+    "targetingIntro": "Who the agents look for, and where. Saving creates a new configuration version; the qualification criteria and pricing the client signed are not changed.",
+    "industryKeywords": "Industry keywords (one per line)",
+    "industryHint": "Matched against contract notices and EU awards. Start a line with - to exclude.",
+    "excludeKeywords": "Exclude keywords (one per line)",
+    "hiringKeywords": "Hiring keywords (one per line)",
+    "hiringHint": "Roles on a watched company's job board that count as a trigger. Leave empty to count any new role.",
+    "sicCodes": "SIC codes (five digits, one per line)",
+    "sicHint": "New share issues and charges filed by companies with these codes become funding triggers. Example: 62020 (IT consultancy).",
+    "countries": "Target countries",
+    "countriesHint": "Countries outside the UK also add EU contract awards. Each country still needs its review and sign-off on the Go-live page before anyone there is contacted.",
+    "watchlist": "Watchlist",
+    "watchlistHint": "Target companies to watch for new jobs and, with a UK company number, new directors.",
+    "wName": "Company name",
+    "wNumber": "UK company number",
+    "wBoard": "Job board (e.g. greenhouse:contoso)",
+    "wDomain": "Website domain",
+    "addCompany": "Add company",
+    "remove": "Remove",
+    "removeCompany": "Remove {c}",
+    "saveTargeting": "Save targeting",
+    "targetingSaved": "Targeting saved (configuration version {v}).",
+    "noConfig": "This client has no configuration yet."
   },
   "reports": {
     "title": "Reports",
@@ -533,6 +565,23 @@
       "lawyer": "Lawyer",
       "native speaker": "Native speaker",
       "each client": "Each client"
+    },
+    "healthTitle": "Source health",
+    "healthIntro": "Each signal source's runs in the last 24 hours. A failing source finds nothing until it is fixed; run `pipelineos signals check` for it on the server.",
+    "healthEmpty": "No source has run yet. Sources run with the scheduled hunt once real sources are switched on.",
+    "healthSource": "Source",
+    "healthStatus": "Status",
+    "healthRuns": "Runs (24 h)",
+    "healthFailures": "Failed (24 h)",
+    "healthFound": "Found (24 h)",
+    "healthLastRun": "Last run",
+    "healthLastOk": "Last success",
+    "healthError": "Last error",
+    "healthNever": "never",
+    "healthStates": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "failing": "Failing"
     }
   },
   "leads": {
@@ -643,5 +692,38 @@
     "reasonWas": "Reason: {r}",
     "cancel": "Cancel",
     "change": "Replace connection"
+  },
+  "tasks": {
+    "title": "Contact tasks",
+    "intro": "Leads to reach by hand, never by automated email: decision-makers found on a public register with no email address, and prospects whose country rules allow other channels only. Names are hidden; showing one asks for a reason, and every view is logged.",
+    "empty": "No open contact tasks.",
+    "showClosed": "Show closed tasks",
+    "company": "Company",
+    "contact": "Contact",
+    "trigger": "Why now",
+    "channel": "How",
+    "created": "Created",
+    "source": "source",
+    "register": "register",
+    "website": "website",
+    "channels": {
+      "published_contact": "Company's published channels",
+      "linkedin_manual": "Personal, by hand",
+      "warm_intro": "Warm introduction",
+      "event": "Event invitation",
+      "inbound_content": "Inbound content"
+    },
+    "showName": "Show name",
+    "reason": "Why do you need to see this? (logged)",
+    "reveal": "Show",
+    "close": "Close task",
+    "closeTitle": "Close task: {c}",
+    "outcome": "Outcome",
+    "done": "Done: contacted",
+    "skipped": "Skipped: not contacted",
+    "note": "What did you do? (kept with the task)",
+    "closed": "Task closed.",
+    "cancel": "Cancel",
+    "logged": "Your view was logged."
   }
 }

@@ -59,7 +59,7 @@ export default function EscalationsPage() {
       <label className="check"><input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} />{t.showResolved}</label>
       {status && <p className="status" role="status">{status}</p>}
       {rows.length === 0 ? <p className="muted">{t.empty}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.title}>
           <table>
             <thead><tr><th scope="col">{t.reason}</th><th scope="col">{t.company}</th><th scope="col">{t.when}</th>
               <th scope="col">{t.leadState}</th><th scope="col">{t.details}</th><th scope="col"><span className="skip">{t.resolve}</span></th></tr></thead>

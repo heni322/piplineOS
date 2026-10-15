@@ -21,7 +21,12 @@ class EnrichmentProvider(Protocol):
     name: str
 
     def find_people(
-        self, company_domain: str, persona_titles: list[str], company_name: str | None = None
+        self,
+        company_domain: str,
+        persona_titles: list[str],
+        company_name: str | None = None,
+        *,
+        company_number: str | None = None,
     ) -> list[EnrichedPerson]:
         """People at the company matching the personas. `company_domain` may be "" when the signal source had no
         domain; providers that can resolve one from `company_name` return it in each person's `company_domain`."""
