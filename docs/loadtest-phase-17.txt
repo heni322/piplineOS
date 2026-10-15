@@ -1,0 +1,24 @@
+# Phase 17 load test (2026-10-15): 100,013 leads, real uvicorn + PostgreSQL 16, cloud container
+endpoint                                                  p50 ms   p95 ms  status
+operator /api/v1/pipeline/summary                             93      146  200
+operator /api/v1/approvals                                   182      220  200
+operator /api/v1/compliance/log                              485      558  200
+operator /api/v1/dry-run                                      12       14  200
+operator /api/v1/meetings                                    223      260  200
+operator /api/v1/escalations                                   9       10  200
+operator /api/v1/data-protection-requests                     10       12  200
+operator /api/v1/leads                                       392      464  200
+operator /api/v1/invoices?tenant_id=<tenant>       11       14  200
+operator /api/v1/reports/metrics?tenant_id=<tenant>      504      575  200
+operator /api/v1/clients                                      17       20  200
+operator /api/v1/billing/meetings?tenant_id=<tenant>       26       30  200
+operator /api/v1/campaigns                                    80       86  200
+operator /api/v1/testimonials                                 11       13  200
+operator /api/v1/clients/<tenant>/setup       18       25  200
+client /api/v1/reports/metrics                               478      633  200
+client /api/v1/billing/meetings                               23       28  200
+client /api/v1/meetings                                      250      295  200
+client /api/v1/terms                                           9       11  200
+client /api/v1/invoices                                        8       10  200
+client /api/v1/pipeline/summary                              123      170  200
+worst p95: 633 ms (target < 2000 ms)

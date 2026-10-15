@@ -327,6 +327,13 @@ source link, the relevance score, every claim with its source, and the quality s
   stable variants through the real pipeline, and the "not enough data" verdict.
 - **Remaining risk.** Testing levers are only useful once real emails are sent.
 
+### 6.13 Load test re-run (P2)
+- The dashboards were measured against **100,013 leads**, with this phase's new queries included: the metrics
+  report, Campaigns with pilot counts, testimonials, and setup.
+- The worst p95 is **633 ms**, against a 2 s target. The metrics report rose from 288 to 607 ms because of the new
+  KPI queries: acceptable, and worth watching.
+- Evidence: `docs/loadtest-phase-17.txt`.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -345,7 +352,7 @@ source link, the relevance score, every claim with its source, and the quality s
 | Analytics | 4 | **7** |
 | Operations | 5 | **7** (emergency stop, stop alerts, restore drill run, staging) |
 | Customer success | 3 | **5** (client stop, ROI, consented proof) |
-| Scalability | 5 | 5 |
+| Scalability | 5 | **5.5** (re-measured at 100k leads: worst p95 633 ms, target 2 s; still one server) |
 | Go-to-market | 1 | **4** (model, pricing, ICP, plan, landing page, economics) |
 | **Overall** | **~4.0** | **5.0** |
 
