@@ -27,6 +27,7 @@ verification); the system will not enable a country until you do.
 | B4 | Data-subject requests: access, erasure, objection workflow and the 1-month deadline | DPR queue with deadlines; erasure keeps only hashes needed for suppression | `LEGAL REVIEW REQUIRED` |
 | B5 | Retention periods: how long to keep people never emailed, and people emailed who never replied? How long for people who replied, met or were billed (invoice and dispute evidence)? | Daily retention job built (`config/retention.yaml`, `pipelineos retention run`); erases exactly like an erasure request. **Off: every period is null until you set it.** Repliers, meetings and billing records are never erased by it | `LEGAL REVIEW REQUIRED` (the periods) |
 | B6 | AI disclosure in replies ("drafted with the help of AI") is enough and in the right place? | Always added (configurable) | `LEGAL REVIEW REQUIRED` |
+| B8 | Landing-page pilot-request form: is the consent wording right, what privacy information must sit next to it, and how long do we keep a request that never becomes a client? | Explicit consent box; encrypted storage; operator-only access; no retention period set yet | `LEGAL REVIEW REQUIRED` |
 | B7 | ICO registration (data protection fee) for the operator | n/a | **Owner action** |
 
 ## C. Commercial terms

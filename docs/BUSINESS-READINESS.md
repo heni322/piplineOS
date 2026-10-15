@@ -8,7 +8,7 @@
 **Business readiness: 5.1 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
-- 800 backend tests, 18 browser tests with WCAG checks, strict typing;
+- 805 backend tests, 19 browser tests with WCAG checks, strict typing;
 - database-enforced tenant isolation and a three-key send switch.
 
 It is **not yet a business**:
@@ -396,6 +396,24 @@ A correctness review of the whole branch found ten issues. All are fixed and tes
 - **Tests.** Client isolation, viewer read-only, row-level error messages, the 500-company limit, signed terms kept,
   and an e2e page check with accessibility.
 
+### 6.18 Inbound pilot requests (P1)
+- **Why.** The safest way to win a first client is for them to ask. The landing page only had a mailto link, and
+  only when a contact email was configured.
+- **Change.**
+  - **The form.** A pilot-request form on the landing page (name, company, work email, optional message) with
+    explicit consent. A hidden honeypot field and a per-IP rate limit (about 5 an hour) keep spam out.
+  - **Storage.**
+    - Name, email and message are **encrypted at rest**.
+    - Anyone may submit, but the database lets only the operator read or update; an anonymous context reads
+      nothing back.
+  - **Operator side.** A new **Pilot requests** page lists the requests, with an audited status
+    (new / contacted / closed).
+- **Tests.**
+  - Consent required, honeypot dropped, rate limit, encryption at rest, operator-only access, and no read-back
+    without the operator role.
+  - e2e: a visitor submits the form, and the operator sees the request and marks it contacted.
+- **Remaining risk.** The form's privacy wording and the retention period need the solicitor (checklist B8).
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -415,7 +433,7 @@ A correctness review of the whole branch found ten issues. All are fixed and tes
 | Operations | 5 | **7** (emergency stop, stop alerts, restore drill run, staging) |
 | Customer success | 3 | **5** (client stop, ROI, consented proof) |
 | Scalability | 5 | **5.5** (re-measured at 100k leads: worst p95 633 ms, target 2 s; still one server) |
-| Go-to-market | 1 | **4.5** (model, pricing, ICP, plan, landing page, economics, own-outreach account) |
+| Go-to-market | 1 | **5** (model, pricing, ICP, plan, landing page with inbound form, economics, own-outreach account) |
 | **Overall** | **~4.0** | **5.1** |
 
 The next big jumps are all external:
