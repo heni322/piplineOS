@@ -12,6 +12,8 @@ const blank: Watched = { name: "", company_number: null, domain: null, country: 
 /** The client's own target accounts (companies only), watched for buying signals, and their setup progress. */
 export default function TargetsPage() {
   const [rows, setRows] = useState<Watched[] | null>(null);
+  const [configured, setConfigured] = useState(true);
+  const [version, setVersion] = useState<number | null>(null);
   const [admin, setAdmin] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [paste, setPaste] = useState("");
@@ -19,22 +21,26 @@ export default function TargetsPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api<{ watchlist: Watched[] }>("/api/v1/account/watchlist").then((r) => setRows(r.watchlist)).catch(() => setRows([]));
+    api<{ watchlist: Watched[]; configured: boolean; config_version: number | null }>("/api/v1/account/watchlist")
+      .then((r) => { setRows(r.watchlist); setConfigured(r.configured); setVersion(r.config_version); }).catch(() => setRows([]));
     api<Progress>("/api/v1/account/setup-progress").then(setProgress).catch(() => undefined);
     api<{ role: string }>("/api/v1/auth/me").then((me) => setAdmin(me.role === "tenant_admin")).catch(() => undefined);
   }, []);
 
   const set = (i: number, patch: Partial<Watched>) => setRows((r) => (r ?? []).map((x, k) => (k === i ? { ...x, ...patch } : x)));
   function addPasted() {
-    const parsed = paste.split("\n").map((l) => l.split(/\t|,/).map((c) => c.trim())).filter((c) => c[0])
-      .map(([name = "", number, domain]) => ({ ...blank, name, company_number: number || null, domain: domain || null }));
+    // Tabs when present (a spreadsheet copy, so names may contain commas), otherwise commas.
+    const parsed = paste.split("\n").map((l) => l.split(l.includes("\t") ? "\t" : ",").map((c) => c.trim())).filter((c) => c[0])
+      .map(([name = "", number, domain, board]) => ({ ...blank, name, company_number: number || null, domain: domain || null,
+        job_board: board || null }));
     setRows((r) => [...(r ?? []), ...parsed]); setPaste("");
   }
   async function save() {
     setBusy(true); setMsg(null);
     try {
-      const r = await api<{ watchlist: Watched[] }>("/api/v1/account/watchlist", { method: "PUT", body: JSON.stringify({ watchlist: rows }) });
-      setRows(r.watchlist); setMsg({ ok: true, text: t.saved.replace("{n}", String(r.watchlist.length)) });
+      const r = await api<{ watchlist: Watched[]; config_version: number | null }>("/api/v1/account/watchlist",
+        { method: "PUT", body: JSON.stringify({ watchlist: rows, config_version: version }) });
+      setRows(r.watchlist); setVersion(r.config_version); setMsg({ ok: true, text: t.saved.replace("{n}", String(r.watchlist.length)) });
     } catch (e) { setMsg({ ok: false, text: (e as Problem).detail ?? (e as Problem).title }); } finally { setBusy(false); }
   }
 
@@ -46,6 +52,7 @@ export default function TargetsPage() {
         : t.progress.replace("{d}", String(progress.done)).replace("{t}", String(progress.total))}</p>}
       <p className="muted" style={{ maxWidth: "70ch" }}>{t.intro} {t.limit.replace("{m}", "500")}</p>
       {msg && <p className={msg.ok ? "status" : "error"} role={msg.ok ? "status" : "alert"}>{msg.text}</p>}
+      {!configured ? <p className="hint">{t.notConfigured}</p> : <>
       {!admin && <p className="hint">{t.readOnly}</p>}
       {rows.length === 0 ? <p className="muted">{t.empty}</p> : (
         <div className="table-wrap" tabIndex={0} role="region" aria-label={t.title}>
@@ -82,6 +89,7 @@ export default function TargetsPage() {
           </section>
         </>
       )}
+      </>}
     </>
   );
 }

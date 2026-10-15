@@ -168,7 +168,17 @@ class TenantConfig(_Strict):
         return v
 
 
+def current_version(conn: Connection, tenant_id: uuid.UUID) -> int:
+    return int(
+        conn.execute(
+            text("SELECT coalesce(max(version), 0) FROM tenant_configs WHERE tenant_id = :t"), {"t": tenant_id}
+        ).scalar_one()
+    )
+
+
 def save_config(conn: Connection, tenant_id: uuid.UUID, cfg: TenantConfig, created_by: uuid.UUID | None = None) -> int:
+    # One save at a time per client (the operator and the client admin can both save): no duplicate version.
+    conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:t AS text), 7019))"), {"t": tenant_id})
     version = int(
         conn.execute(
             text("SELECT coalesce(max(version), 0) + 1 FROM tenant_configs WHERE tenant_id = :t"), {"t": tenant_id}

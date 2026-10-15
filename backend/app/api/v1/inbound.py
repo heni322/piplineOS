@@ -36,6 +36,13 @@ class PilotRequestIn(BaseModel):
     website: str | None = Field(default=None, max_length=200)  # honeypot: humans never see or fill it
 
 
+@router.get("/pilot-requests/consent")
+def consent_text() -> dict[str, str]:
+    """The exact consent wording: the form shows this text and the same text is stored with each request, so the
+    record always matches what the person ticked."""
+    return {"text": CONSENT}
+
+
 @router.post("/pilot-requests", status_code=202)
 def submit(
     body: PilotRequestIn,
@@ -78,7 +85,12 @@ class PilotRequestOut(BaseModel):
 @router.get("/pilot-requests", response_model=list[PilotRequestOut])
 def list_requests(user: Operator, cipher: Cipher) -> list[PilotRequestOut]:
     with transaction(user.db_context(), get_engine()) as conn:
-        rows = conn.execute(text("SELECT * FROM pilot_requests ORDER BY created_at DESC LIMIT 500")).mappings().all()
+        # Every unanswered request first, so none can fall off the list (the alert counts all of them).
+        rows = (
+            conn.execute(text("SELECT * FROM pilot_requests ORDER BY (status = 'new') DESC, created_at DESC LIMIT 500"))
+            .mappings()
+            .all()
+        )
         return [
             PilotRequestOut(
                 id=str(r["id"]),
@@ -119,5 +131,24 @@ def set_status(request_id: uuid.UUID, body: StatusIn, user: Operator) -> Respons
             entity_type="pilot_request",
             entity_id=request_id,
             after={"status": body.status},
+        )
+    return Response(status_code=204)
+
+
+@router.delete("/pilot-requests/{request_id}", status_code=204)
+def erase(request_id: uuid.UUID, user: Operator) -> Response:
+    """Erasure on the person's request: the row is deleted, not just closed. The audit keeps only that it happened."""
+    with transaction(user.db_context(), get_engine()) as conn:
+        done = conn.execute(text("DELETE FROM pilot_requests WHERE id = :i RETURNING id"), {"i": request_id}).first()
+        if done is None:
+            raise ProblemError(404, "Not found")
+        write_audit(
+            conn,
+            action="pilot_request.erased",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=None,
+            entity_type="pilot_request",
+            entity_id=request_id,
         )
     return Response(status_code=204)

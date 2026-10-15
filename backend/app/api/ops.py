@@ -264,9 +264,17 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
         )
         _gauge(
             lines,
-            "pipelineos_pilot_requests_new",
-            "pilot requests from the landing page not yet answered",
-            [({}, one("SELECT count(*) FROM pilot_requests WHERE status = 'new'"))],
+            "pipelineos_pilot_requests_waiting",
+            "pilot requests from the landing page unanswered for more than an hour",
+            [
+                (
+                    {},
+                    one(
+                        "SELECT count(*) FROM pilot_requests WHERE status = 'new' "
+                        "AND created_at < now() - interval '1 hour'"
+                    ),
+                )
+            ],
         )
         _gauge(
             lines,

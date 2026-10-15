@@ -993,11 +993,12 @@
     "save": "Save target accounts",
     "saved": "Saved: {n} companies are being watched.",
     "paste": "Paste from a spreadsheet",
-    "pasteHint": "One company per line: name, company number, domain (the last two optional), separated by commas or tabs.",
+    "pasteHint": "One company per line: name, company number, domain, job board (the last three optional). Separate columns with tabs, as when you copy from a spreadsheet, or with commas.",
     "pasteAdd": "Add these",
     "readOnly": "Only your account admin can change this list.",
     "empty": "No target accounts yet.",
-    "limit": "Up to {m} companies."
+    "limit": "Up to {m} companies.",
+    "notConfigured": "Your account is still being set up. Once your offer is configured you can add target accounts here."
   },
   "pilotRequests": {
     "title": "Pilot requests",
@@ -1013,6 +1014,8 @@
       "contacted": "Contacted",
       "closed": "Closed"
     },
-    "mark": "Mark as {s}"
+    "mark": "Mark as {s}",
+    "erase": "Delete (they asked to be forgotten)",
+    "eraseConfirm": "Delete {c}'s request for good?"
   }
 }

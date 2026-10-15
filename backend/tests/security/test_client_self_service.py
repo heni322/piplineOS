@@ -81,3 +81,19 @@ def test_client_sees_setup_progress(world) -> None:  # type: ignore[no-untyped-d
     p = world["admin"].get("/api/v1/account/setup-progress").json()
     assert p["total"] >= 8 and 0 < p["done"] < p["total"]
     assert {"key": "criteria_signed", "done": True} in [{"key": i["key"], "done": i["done"]} for i in p["items"]]
+
+
+def test_a_save_on_an_old_version_is_refused_and_row_numbers_match_the_screen(world) -> None:  # type: ignore[no-untyped-def]
+    admin = world["admin"]
+    v = admin.get("/api/v1/account/watchlist").json()["config_version"]
+    assert (
+        admin.put("/api/v1/account/watchlist", json={"watchlist": [{"name": "A Ltd"}], "config_version": v}).status_code
+        == 200
+    )
+    stale = admin.put("/api/v1/account/watchlist", json={"watchlist": [{"name": "B Ltd"}], "config_version": v})
+    assert stale.status_code == 409  # someone saved since this copy was opened: nothing is overwritten
+    bad = admin.put(
+        "/api/v1/account/watchlist",
+        json={"watchlist": [{"name": " "}, {"name": "A Ltd"}, {"name": "B Ltd", "job_board": "myspace:x"}]},
+    )
+    assert bad.status_code == 422 and "row 3" in bad.json()["detail"]  # blank rows still count as rows

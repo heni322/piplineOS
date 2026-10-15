@@ -20,7 +20,7 @@ from app.core.security import Permission
 from app.db.session import get_engine, transaction
 from app.domain.reporting.metrics import metrics, roi
 from app.domain.tenants import accounts, controls, onboarding, setup, signoffs
-from app.domain.tenants.config import Roi, TenantConfig, load_config, save_config
+from app.domain.tenants.config import Roi, TenantConfig, current_version, load_config, save_config
 from app.settings import Settings
 
 router = APIRouter(tags=["clients"])
@@ -229,6 +229,27 @@ class TargetingIn(BaseModel):
     sic_codes: list[str] = []
     countries: list[str] = ["GB"]
     watchlist: list[WatchedIn] = []
+    # The configuration version the form was opened on: a save based on an older one is refused (409), so the
+    # operator's form can't silently undo the client's own target-account edits, or the other way round.
+    config_version: int | None = None
+
+
+def _clean_watchlist(rows: list[WatchedIn]) -> tuple[list[dict[str, Any]], list[int]]:
+    """Trimmed rows without blank names, and for each kept row its 1-based row number in what was submitted."""
+    kept, numbers = [], []
+    for i, w in enumerate(rows):
+        if w.name.strip():
+            kept.append(
+                {k: (v.strip() if isinstance(v, str) else v) or None for k, v in w.model_dump().items()}
+                | {"name": w.name.strip()}
+            )
+            numbers.append(i + 1)
+    return kept, numbers
+
+
+def _stale(conn: Any, tenant_id: uuid.UUID, version: int | None) -> None:
+    if version is not None and version != current_version(conn, tenant_id):
+        raise ProblemError(409, "Changed since you opened it", "Reload to see the latest version, then save again.")
 
 
 class TargetingOut(TargetingIn):
@@ -272,6 +293,7 @@ def put_targeting(tenant_id: uuid.UUID, body: TargetingIn, user: Operator) -> di
             _, cfg = load_config(conn, tenant_id)
         except LookupError as exc:
             raise ProblemError(409, "This client has no configuration yet") from exc
+        _stale(conn, tenant_id, body.config_version)
         known = set(conn.execute(text("SELECT DISTINCT country_code FROM compliance_rules")).scalars())
         countries = [c.upper() for c in _clean(body.countries)]
         unknown = [c for c in countries if c not in known]
@@ -285,11 +307,7 @@ def put_targeting(tenant_id: uuid.UUID, body: TargetingIn, user: Operator) -> di
             "sic_codes": _clean(body.sic_codes),
             "countries": countries,
         }
-        data["watchlist"] = [
-            {k: (v.strip() if isinstance(v, str) else v) or None for k, v in w.model_dump().items()}
-            | {"name": w.name.strip()}
-            for w in body.watchlist
-        ]
+        data["watchlist"] = _clean_watchlist(body.watchlist)[0]
         try:
             version = onboarding.set_config(conn, tenant_id=tenant_id, operator_id=user.id, config=data)
         except ValidationError as exc:
@@ -568,12 +586,14 @@ def client_pause(body: PauseIn, user: Annotated[CurrentUser, Depends(require(Per
 # ------------------------------------------------------------------------------------------- client self-service
 class WatchlistIn(BaseModel):
     watchlist: list[WatchedIn] = Field(max_length=500)
+    config_version: int | None = None  # as for targeting: a save on an older version is refused
 
 
 class WatchlistOut(BaseModel):
     configured: bool
     watchlist: list[WatchedIn]
     max: int = 500
+    config_version: int | None = None
 
 
 ClientAdmin = Annotated[CurrentUser, Depends(require(Permission.SIGN_TERMS))]
@@ -589,36 +609,36 @@ def get_watchlist(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_T
             _, cfg = load_config(conn, user.tenant_id)
         except LookupError:
             return WatchlistOut(configured=False, watchlist=[])
-    return WatchlistOut(configured=True, watchlist=[WatchedIn(**w.model_dump()) for w in cfg.watchlist])
+        version = current_version(conn, user.tenant_id)
+    return WatchlistOut(
+        configured=True, watchlist=[WatchedIn(**w.model_dump()) for w in cfg.watchlist], config_version=version
+    )
 
 
 @router.put("/account/watchlist", response_model=WatchlistOut)
 def put_watchlist(body: WatchlistIn, user: ClientAdmin) -> WatchlistOut:
     """The client admin's own list of companies to watch. Saved as a new configuration version; nothing else in the
     configuration changes, so the criteria and pricing they accepted stay accepted."""
-    if user.role != "tenant_admin" or user.tenant_id is None:
+    if user.tenant_id is None:  # SIGN_TERMS is the client admin's permission
         raise ProblemError(403, "Only the client's admin can change the target accounts")
     with transaction(user.db_context(), get_engine()) as conn:
         try:
             _, cfg = load_config(conn, user.tenant_id)
         except LookupError as exc:
             raise ProblemError(409, "Your account is not configured yet") from exc
-        cleaned = [
-            {k: (v.strip() if isinstance(v, str) else v) or None for k, v in w.model_dump().items()}
-            | {"name": w.name.strip()}
-            for w in body.watchlist
-            if w.name.strip()
-        ]
+        _stale(conn, user.tenant_id, body.config_version)
+        cleaned, numbers = _clean_watchlist(body.watchlist)
         try:
             new = TenantConfig.model_validate(cfg.model_dump() | {"watchlist": cleaned})
         except ValidationError as exc:
-            problems = "; ".join(
-                f"row {e['loc'][1] + 1 if len(e['loc']) > 1 and isinstance(e['loc'][1], int) else '?'}: "
-                f"{e['loc'][-1]}: {e['msg']}"
-                for e in exc.errors()[:5]
-            )
+
+            def row(e: Any) -> str:  # the row number as the client sees it, blank rows included
+                loc = e["loc"]
+                return str(numbers[loc[1]]) if len(loc) > 1 and isinstance(loc[1], int) else "?"
+
+            problems = "; ".join(f"row {row(e)}: {e['loc'][-1]}: {e['msg']}" for e in exc.errors()[:5])
             raise ProblemError(422, "Some rows are not valid", problems) from exc
-        save_config(conn, user.tenant_id, new, user.id)
+        version = onboarding.set_config(conn, tenant_id=user.tenant_id, operator_id=user.id, config=new.model_dump())
         write_audit(
             conn,
             action="tenant.watchlist_set",
@@ -629,7 +649,7 @@ def put_watchlist(body: WatchlistIn, user: ClientAdmin) -> WatchlistOut:
             entity_id=user.tenant_id,
             after={"companies": len(cleaned), "by": "client"},
         )
-    return WatchlistOut(configured=True, watchlist=[WatchedIn(**w) for w in cleaned])
+    return WatchlistOut(configured=True, watchlist=[WatchedIn(**w) for w in cleaned], config_version=version)
 
 
 class ProgressOut(BaseModel):

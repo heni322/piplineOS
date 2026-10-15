@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getMessages } from "@/lib/i18n";
 
 const t = getMessages().landing;
@@ -9,6 +9,12 @@ const t = getMessages().landing;
 export function PilotForm() {
   const [f, setF] = useState({ name: "", company: "", email: "", message: "", consent: false, website: "" });
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  // The consent wording comes from the API, which stores the same text with the request (one source of truth).
+  const [consent, setConsent] = useState<string>(t.fConsent);
+  useEffect(() => {
+    fetch("/api/v1/pilot-requests/consent").then((r) => (r.ok ? r.json() : null))
+      .then((j: { text?: string } | null) => { if (j?.text) setConsent(j.text); }).catch(() => undefined);
+  }, []);
   const valid = f.name.trim().length >= 2 && f.company.trim().length >= 2 && /.+@.+\..+/.test(f.email) && f.consent;
 
   async function send() {
@@ -39,7 +45,7 @@ export function PilotForm() {
         <input id="pf-website" tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} />
       </div>
       <label className="inline" style={{ marginTop: 12 }}>
-        <input type="checkbox" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} /> {t.fConsent}
+        <input type="checkbox" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} /> {consent}
       </label>
       <div className="row-actions" style={{ marginTop: 12 }}>
         <button type="submit" disabled={!valid || state === "sending"}>{t.fSend}</button>

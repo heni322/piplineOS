@@ -414,6 +414,22 @@ A correctness review of the whole branch found ten issues. All are fixed and tes
   - e2e: a visitor submits the form, and the operator sees the request and marks it contacted.
 - **Remaining risk.** The form's privacy wording and the retention period need the solicitor (checklist B8).
 
+### 6.19 Second code review (the self-service, inbound and alert additions)
+Ten more findings, all fixed:
+- **Lost edits.**
+  - The operator's Targeting form and the client's Target accounts page could silently overwrite each other's
+    list. Each save now carries the version it was opened on, and a stale save is refused (409, "reload").
+  - Config saves are serialised per client, so two saves at once no longer collide on the version number.
+- **A deletion promise not kept.** The consent text promised deletion, but nothing could delete a request. The
+  operator can now erase one for real (audited), and the consent wording comes from one source, the API.
+- **Requests falling off the list.** Unanswered requests always come first, and the alert fires only when one has
+  waited more than an hour.
+- **Smaller fixes.**
+  - Validation errors use the row number the client sees.
+  - Pasting from a spreadsheet keeps company names with commas, and a job-board column is added.
+  - Clients that aren't configured yet see a clear message instead of an editor that can't save.
+  - Client saves go through the same audited config path as the operator's.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |

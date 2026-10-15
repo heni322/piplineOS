@@ -58,6 +58,12 @@ def test_a_company_can_ask_for_a_pilot_and_only_the_operator_reads_it(world, cle
     assert raw.status == "contacted"
     with transaction(DbContext(), clean_db) as conn:  # an anonymous database context can't read them back
         assert conn.execute(text("SELECT count(*) FROM pilot_requests")).scalar() == 0
+    # Erasure on request deletes the row for real; clients can't.
+    assert world["client"].delete(f"/api/v1/pilot-requests/{rows[0]['id']}").status_code == 403
+    assert world["op"].delete(f"/api/v1/pilot-requests/{rows[0]['id']}").status_code == 204
+    with transaction(DbContext(role="operator"), clean_db) as conn:
+        assert conn.execute(text("SELECT count(*) FROM pilot_requests")).scalar() == 0
+    assert world["anon"].get("/api/v1/pilot-requests/consent").json()["text"].startswith("I agree")
 
 
 def test_submissions_are_rate_limited(world) -> None:  # type: ignore[no-untyped-def]

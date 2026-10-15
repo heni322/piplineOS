@@ -36,7 +36,9 @@ ALTER TABLE pilot_requests FORCE ROW LEVEL SECURITY;
 CREATE POLICY anyone_submits ON pilot_requests FOR INSERT WITH CHECK (status = 'new' AND handled_by IS NULL);
 CREATE POLICY operator_reads ON pilot_requests FOR SELECT USING (app_is_operator());
 CREATE POLICY operator_updates ON pilot_requests FOR UPDATE USING (app_is_operator()) WITH CHECK (app_is_operator());
-GRANT SELECT, INSERT, UPDATE ON pilot_requests TO {APP_ROLE};
+-- Erasure on request (the consent text promises it): the operator deletes the row for real.
+CREATE POLICY operator_erases ON pilot_requests FOR DELETE USING (app_is_operator());
+GRANT SELECT, INSERT, UPDATE, DELETE ON pilot_requests TO {APP_ROLE};
 """)
 
 

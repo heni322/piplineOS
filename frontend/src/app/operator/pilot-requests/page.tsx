@@ -18,6 +18,12 @@ export default function PilotRequestsPage() {
   const mark = (id: string, status: string) =>
     api(`/api/v1/pilot-requests/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }).then(load).catch(() => setError(true));
 
+  const erase = (r: Req) => {
+    if (window.confirm(t.eraseConfirm.replace("{c}", r.company))) {
+      api(`/api/v1/pilot-requests/${r.id}`, { method: "DELETE" }).then(load).catch(() => setError(true));
+    }
+  };
+
   if (error) return <p role="alert" className="error">{getMessages().operator.loadError}</p>;
   if (!rows) return <p className="muted" aria-busy="true">{getMessages().operator.loading}</p>;
   return (
@@ -39,7 +45,8 @@ export default function PilotRequestsPage() {
                   <td>{statuses[r.status]}
                     <div className="row-actions">{Object.keys(statuses).filter((s) => s !== r.status).map((s) => (
                       <button key={s} type="button" className="secondary" onClick={() => mark(r.id, s)}>{t.mark.replace("{s}", statuses[s] ?? s)}</button>
-                    ))}</div></td>
+                    ))}
+                    <button type="button" className="danger" onClick={() => erase(r)}>{t.erase}</button></div></td>
                 </tr>
               ))}
             </tbody>
