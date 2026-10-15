@@ -24,6 +24,11 @@ groups:
         for: 1h
         labels: { severity: info }
         annotations: { summary: "A campaign reached its pilot contact limit; new first emails are held. Review results before raising it." }
+      - alert: PilotRequestWaiting
+        expr: pipelineos_pilot_requests_new > 0
+        for: 1h
+        labels: { severity: warn }
+        annotations: { summary: "A company asked for a pilot on the landing page and has not been answered yet." }
       - alert: InvoiceOverdue
         expr: pipelineos_invoices_overdue > 0
         for: 24h

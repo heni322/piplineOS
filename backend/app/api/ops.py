@@ -264,6 +264,12 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
         )
         _gauge(
             lines,
+            "pipelineos_pilot_requests_new",
+            "pilot requests from the landing page not yet answered",
+            [({}, one("SELECT count(*) FROM pilot_requests WHERE status = 'new'"))],
+        )
+        _gauge(
+            lines,
             "pipelineos_invoices_overdue",
             "issued invoices past their due date with money still owed",
             [
