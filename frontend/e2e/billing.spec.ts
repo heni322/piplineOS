@@ -133,3 +133,19 @@ test("client shares a testimonial with a chosen scope and can withdraw it", asyn
   await expect(proof.getByRole("status")).toContainText("will not be shown again");
   await expect(proof).toContainText("Withdrawn");
 });
+
+test("client sees setup progress and can paste target accounts (companies only)", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Work email").fill(CLIENT!);
+  await page.getByLabel("Password").fill(CLIENT_PW!);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL("**/client");
+  await page.getByRole("link", { name: "Target accounts" }).click();
+  await expect(page.getByRole("heading", { name: "Target accounts" })).toBeVisible();
+  await expect(page.getByRole("status").first()).toContainText(/Setup complete|steps done/);
+  await page.getByLabel(/One company per line/).fill("Northwind Traders Ltd, 07777777, northwind.example\nTailspin Toys Ltd");
+  await page.getByRole("button", { name: "Add these" }).click();
+  await expect(page.getByRole("textbox", { name: /Company name/ }).last()).toHaveValue("Tailspin Toys Ltd");
+  await expect(page.getByRole("textbox", { name: /UK company number/ }).nth(-2)).toHaveValue("07777777");
+  await accessible(page, "client-targets");
+});

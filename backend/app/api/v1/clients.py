@@ -19,7 +19,7 @@ from app.core.security import Permission
 from app.db.session import get_engine, transaction
 from app.domain.reporting.metrics import metrics, roi
 from app.domain.tenants import accounts, controls, onboarding, setup, signoffs
-from app.domain.tenants.config import Roi, load_config, save_config
+from app.domain.tenants.config import Roi, TenantConfig, load_config, save_config
 from app.settings import Settings
 
 router = APIRouter(tags=["clients"])
@@ -576,6 +576,91 @@ def client_pause(body: PauseIn, user: Annotated[CurrentUser, Depends(require(Per
             raise ProblemError(403, "Only an active client admin can stop the account") from exc
         raise
     return AccountOut(status=r.status, paused_reason=r.paused_reason, paused_at=r.paused_at)
+
+
+# ------------------------------------------------------------------------------------------- client self-service
+class WatchlistIn(BaseModel):
+    watchlist: list[WatchedIn] = Field(max_length=500)
+
+
+class WatchlistOut(BaseModel):
+    configured: bool
+    watchlist: list[WatchedIn]
+    max: int = 500
+
+
+ClientAdmin = Annotated[CurrentUser, Depends(require(Permission.SIGN_TERMS))]
+
+
+@router.get("/account/watchlist", response_model=WatchlistOut)
+def get_watchlist(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_TENANT))]) -> WatchlistOut:
+    """The client's own target accounts (companies only: no personal data). The free sources watch them."""
+    if user.tenant_id is None:
+        raise ProblemError(422, "Only for client accounts")
+    with transaction(user.db_context(), get_engine()) as conn:
+        try:
+            _, cfg = load_config(conn, user.tenant_id)
+        except LookupError:
+            return WatchlistOut(configured=False, watchlist=[])
+    return WatchlistOut(configured=True, watchlist=[WatchedIn(**w.model_dump()) for w in cfg.watchlist])
+
+
+@router.put("/account/watchlist", response_model=WatchlistOut)
+def put_watchlist(body: WatchlistIn, user: ClientAdmin) -> WatchlistOut:
+    """The client admin's own list of companies to watch. Saved as a new configuration version; nothing else in the
+    configuration changes, so the criteria and pricing they accepted stay accepted."""
+    if user.role != "tenant_admin" or user.tenant_id is None:
+        raise ProblemError(403, "Only the client's admin can change the target accounts")
+    with transaction(user.db_context(), get_engine()) as conn:
+        try:
+            _, cfg = load_config(conn, user.tenant_id)
+        except LookupError as exc:
+            raise ProblemError(409, "Your account is not configured yet") from exc
+        cleaned = [
+            {k: (v.strip() if isinstance(v, str) else v) or None for k, v in w.model_dump().items()}
+            | {"name": w.name.strip()}
+            for w in body.watchlist
+            if w.name.strip()
+        ]
+        try:
+            new = TenantConfig.model_validate(cfg.model_dump() | {"watchlist": cleaned})
+        except ValidationError as exc:
+            problems = "; ".join(
+                f"row {e['loc'][1] + 1 if len(e['loc']) > 1 and isinstance(e['loc'][1], int) else '?'}: "
+                f"{e['loc'][-1]}: {e['msg']}"
+                for e in exc.errors()[:5]
+            )
+            raise ProblemError(422, "Some rows are not valid", problems) from exc
+        save_config(conn, user.tenant_id, new, user.id)
+        write_audit(
+            conn,
+            action="tenant.watchlist_set",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=user.tenant_id,
+            entity_type="tenant",
+            entity_id=user.tenant_id,
+            after={"companies": len(cleaned), "by": "client"},
+        )
+    return WatchlistOut(configured=True, watchlist=[WatchedIn(**w) for w in cleaned])
+
+
+class ProgressOut(BaseModel):
+    status: str
+    done: int
+    total: int
+    items: list[ItemOut]
+
+
+@router.get("/account/setup-progress", response_model=ProgressOut)
+def setup_progress(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_TENANT))]) -> ProgressOut:
+    """Where the client's onboarding stands, the same checklist the operator sees."""
+    if user.tenant_id is None:
+        raise ProblemError(422, "Only for client accounts")
+    with transaction(user.db_context(), get_engine()) as conn:
+        status = conn.execute(text("SELECT status FROM tenants WHERE id = :t"), {"t": user.tenant_id}).scalar_one()
+        items = [ItemOut(key=i.key, done=i.done, detail=i.detail) for i in onboarding.checklist(conn, user.tenant_id)]
+    return ProgressOut(status=status, done=sum(i.done for i in items), total=len(items), items=items)
 
 
 # ------------------------------------------------------------------------------------------- client terms

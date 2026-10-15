@@ -141,7 +141,8 @@
     "portal": "Client portal",
     "menu": "Menu",
     "campaigns": "Campaigns",
-    "proof": "Customer proof"
+    "proof": "Customer proof",
+    "clientTargets": "Target accounts"
   },
   "approvals": {
     "title": "Approvals",
@@ -965,5 +966,25 @@
     "withdraw": "Withdraw",
     "withdrawn": "Withdrawn {d}",
     "withdrawnOk": "Withdrawn. It will not be shown again."
+  },
+  "targets": {
+    "title": "Target accounts",
+    "intro": "Companies you would most like to meet. We watch each one for buying signals: new jobs on its careers board and, for UK companies with a company number, new directors on the public register. Companies only: no names or emails of people.",
+    "progress": "Your setup: {d} of {t} steps done",
+    "progressDone": "Setup complete.",
+    "name": "Company name",
+    "number": "UK company number",
+    "domain": "Website domain",
+    "board": "Job board (e.g. greenhouse:acme)",
+    "add": "Add a company",
+    "remove": "Remove",
+    "save": "Save target accounts",
+    "saved": "Saved: {n} companies are being watched.",
+    "paste": "Paste from a spreadsheet",
+    "pasteHint": "One company per line: name, company number, domain (the last two optional), separated by commas or tabs.",
+    "pasteAdd": "Add these",
+    "readOnly": "Only your account admin can change this list.",
+    "empty": "No target accounts yet.",
+    "limit": "Up to {m} companies."
   }
 }

@@ -10,6 +10,7 @@ const t = getMessages();
 const GROUPS: NavGroup[] = [{ links: [
   { href: "/client", label: t.nav.clientOverview },
   { href: "/client/meetings", label: t.nav.clientMeetings },
+  { href: "/client/targets", label: t.nav.clientTargets },
   { href: "/client/invoices", label: t.nav.clientInvoices },
   { href: "/client/terms", label: t.nav.clientTerms },
   { href: "/client/crm", label: t.nav.clientCrm },
