@@ -5,10 +5,10 @@
 
 ## 1. Verdict
 
-**Business readiness: 5.0 / 10.** It was about 4.0 before this phase.
+**Business readiness: 5.1 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
-- 800 backend tests, 17 browser tests with WCAG checks, strict typing;
+- 800 backend tests, 18 browser tests with WCAG checks, strict typing;
 - database-enforced tenant isolation and a three-key send switch.
 
 It is **not yet a business**:
@@ -54,7 +54,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | Customer success | Portal: results, meetings with evidence, disputes, CRM, emergency stop, ROI, **testimonials with consent scope** | Reviews and renewal with real clients | No real client; renewal is manual | Medium | P2 | 5 |
 | Scalability | Celery workers, per-tenant caps, load test (Phase 6) | Proven at 10+ clients | Single server design | Low now | P2 | 5 |
 
-**Overall: 5.0 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
+**Overall: 5.1 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
 
 ## 3. Top 20 blockers
 
@@ -380,13 +380,29 @@ A correctness review of the whole branch found ten issues. All are fixed and tes
 | 9 | The definition of "contacted" was copied in four places | The gateway, scheduler and metrics could disagree | One shared status list |
 | 10 | The client's stop reported any database error as "not active" | A client could believe sending had stopped when it hadn't | Only the function's own refusals are mapped; anything else is an error |
 
+### 6.17 Client self-service and the placement check (P1/P2)
+- **Target accounts in the portal.**
+  - The client admin keeps their own list of companies to watch, up to 500. It is companies only, with no
+    personal data, and can be pasted straight from a spreadsheet.
+  - The free sources then watch those companies' job boards and register changes. This is the safest of the
+    contactable-rate levers in GO-TO-MARKET §7, because it needs no personal data from the client.
+  - Viewers can read the list but not change it. Signed criteria and pricing stay signed. The change is audited
+    as "by client".
+- **Setup progress.** The client sees the same onboarding checklist the operator sees.
+- **Inbox placement check.** `docs/GO-LIVE-RUNBOOK.md` §C2 describes a 10-minute manual check with free tools
+  before each campaign and each new mailbox.
+  - It is deliberately manual. An automated seed test would need a second sending path around the outbound
+    gateway, the only part of the system allowed to send.
+- **Tests.** Client isolation, viewer read-only, row-level error messages, the 500-company limit, signed terms kept,
+  and an e2e page check with accessibility.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
 |---|---|---|
 | Product | 7 | 7 |
-| Onboarding | 5 | **7** (guided, no JSON) |
-| Lead acquisition | 4 | 4 |
+| Onboarding | 5 | **7.5** (guided, no JSON, client self-service for target accounts and progress) |
+| Lead acquisition | 4 | **4.5** (client-supplied target accounts; still untested live) |
 | Data quality | 5 | **5.5** (MX check) |
 | Outreach | 6 | **6.5** (A/B testing with honest statistics) |
 | Deliverability | 4 | 4 |
@@ -400,7 +416,7 @@ A correctness review of the whole branch found ten issues. All are fixed and tes
 | Customer success | 3 | **5** (client stop, ROI, consented proof) |
 | Scalability | 5 | **5.5** (re-measured at 100k leads: worst p95 633 ms, target 2 s; still one server) |
 | Go-to-market | 1 | **4.5** (model, pricing, ICP, plan, landing page, economics, own-outreach account) |
-| **Overall** | **~4.0** | **5.0** |
+| **Overall** | **~4.0** | **5.1** |
 
 The next big jumps are all external:
 - the solicitor's review takes compliance from 0 to 6–8 on the legal side;
