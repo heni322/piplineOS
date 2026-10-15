@@ -203,3 +203,24 @@ def test_anonymous_requests_are_refused(world) -> None:  # type: ignore[no-untyp
     anon = TestClient(op.app)
     for path in ("/api/v1/invoices", "/api/v1/disputes", "/api/v1/terms", "/api/v1/reports/metrics", "/api/v1/clients"):
         assert anon.get(path).status_code == 401, path
+
+
+def test_client_sets_their_own_roi_figures(world) -> None:  # type: ignore[no-untyped-def]
+    op, client, _demo = world
+    params = {"start": "2026-01-01", "end": "2026-12-31"}
+    assert client.get("/api/v1/reports/metrics", params=params).json()["roi"] == {"status": "not_configured"}
+    assert (
+        client.put("/api/v1/account/roi", json={"average_deal_value_minor": 1, "close_rate_pct": 101}).status_code
+        == 422
+    )
+    r = client.put("/api/v1/account/roi", json={"average_deal_value_minor": 2_000_000, "close_rate_pct": 25})
+    assert r.status_code == 204
+    m = client.get("/api/v1/reports/metrics", params=params).json()
+    roi = m["roi"]
+    assert roi["status"] == "estimate" and roi["close_rate_pct"] == 25
+    assert roi["pipeline_value_minor"] == m["qualified_meetings"] * 2_000_000
+    assert roi["expected_revenue_minor"] == roi["pipeline_value_minor"] // 4
+    # Only the client's admin sets it; the operator uses the configuration instead.
+    assert op.put("/api/v1/account/roi", json={"average_deal_value_minor": 1, "close_rate_pct": 1}).status_code == 403
+    # Signed terms are untouched by the new configuration version.
+    assert all(t["signed"] for t in client.get("/api/v1/terms").json())

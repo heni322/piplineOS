@@ -120,6 +120,13 @@ class Pricing(_Strict):
     dispute_window_days: int = Field(default=14, ge=1, le=60)
 
 
+class Roi(_Strict):
+    """The client's OWN estimates, used only to show an estimated return. Never used for billing."""
+
+    average_deal_value_minor: int = Field(ge=0, le=10_000_000_000)
+    close_rate_pct: int = Field(ge=0, le=100)  # of qualified, attended meetings that become a deal
+
+
 class TenantConfig(_Strict):
     schema_version: int = 1
     niche_slug: str
@@ -144,6 +151,7 @@ class TenantConfig(_Strict):
     ai_disclosure_text: str = "This reply was drafted with the help of AI."
     nurture_days: int = Field(default=90, ge=14, le=365)
     pricing: Pricing | None = None
+    roi: Roi | None = None
     watchlist: list[WatchedCompany] = Field(default=[], max_length=500)
 
     @field_validator("language")

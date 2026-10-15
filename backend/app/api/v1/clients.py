@@ -12,13 +12,14 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.api.deps import CurrentUser, cipher_dep, require, settings_dep
+from app.core.audit import write_audit
 from app.core.crypto import PiiCipher
 from app.core.errors import ProblemError
 from app.core.security import Permission
 from app.db.session import get_engine, transaction
-from app.domain.reporting.metrics import metrics
+from app.domain.reporting.metrics import metrics, roi
 from app.domain.tenants import accounts, controls, onboarding, signoffs
-from app.domain.tenants.config import load_config
+from app.domain.tenants.config import Roi, load_config, save_config
 from app.settings import Settings
 
 router = APIRouter(tags=["clients"])
@@ -440,4 +441,36 @@ def report(
     if start > end or (end - start).days > 400:
         raise ProblemError(422, "Choose a period of up to 400 days")
     with transaction(user.db_context(t), get_engine()) as conn:
-        return metrics(conn, t, start, end)
+        out = metrics(conn, t, start, end)
+        out["roi"] = roi(conn, t, out)
+        return out
+
+
+class RoiIn(BaseModel):
+    average_deal_value_minor: int = Field(ge=0, le=10_000_000_000)
+    close_rate_pct: int = Field(ge=0, le=100)
+
+
+@router.put("/account/roi", status_code=204)
+def set_roi(body: RoiIn, user: Annotated[CurrentUser, Depends(require(Permission.SIGN_TERMS))]) -> None:
+    """The client's own deal value and close rate, for the estimated-return figure in their report. Saved as a new
+    configuration version; nothing else in the configuration changes (criteria and pricing stay as signed)."""
+    if user.role != "tenant_admin" or user.tenant_id is None:
+        raise ProblemError(403, "Only the client's admin can set these figures")
+    with transaction(user.db_context(), get_engine()) as conn:
+        try:
+            _, cfg = load_config(conn, user.tenant_id)
+        except LookupError as exc:
+            raise ProblemError(409, "Your account is not configured yet") from exc
+        new = cfg.model_copy(update={"roi": Roi(**body.model_dump())})
+        save_config(conn, user.tenant_id, new, user.id)
+        write_audit(
+            conn,
+            action="tenant.roi_set",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=user.tenant_id,
+            entity_type="tenant",
+            entity_id=user.tenant_id,
+            after=body.model_dump(),
+        )

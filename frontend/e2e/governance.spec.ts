@@ -93,6 +93,19 @@ test("leads are masked until a reason is given; inboxes show health and can be p
   await page.getByRole("dialog").getByRole("button", { name: "Resume" }).click();
   await expect(page.locator("p.status")).toContainText("resumed");
 
+  await page.getByRole("link", { name: "Campaigns" }).click();
+  await expect(page.getByRole("heading", { name: "Campaigns" })).toBeVisible();
+  const campaign = page.getByRole("row").filter({ hasText: "UK IT MSPs" }).first();
+  await expect(campaign).toContainText(/\d+ of 100/); // every campaign starts as a 100-person pilot
+  await accessible(page, "campaigns");
+  await campaign.getByRole("button", { name: "Pause" }).click();
+  await page.getByLabel("Reason for pausing").fill("Reviewing the copy");
+  await page.getByRole("button", { name: "Pause campaign" }).click();
+  await expect(page.locator("p.status")).toContainText("held");
+  await expect(campaign).toContainText("Reviewing the copy");
+  await campaign.getByRole("button", { name: "Resume" }).click();
+  await expect(page.locator("p.status")).toContainText("resumed");
+
   await page.getByRole("link", { name: "Overview" }).click();
   await page.getByRole("button", { name: "Send approved emails (dry-run)" }).click();
   await expect(page.locator("p.status")).toContainText("Done:");

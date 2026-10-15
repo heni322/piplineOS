@@ -440,6 +440,11 @@ def test_metrics_for_the_demo_month(world, clean_db) -> None:  # type: ignore[no
     assert r["ai_cost_status"] == "prices_not_configured" and r["ai_cost_gbp"] is None
     assert r["compliance_blocks"] and "SUPPRESSED_GLOBAL" in r["compliance_blocks"]
     assert r["escalations"] == {"data_protection": 1}
+    # Business KPIs per 100 people reached, and the honesty flag: these are dry-run records, not real sends.
+    assert r["data_mode"] == "dry_run" and r["people_reached"] == 6 and r["bounces"] == 0
+    assert r["emails_delivered"] == r["emails_sent"] and r["bounce_rate"] == 0.0
+    assert r["per_100_reached"]["positive_replies"] == round(100 * 1 / 6, 1)
+    assert r["qualified_meetings"] <= r["meetings_attended"]
 
 
 def test_vat_threshold_monitor_warns_before_the_limit(world, clean_db) -> None:  # type: ignore[no-untyped-def]

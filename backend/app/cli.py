@@ -33,6 +33,8 @@ app.add_typer(users_app, name="users")
 app.add_typer(demo_app, name="demo")
 app.add_typer(registers_app, name="registers")
 app.add_typer(signals_app, name="signals")
+economics_app = typer.Typer(help="Unit economics and funnel simulation (assumptions, not measurements)")
+app.add_typer(economics_app, name="economics")
 
 
 @app.callback()
@@ -282,3 +284,16 @@ def demo_billing(period: str = "2026-10-01") -> None:
 
 if __name__ == "__main__":
     app()
+
+
+@economics_app.command("simulate")
+def economics_simulate(
+    price: float = typer.Option(300.0, help="EUR per qualified, attended meeting"),
+    retainer: float = typer.Option(0.0, help="EUR monthly retainer"),
+    hourly: float = typer.Option(30.0, help="EUR per operator hour"),
+) -> None:
+    """Pessimistic/base/optimistic funnel for 100 to 100k leads, a 1000-lead Monte Carlo and revenue targets."""
+    from app.economics.simulator import report
+
+    out = report(price_per_meeting_eur=price, monthly_retainer_eur=retainer, hourly_cost_eur=hourly)
+    typer.echo(json.dumps(out, indent=2))

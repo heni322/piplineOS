@@ -23,6 +23,7 @@ operator-signed go-live checklist with `GLOBAL_GO_LIVE=true` in production).
 | 14 Client targeting form (keywords, SIC codes, countries, watchlist) | **Done, awaiting review** — `docs/PHASE-14-REPORT.md` |
 | 15 Source health: isolated sources, run log, Go-live table, alert | **Done, awaiting review** — `docs/PHASE-15-REPORT.md` |
 | 16 CI green on GitHub, time-safe tests, dependency review | **Done, awaiting review** — `docs/PHASE-16-REPORT.md` |
+| 17 Business readiness: emergency stop, Pilot Mode, business KPIs and ROI, landing page, unit economics, GTM and legal checklist | **Done, awaiting review** — `docs/BUSINESS-READINESS.md` |
 
 The current state, and what is still needed from you, is in `docs/STATUS.md`.
 

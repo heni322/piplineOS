@@ -53,7 +53,14 @@ export type Metrics = {
   no_shows: number; show_rate: number | null; meetings_billed: number; billed_minor: number; ai_calls: number;
   ai_cost_gbp: number | null; ai_cost_per_meeting_gbp: number | null; ai_cost_status: string;
   compliance_blocks: Record<string, number>; escalations: Record<string, number>;
+  data_mode: "none" | "dry_run" | "live" | "mixed"; emails_sent: number; emails_delivered: number; bounces: number;
+  complaints: number; bounce_rate: number | null; complaint_rate: number | null; people_reached: number; qualified_meetings: number;
+  per_100_reached: { replies: number | null; positive_replies: number | null; meetings_booked: number | null;
+    meetings_attended: number | null; qualified_meetings: number | null };
+  roi?: Roi;
 };
+export type Roi = { status: "not_configured" } | { status: "estimate"; currency: string; average_deal_value_minor: number;
+  close_rate_pct: number; pipeline_value_minor: number; expected_revenue_minor: number; invoiced_minor: number; roi_multiple: number | null };
 export type Terms = { kind: "qualification_criteria" | "pricing"; content: Record<string, unknown> | null; signed: boolean; signed_at: string | null };
 export type GovernanceStatus = { global_go_live: boolean; golive_items: number; golive_signed: number; golive_complete: boolean;
   enabled_countries: string[]; live_clients: number; adapter_modes: Record<string, string> };

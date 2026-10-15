@@ -1,9 +1,20 @@
-# Where PipelineOS stands (2026-10-14)
+# Where PipelineOS stands (2026-10-15)
 
 Everything runs in **dry-run**. Nothing is sent, booked, written to a CRM or paid for, and no country or go-live
 item has been signed off. The live view of this list is on the **Go-live** page:
 - **Before you switch on:** what is done and what is not.
 - **Countries:** what is built for each country, what is still needed, and who acts.
+
+## Business readiness (Phase 17)
+**4.5 / 10.** The blockers are mostly outside the code: a solicitor's review, a sending domain and warmed
+mailboxes, a first pilot client, and payment. See `docs/BUSINESS-READINESS.md`, `docs/GO-TO-MARKET.md` and
+`docs/LEGAL-REVIEW-CHECKLIST.md`.
+- **Emergency stop** that holds work: the operator pauses a client or campaign, or the client stops their own
+  account. Nothing is cancelled, and resuming continues where it stopped.
+- **Pilot Mode:** every campaign emails at most 100 new people until the operator raises the limit (Campaigns page).
+- **Reports per 100 people reached:** deliverability, qualified meetings, a client ROI estimate, and a clear label
+  on dry-run numbers.
+- **Public landing page** at `/`, and `pipelineos economics simulate` for the unit economics.
 
 ## Built
 - **The five agents and the compliance gate.** Finding signals, finding decision-makers, writing, handling

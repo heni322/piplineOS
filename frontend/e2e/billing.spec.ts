@@ -56,7 +56,11 @@ test("client sees results, accepted terms and billable meetings, and can dispute
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL("**/client");
   await expect(page.getByRole("heading", { name: "Your results" })).toBeVisible();
-  await expect(page.locator(".ledger div").filter({ hasText: "Booked" }).locator("dd")).toHaveText("1");
+  await expect(page.locator(".ledger").first().locator("div").filter({ hasText: "Booked" }).locator("dd")).toHaveText("1");
+  await expect(page.getByRole("note")).toContainText("dry-run, not sent"); // demo numbers are never read as results
+  await expect(page.getByRole("heading", { name: "Per 100 people reached" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Emergency stop" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Stop all sending" })).toBeVisible();
   await accessible(page, "client-overview");
 
   await page.getByRole("link", { name: "Terms" }).click();
