@@ -28,6 +28,7 @@ export default function ClientsPage() {
   const [busy, setBusy] = useState(false);
   const [devLink, setDevLink] = useState<string | null>(null);
   const [targeting, setTargeting] = useState<{ id: string; name: string } | null>(null);
+  const [ownForm, setOwnForm] = useState(false);
   const [panel, setPanel] = useState<{ id: string; name: string; kind: "offer" | "sending" } | null>(null);
 
   const load = useCallback(() => {
@@ -46,6 +47,12 @@ export default function ClientsPage() {
     await api("/api/v1/clients", { method: "POST", body: JSON.stringify({ ...draft, company_number: draft.company_number || null,
       registered_address: draft.registered_address || null }) });
     setAdding(false); return t.created;
+  });
+
+  const createOwn = () => run(async () => {
+    await api("/api/v1/own-account", { method: "POST", body: JSON.stringify({ legal_name: draft.legal_name,
+      company_number: draft.company_number || null, registered_address: draft.registered_address || null }) });
+    setOwnForm(false); return t.ownCreated;
   });
 
   const submitForm = () => run(async () => {
@@ -102,6 +109,24 @@ export default function ClientsPage() {
           </div>
         </div>
       )}
+      {!clients.some((c) => c.own) && (!ownForm
+        ? <button type="button" className="secondary" style={{ marginLeft: 8 }} onClick={() => { setOwnForm(true); setAdding(false); }}>{t.ownAdd}</button>
+        : (
+          <div className="panel" role="dialog" aria-labelledby="own-title" style={{ maxWidth: 560 }}>
+            <h2 id="own-title">{t.ownTitle}</h2>
+            <p className="muted">{t.ownIntro}</p>
+            <label htmlFor="own-name">{t.legalName}</label>
+            <input id="own-name" value={draft.legal_name} onChange={(e) => setDraft({ ...draft, legal_name: e.target.value })} />
+            <label htmlFor="own-num">{t.companyNumber}</label>
+            <input id="own-num" value={draft.company_number} onChange={(e) => setDraft({ ...draft, company_number: e.target.value })} />
+            <label htmlFor="own-addr">{t.address}</label>
+            <input id="own-addr" value={draft.registered_address} onChange={(e) => setDraft({ ...draft, registered_address: e.target.value })} />
+            <div className="row-actions" style={{ marginTop: 10 }}>
+              <button type="button" disabled={busy || draft.legal_name.trim().length < 2} onClick={createOwn}>{t.ownCreate}</button>
+              <button type="button" className="secondary" onClick={() => setOwnForm(false)}>{t.cancel}</button>
+            </div>
+          </div>
+        ))}
       {targeting && (
         <TargetingPanel key={targeting.id} id={targeting.id} name={targeting.name} onClose={() => setTargeting(null)}
           onSaved={(m) => { setTargeting(null); setStatus(m); }} />
@@ -117,6 +142,7 @@ export default function ClientsPage() {
             return (
               <section key={c.id} className="card" aria-labelledby={`c-${c.id}`}>
                 <h2 id={`c-${c.id}`}>{c.legal_name}</h2>
+                {c.own && <p className="eyebrow" style={{ margin: "0 0 4px" }}>{t.ownBadge}</p>}
                 <p className="muted" style={{ margin: 0 }}>{c.status}{c.status === "onboarding" ? `, ${remaining} to do` : ""}</p>
                 {c.status === "paused" && (
                   <p className="error" role="status">{t.pausedSince.replace("{d}", c.paused_at ? day(c.paused_at) : "").replace("{r}", c.paused_reason ?? "")}</p>

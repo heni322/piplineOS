@@ -491,7 +491,13 @@
     "abOff": "Off: always the first subject line",
     "abOn": "Test {n} subject lines (each lead gets one; compare in Reports)",
     "details": "Edit company details",
-    "detailsSaved": "Company details saved. Issued invoices keep the details they were issued with."
+    "detailsSaved": "Company details saved. Issued invoices keep the details they were issued with.",
+    "ownAdd": "Set up your own outreach",
+    "ownTitle": "Your own outreach (PipelineOS selling itself)",
+    "ownIntro": "Use PipelineOS to find your own clients. You are the controller here: your own LIA, privacy notice and sending domain, but no DPA, client login or billing. Use the \"PipelineOS itself\" template.",
+    "ownCreate": "Create my account",
+    "ownCreated": "Your own account is ready. Follow its next steps below.",
+    "ownBadge": "Your own outreach"
   },
   "reports": {
     "title": "Reports",

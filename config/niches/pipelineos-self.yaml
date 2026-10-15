@@ -1,0 +1,43 @@
+# PipelineOS selling itself (the operator's own account, as controller): ICP #1 from docs/GO-TO-MARKET.md §3.
+# A STARTING POINT. LEGAL REVIEW REQUIRED before use: our own LIA and privacy notice, as for any client.
+title: "PipelineOS itself: UK IT managed service providers that need more new-business meetings"
+config:
+  niche_slug: pipelineos-self
+  icp:
+    description: "UK IT managed service providers (10-200 staff) growing their client base: they just won a
+      public contract, are hiring sales or engineering staff, or raised funding."
+    industry_keywords: ["managed it", "managed service", "msp", "it support", "managed security", "cloud services",
+      "it services"]
+    exclude_keywords: ["school", "council", "nhs trust"]
+    hiring_keywords: ["sales", "business development", "account manager", "service desk", "engineer", "-intern"]
+    sic_codes: ["62020", "62030", "62090", "63110"]
+    countries: ["GB"]
+  personas:
+    - name: "Founder or sales leader"
+      titles: ["managing director", "director", "founder", "co-founder", "chief executive", "ceo",
+        "sales director", "head of sales", "commercial director", "business development director"]
+      seniority_keywords: ["director", "head", "chief", "founder", "owner"]
+  signal_threshold: 60
+  sequence: { follow_ups: 2, spacing_business_days: 3 }
+  qualification:
+    framework: custom
+    criteria:
+      - id: need
+        question: "They want more qualified first meetings with new business clients"
+        hint_keywords: ["pipeline", "new business", "leads", "meetings", "growth", "sales", "prospects"]
+      - id: authority
+        question: "The contact decides on sales or marketing spend"
+        evidence_from: profile
+      - id: timing
+        question: "They want to start within the next 3 months"
+        hint_keywords: ["this quarter", "next quarter", "soon", "asap", "this month", "next month"]
+  objection_playbook:
+    - id: tried_agencies
+      objection: "We tried lead-gen agencies before"
+      match_keywords: ["tried", "agency", "agencies", "didn't work", "waste"]
+      approved_response: "That's common. The difference here: you approve every email, you pay only for meetings
+        that took place with someone who meets criteria you signed, and you can stop everything with one button."
+    - id: not_now
+      objection: "Not the right time"
+      match_keywords: ["not now", "bad time", "maybe later", "next year"]
+      approved_response: "No problem. I'll leave it there; if anything changes, my details are below."

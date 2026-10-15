@@ -198,6 +198,22 @@ def checklist(conn: Connection, tenant_id: uuid.UUID) -> list[Item]:
         text("SELECT 1 FROM users WHERE tenant_id = :t AND role = 'tenant_admin'"), {"t": tenant_id}
     ).first()
     pricing_ok = bool(cfg and cfg.pricing and cfg.pricing.currency == t["billing_currency"])
+    if t["role"] == "controller":
+        # The operator's own outreach (PipelineOS selling itself): we are the controller, so there is no DPA, no
+        # client login, no client signature and no billing. The LIA, the footer details, the configuration and a
+        # verified sending domain are still required, exactly as for a client.
+        return [
+            i for i in _items(conn, t, cfg, domain_ok, client_user, pricing_ok, tenant_id) if i.key not in CLIENT_ONLY
+        ]
+    return _items(conn, t, cfg, domain_ok, client_user, pricing_ok, tenant_id)
+
+
+CLIENT_ONLY = frozenset({"dpa", "pricing", "client_user", "criteria_signed", "pricing_signed"})
+
+
+def _items(
+    conn: Connection, t: Any, cfg: Any, domain_ok: Any, client_user: Any, pricing_ok: bool, tenant_id: uuid.UUID
+) -> list[Item]:
     return [
         Item(
             "company_details",

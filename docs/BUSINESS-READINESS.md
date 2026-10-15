@@ -78,7 +78,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 16 | External penetration test | P1 | **Pen tester** | open |
 | 17 | Inbox-placement (seed) test before each campaign | P1 | me + owner (seed mailboxes) | open |
 | 18 | Customer proof capture (consent to quote results) | P2 | me | **DONE (6.10)** |
-| 19 | PipelineOS selling itself (operator's own tenant) | P2 | owner + solicitor | architecture supports it (`is_operator_own`) |
+| 19 | PipelineOS selling itself (operator's own tenant) | P2 | me, then owner + solicitor | **built (6.14)**; needs our own LIA, notice and domain |
 | 20 | Automatic data-retention schedule | P1 | me, then solicitor sets the periods | **built (6.7); off until the periods are set** |
 
 The explainable lead score is not on the list: it is mostly built. The approval desk already shows the signal, its
@@ -334,6 +334,22 @@ source link, the relevance score, every claim with its source, and the quality s
   KPI queries: acceptable, and worth watching.
 - Evidence: `docs/loadtest-phase-17.txt`.
 
+### 6.14 PipelineOS selling itself, and editable company details (P2)
+- **Own outreach.**
+  - "Set up your own outreach" on the Clients page creates the operator's single own account, as **controller**.
+  - Its onboarding checklist leaves out what doesn't apply to us (DPA, client login, client signatures, pricing),
+    but still requires our LIA, footer details, configuration and a verified domain.
+  - The compliance engine already treated a controller correctly.
+  - A starting template targets ICP #1 (`config/niches/pipelineos-self.yaml`).
+  - The account is listed after the clients and labelled.
+- **Company details** can be corrected later, which matters because they print in every footer.
+  - Audited with before and after.
+  - Only the fields sent change, so a form can't erase a VAT number by leaving it out. That gap was caught by a
+    test while building it.
+- **Tests.** The own-account flow end to end, including activation, the single-account rule and the reduced
+  checklist. Partial update of company details.
+- **Remaining risk.** Writing to prospects on our own behalf needs the same legal review as for clients.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -353,7 +369,7 @@ source link, the relevance score, every claim with its source, and the quality s
 | Operations | 5 | **7** (emergency stop, stop alerts, restore drill run, staging) |
 | Customer success | 3 | **5** (client stop, ROI, consented proof) |
 | Scalability | 5 | **5.5** (re-measured at 100k leads: worst p95 633 ms, target 2 s; still one server) |
-| Go-to-market | 1 | **4** (model, pricing, ICP, plan, landing page, economics) |
+| Go-to-market | 1 | **4.5** (model, pricing, ICP, plan, landing page, economics, own-outreach account) |
 | **Overall** | **~4.0** | **5.0** |
 
 The next big jumps are all external:

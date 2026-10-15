@@ -54,6 +54,7 @@ class ClientOut(BaseModel):
     paused_at: datetime | None = None
     company_number: str | None = None
     registered_address: str | None = None
+    own: bool = False  # the operator's own outreach (PipelineOS selling itself), not a client
 
 
 def _client(conn: Any, tenant_id: uuid.UUID) -> ClientOut:
@@ -61,7 +62,7 @@ def _client(conn: Any, tenant_id: uuid.UUID) -> ClientOut:
         conn.execute(
             text(
                 "SELECT id, slug, legal_name, status, billing_currency, paused_reason, paused_at, company_number, "
-                "registered_address FROM tenants "
+                "registered_address, is_operator_own FROM tenants "
                 "WHERE id = :t"
             ),
             {"t": tenant_id},
@@ -83,6 +84,7 @@ def _client(conn: Any, tenant_id: uuid.UUID) -> ClientOut:
         paused_at=t["paused_at"],
         company_number=t["company_number"],
         registered_address=t["registered_address"],
+        own=bool(t["is_operator_own"]),
     )
 
 
@@ -91,7 +93,7 @@ def list_clients(user: Operator) -> list[ClientOut]:
     with transaction(user.db_context(), get_engine()) as conn:
         ids = (
             conn.execute(
-                text("SELECT id FROM tenants WHERE status <> 'offboarded' AND NOT is_operator_own ORDER BY created_at")
+                text("SELECT id FROM tenants WHERE status <> 'offboarded' ORDER BY is_operator_own, created_at")
             )
             .scalars()
             .all()
@@ -405,6 +407,35 @@ def activate(tenant_id: uuid.UUID, user: Operator) -> ClientOut:
             return _client(conn, tenant_id)
     except onboarding.OnboardingError as exc:
         raise ProblemError(409, "Onboarding incomplete", ", ".join(exc.missing)) from exc
+
+
+class OwnAccountIn(BaseModel):
+    legal_name: str = Field(min_length=2, max_length=200)
+    company_number: str | None = Field(default=None, max_length=20)
+    registered_address: str | None = Field(default=None, max_length=500)
+    billing_currency: Literal["GBP", "EUR"] = "GBP"
+
+
+@router.post("/own-account", response_model=ClientOut, status_code=201)
+def create_own_account(body: OwnAccountIn, user: Operator) -> ClientOut:
+    """PipelineOS selling itself: the operator's own outreach, as CONTROLLER (our own LIA, notice and sending
+    domain; no DPA, client login or billing). There can only be one."""
+    with transaction(user.db_context(), get_engine()) as conn:
+        if conn.execute(text("SELECT 1 FROM tenants WHERE is_operator_own")).first():
+            raise ProblemError(409, "Your own account already exists")
+        tid = onboarding.create_client(
+            conn,
+            operator_id=user.id,
+            slug="own-outreach",
+            legal_name=body.legal_name.strip(),
+            company_number=body.company_number,
+            registered_address=body.registered_address,
+            country_code="GB",
+            billing_currency=body.billing_currency,
+            vat_number=None,
+        )
+        conn.execute(text("UPDATE tenants SET is_operator_own = true, role = 'controller' WHERE id = :t"), {"t": tid})
+        return _client(conn, tid)
 
 
 class DetailsIn(BaseModel):

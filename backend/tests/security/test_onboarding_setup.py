@@ -177,3 +177,44 @@ def test_company_details_can_be_corrected_and_are_audited(op, clean_db) -> None:
     with transaction(DbContext(role="operator"), clean_db) as conn:
         t = conn.execute(text("SELECT vat_number, company_number FROM tenants WHERE id = :t"), {"t": tid}).one()
     assert (t.vat_number, t.company_number) == ("GB123456789", "01234567")
+
+
+def test_pipelineos_selling_itself_as_controller(op, clean_db) -> None:  # type: ignore[no-untyped-def]
+    from sqlalchemy import text
+
+    from app.db.session import DbContext, transaction
+
+    c, _ = op
+    r = c.post(
+        "/api/v1/own-account",
+        json={
+            "legal_name": "PipelineOS Ltd",
+            "company_number": "12345678",
+            "registered_address": "10 Example St, London",
+        },
+    )
+    assert r.status_code == 201 and r.json()["own"] is True
+    own = r.json()["id"]
+    assert c.post("/api/v1/own-account", json={"legal_name": "Again Ltd"}).status_code == 409  # only one
+    keys = {i["key"] for i in r.json()["checklist"]}
+    assert {"lia", "config", "sending_domain", "company_details"} <= keys
+    assert not keys & {"dpa", "client_user", "criteria_signed", "pricing_signed", "pricing"}  # we are the controller
+    setup = SETUP | {
+        "niche": "pipelineos-self",
+        "value_proposition": "qualified first meetings for IT providers",
+        "outreach_purpose": "new-business meetings for IT providers",
+    }
+    assert c.put(f"/api/v1/clients/{own}/setup", json=setup).status_code == 200
+    assert (
+        c.post(f"/api/v1/clients/{own}/lia", json={"reference": "LIA-OWN-1", "approved_on": "2026-10-01"}).status_code
+        == 204
+    )
+    d = c.post(f"/api/v1/clients/{own}/sending-domains", json={"domain": "outreach.pipelineos.example"}).json()
+    with transaction(DbContext(role="operator"), clean_db) as conn:
+        conn.execute(
+            text("UPDATE sending_domains SET spf_ok = true, dkim_ok = true, dmarc_ok = true WHERE id = :d"),
+            {"d": d["id"]},
+        )
+    assert c.post(f"/api/v1/clients/{own}/activate").json()["status"] == "active"
+    listed = c.get("/api/v1/clients").json()
+    assert listed[-1]["id"] == own and listed[-1]["own"] and not listed[0]["own"]  # listed after the clients
