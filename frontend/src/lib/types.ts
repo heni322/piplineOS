@@ -105,3 +105,5 @@ export type SourceHealth = {
   last_run_at: string; last_outcome: string; last_error: string | null; last_success_at: string | null;
 };
 export type Account = { status: string; paused_reason: string | null; paused_at: string | null };
+export type Testimonial = { id: string; tenant_id: string; client: string; quote: string; attribution: string | null;
+  scope: "anonymous" | "named" | "named_with_logo"; consented_at: string; withdrawn_at: string | null };

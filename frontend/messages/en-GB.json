@@ -140,7 +140,8 @@
     "console": "Operator console",
     "portal": "Client portal",
     "menu": "Menu",
-    "campaigns": "Campaigns"
+    "campaigns": "Campaigns",
+    "proof": "Customer proof"
   },
   "approvals": {
     "title": "Approvals",
@@ -924,5 +925,26 @@
     "honestTitle": "Where we are",
     "honest": "PipelineOS is taking on its first pilot clients. We will publish results when they are measured, not before. Until then we can show you exactly how it works, on demo data, before you commit to anything.",
     "footer": "PipelineOS"
+  },
+  "proof": {
+    "title": "Customer proof",
+    "intro": "Testimonials your clients wrote and agreed to share. Use each one only as its scope allows, and never next to numbers the client's own report doesn't show.",
+    "empty": "No testimonials yet. Ask a client after a good month; they add it in their portal.",
+    "scopes": {
+      "anonymous": "Anonymous quote",
+      "named": "Quote with name and role",
+      "named_with_logo": "Quote, name and company logo"
+    },
+    "given": "Given {d}",
+    "clientTitle": "Recommend us",
+    "clientIntro": "If PipelineOS has helped, a few words from you help other companies decide. You choose how you are named, and you can withdraw it here at any time.",
+    "quote": "Your words (at least 20 characters)",
+    "attribution": "How to name you (e.g. Sam Carter, MD, Acme IT)",
+    "scope": "Where we may use it",
+    "submit": "Share",
+    "thanks": "Thank you. You can withdraw it below at any time.",
+    "withdraw": "Withdraw",
+    "withdrawn": "Withdrawn {d}",
+    "withdrawnOk": "Withdrawn. It will not be shown again."
   }
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { EmergencyStop } from "@/components/EmergencyStop";
 import { MetricsLedger } from "@/components/MetricsLedger";
 import { RoiForm } from "@/components/RoiForm";
+import { TestimonialForm } from "@/components/TestimonialForm";
 import { api } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
 import type { Metrics } from "@/lib/types";
@@ -24,6 +25,7 @@ export default function ClientHome() {
       <MetricsLedger m={m} />
       {m.meetings_booked === 0 && <p className="muted" style={{ marginTop: 18 }}>{t.emptyMeetings}</p>}
       {m.roi?.status === "not_configured" && <RoiForm onSaved={load} />}
+      <TestimonialForm />
       <EmergencyStop />
     </>
   );

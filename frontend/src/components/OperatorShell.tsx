@@ -22,6 +22,7 @@ const GROUPS: NavGroup[] = [
     { href: "/operator/campaigns", label: t.nav.campaigns },
     { href: "/operator/billing", label: t.nav.billing },
     { href: "/operator/reports", label: t.nav.reports },
+    { href: "/operator/proof", label: t.nav.proof },
   ] },
   { label: t.nav.groupSystem, links: [
     { href: "/operator/inboxes", label: t.nav.inboxes },

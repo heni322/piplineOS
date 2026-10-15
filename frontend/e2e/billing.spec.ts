@@ -114,3 +114,22 @@ test("client connects their own CRM; the token is never shown back; disconnectin
   await expect(page.getByRole("heading", { name: "Disconnected" })).toBeVisible();
   await expect(page.getByText(/Reason: Switching/)).toBeVisible();
 });
+
+test("client shares a testimonial with a chosen scope and can withdraw it", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Work email").fill(CLIENT!);
+  await page.getByLabel("Password").fill(CLIENT_PW!);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL("**/client");
+  const proof = page.getByRole("region", { name: "Recommend us" });
+  await proof.getByLabel(/Your words/).fill("Two qualified meetings in our first month, both with new accounts.");
+  await proof.getByLabel("Where we may use it").selectOption("named");
+  await expect(proof.getByRole("button", { name: "Share" })).toBeDisabled(); // a named quote needs a name
+  await proof.getByLabel(/How to name you/).fill("Sam Carter, MD");
+  await proof.getByRole("button", { name: "Share" }).click();
+  await expect(proof.getByRole("status")).toContainText("Thank you");
+  await accessible(page, "client-testimonial");
+  await proof.getByRole("button", { name: "Withdraw" }).click();
+  await expect(proof.getByRole("status")).toContainText("will not be shown again");
+  await expect(proof).toContainText("Withdrawn");
+});
