@@ -13,9 +13,9 @@ x-hardening: &hardening
 x-backend: &backend
   <<: *hardening
   image: ${REGISTRY:-pipelineos}/backend:${VERSION:?set VERSION to the image tag}
-  env_file: .env.prod
+  env_file: ${ENV_FILE:-.env.prod}
   environment:
-    ENVIRONMENT: prod
+    ENVIRONMENT: ${DEPLOY_ENVIRONMENT:-prod}
     PIPELINEOS_CONFIG: /config
     COOKIE_SECURE: "true"
   read_only: true

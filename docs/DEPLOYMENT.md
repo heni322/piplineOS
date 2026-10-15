@@ -92,3 +92,29 @@ Neither provider's pricing page shows London-specific instance prices; the figur
 2. Rebuild with a new `VERSION`.
 3. `docker compose -f docker-compose.prod.yml up -d`. The `migrate` service applies migrations before the API starts.
 4. Every migration has a tested downgrade. Downgrades refuse rather than delete data.
+
+## 7. Environments: dev, staging, production
+| | dev (your PC) | staging | production |
+|---|---|---|---|
+| Purpose | build and try | test each release on the real stack, before production | real clients |
+| Stack | `docker-compose.yml` | `docker-compose.prod.yml`, same images as production | `docker-compose.prod.yml` |
+| Env file | `.env` from `.env.example` | `.env.staging` from `.env.staging.example` | `.env.prod` from `.env.prod.example` |
+| Data | synthetic (`pipelineos demo seed`) | synthetic or a client's own test data; **never a copy of production personal data** | real |
+| Keys | dev keys | **its own keys** (never production's) | production keys, backed up offline |
+| Can reach real people? | no | **no: refused at start-up** (`GLOBAL_GO_LIVE`, or a live email, calendar or CRM adapter) | only after the three live keys and the signed checklist |
+
+**Run staging** on its own server, or as a separate compose project on a different domain:
+
+```sh
+cp .env.staging.example .env.staging   # fill in: its own domain, passwords and four new keys
+docker compose --env-file .env.staging -f docker-compose.prod.yml -p pipelineos-staging build
+docker compose --env-file .env.staging -f docker-compose.prod.yml -p pipelineos-staging up -d
+```
+
+**Release flow.**
+1. Deploy to staging.
+2. Run `scripts/e2e-fullstack.sh` against it, and a restore drill (`scripts/restore-drill.sh`).
+3. Check the free sources live: `pipelineos signals check …`.
+4. Then deploy the same `VERSION` to production.
+
+Production's `ENVIRONMENT` is still `prod` by default (`DEPLOY_ENVIRONMENT` unset).

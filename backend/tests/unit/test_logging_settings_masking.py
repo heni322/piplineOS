@@ -100,3 +100,11 @@ def test_defaults_are_safe() -> None:
     assert s.global_go_live is False
     assert {s.email_adapter_mode, s.calendar_adapter_mode, s.crm_adapter_mode, s.llm_adapter_mode} == {"mock"}
     assert os.environ.get("GLOBAL_GO_LIVE") == "false"
+
+
+def test_staging_can_never_reach_real_people() -> None:
+    base = {**_keys(), "environment": "staging", "cookie_secure": True, "database_url": "postgresql+psycopg://u:p@h/db"}
+    for k in ("email", "calendar", "crm"):
+        with pytest.raises(ValueError, match=f"staging may not use live {k}"):
+            Settings(**base, **{f"{k}_adapter_mode": "live"})
+    assert Settings(**base, email_adapter_mode="sandbox").environment == "staging"
