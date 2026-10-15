@@ -75,7 +75,30 @@ Go-live is the owner's decision and action. Nothing in this repository turns on 
    - replies and escalations
    - the data-protection tracker
 
+## C2. Inbox placement check (before each new campaign and each new mailbox)
+The system sends only through the outbound gateway, to real leads, so placement is checked by hand with free tools.
+It takes 10 minutes.
+1. **Content and authentication.**
+   - Open a free placement checker (for example mail-tester.com) and copy its one-off address.
+   - From the **sending mailbox itself** (Outlook or Gmail, not PipelineOS), send that address a copy of an
+     approved first email: the same subject and body, with the footer.
+   - **Pass:** score 9/10 or better; SPF, DKIM and DMARC all pass; no blacklist hits.
+2. **Inbox or spam.**
+   - Send the same email to two or three of your own mailboxes on different providers (Gmail, Outlook.com, one
+     Microsoft 365 or Google Workspace business account).
+   - **Pass:** it lands in the inbox, not spam or promotions, on every one.
+3. **Fail?** Don't start the campaign. Fix the cause first:
+   - DNS: Inboxes page → Check DNS;
+   - content: remove links and images, shorten the email;
+   - a young domain: keep warming up.
+   Then repeat.
+4. Record the result (score, date, mailbox) in the campaign's pause/resume note, or in your own log.
+   **Pilot thresholds** (`docs/GO-TO-MARKET.md` §6) still apply once sending starts.
+
 ## D. Rolling back
+- **Emergency stop, one client:** Clients page → **Pause (emergency stop)**. Queued emails are held, not lost; resume
+  continues. The client can also press **Stop all sending** in their portal (you get the `ClientStoppedSending`
+  alert).
 - **Immediate stop, everything:** set `GLOBAL_GO_LIVE=false` and restart. Every send falls back to dry-run.
 - **One client:** turn that client's live mode off.
 - **One inbox:** it pauses itself on bad deliverability. You can also pause it, and resume it after fixing the cause (with a written reason).

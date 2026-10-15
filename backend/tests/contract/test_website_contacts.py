@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
+import pytest
 
 from app.adapters.enrichment.base import EnrichedPerson
 from app.adapters.website_contacts import (
@@ -184,3 +185,63 @@ def test_a_huge_page_is_read_only_up_to_the_cap() -> None:
     huge = "<p>" + "x" * (MAX_BYTES * 3) + "</p><footer>" + FOOTER + " sales@lakesidenetworks.co.uk</footer>"
     found = finder({"lakesidenetworks.co.uk/": huge}).check_site("lakesidenetworks.co.uk", NUMBER)
     assert found is None  # the number sits beyond the cap: never read, so the site is not accepted
+
+
+def test_a_published_address_only_verifies_if_its_domain_takes_email() -> None:
+    from app.adapters.website_contacts import mail_domain_status
+
+    dns = {
+        ("ok.example", "MX"): ["mx1.ok.example"],
+        ("nullmx.example", "MX"): [""],  # RFC 7505: explicitly accepts no mail
+        ("aonly.example", "A"): ["192.0.2.1"],
+    }
+
+    def lookup(name: str, rdtype: str) -> list[str]:
+        return dns.get((name, rdtype), [])
+
+    assert mail_domain_status("ok.example", lookup) == "valid"
+    assert mail_domain_status("nullmx.example", lookup) == "invalid"
+    assert mail_domain_status("aonly.example", lookup) == "risky"  # the gate only sends to "valid"
+    assert mail_domain_status("gone.example", lookup) == "invalid"
+    wc = WebsiteContacts(Officers(), finder({"lakesidenetworks.co.uk/contact": CONTACT}), lookup)
+    wc.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
+    assert wc.verify("sales@lakesidenetworks.co.uk") == "invalid"  # published, but the domain takes no mail
+    fresh = WebsiteContacts(Officers(), finder({"lakesidenetworks.co.uk/contact": CONTACT}), lookup)
+    fresh.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
+    dns[("lakesidenetworks.co.uk", "MX")] = ["mail.lakesidenetworks.co.uk"]
+    assert fresh.verify("Sales@LakesideNetworks.co.uk") == "valid"
+    assert mail_domain_status("v6only.example", lambda n, t: ["2001:db8::1"] if t == "AAAA" else []) == "risky"
+
+
+def test_a_dns_outage_never_condemns_a_good_address() -> None:
+    from app.adapters.website_contacts import mail_domain_status
+
+    calls: list[str] = []
+
+    def down(name: str, rdtype: str) -> list[str]:
+        calls.append(name)
+        raise TimeoutError("resolver unreachable")
+
+    from app.adapters.base import RetryableProviderError
+
+    with pytest.raises(RetryableProviderError):  # not "invalid": nothing is decided on an outage, the lead waits
+        mail_domain_status("ok.example", down)
+    wc = WebsiteContacts(Officers(), finder({"lakesidenetworks.co.uk/contact": CONTACT}), down)
+    wc.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
+    for _ in range(2):
+        with pytest.raises(RetryableProviderError):
+            wc.verify("sales@lakesidenetworks.co.uk")
+    assert len(calls) == 3  # not cached: each attempt asks DNS again
+
+
+def test_one_dns_check_per_domain() -> None:
+    calls: list[tuple[str, str]] = []
+
+    def lookup(name: str, rdtype: str) -> list[str]:
+        calls.append((name, rdtype))
+        return ["mx.example"] if rdtype == "MX" else []
+
+    wc = WebsiteContacts(Officers(), finder({"lakesidenetworks.co.uk/contact": CONTACT}), lookup)
+    wc.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
+    assert wc.verify("sales@lakesidenetworks.co.uk") == wc.verify("SALES@lakesidenetworks.co.uk") == "valid"
+    assert calls == [("lakesidenetworks.co.uk", "MX")]

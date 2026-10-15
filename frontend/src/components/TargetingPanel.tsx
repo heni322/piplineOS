@@ -39,7 +39,7 @@ export function TargetingPanel({ id, name, onClose, onSaved }: {
         body: JSON.stringify({
           industry_keywords: lines(text.industry), exclude_keywords: lines(text.exclude),
           hiring_keywords: lines(text.hiring), sic_codes: lines(text.sic), countries,
-          watchlist: watch.filter((w) => w.name.trim()),
+          watchlist: watch.filter((w) => w.name.trim()), config_version: data?.config_version,
         }),
       });
       onSaved(t.targetingSaved.replace("{v}", String(r.version)));

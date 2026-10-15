@@ -146,6 +146,11 @@ class Settings(BaseSettings):
                 raise ValueError("development database credentials are not allowed outside dev/test")
         if self.environment != "prod" and self.global_go_live:
             raise ValueError("GLOBAL_GO_LIVE can only be enabled in the prod environment")
+        if self.environment == "staging":
+            # Staging tests the real stack on a copy of real config, never on real people: nothing may leave it.
+            live = [k for k in ("email", "calendar", "crm") if getattr(self, f"{k}_adapter_mode") == "live"]
+            if live:
+                raise ValueError(f"staging may not use live {', '.join(live)} (use sandbox or mock)")
         return self
 
     def key(self, name: str) -> bytes:

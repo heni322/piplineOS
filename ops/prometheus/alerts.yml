@@ -15,6 +15,25 @@ groups:
         for: 5m
         labels: { severity: warn }
         annotations: { summary: "An inbox was paused by the deliverability kill switch (or an operator)." }
+      - alert: ClientStoppedSending
+        expr: pipelineos_clients_paused{by="client"} > 0
+        labels: { severity: page }
+        annotations: { summary: "A client pressed their emergency stop. Their sending is held; call them before resuming." }
+      - alert: PilotLimitReached
+        expr: pipelineos_campaigns_pilot_full > 0
+        for: 1h
+        labels: { severity: info }
+        annotations: { summary: "A campaign reached its pilot contact limit; new first emails are held. Review results before raising it." }
+      - alert: PilotRequestWaiting
+        expr: pipelineos_pilot_requests_waiting > 0
+        for: 5m
+        labels: { severity: warn }
+        annotations: { summary: "A company asked for a pilot on the landing page over an hour ago and has not been answered." }
+      - alert: InvoiceOverdue
+        expr: pipelineos_invoices_overdue > 0
+        for: 24h
+        labels: { severity: info }
+        annotations: { summary: "An issued invoice is past its due date and not fully paid." }
       - alert: SendsNeedReconciliation
         expr: pipelineos_needs_reconciliation > 0
         for: 10m

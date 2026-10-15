@@ -103,8 +103,9 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
             p.enrichment = officers
             if settings.website_contacts:  # + the company's published business address, checked on its own site
                 from app.adapters.website_contacts import WebsiteContacts, WebsiteFinder
+                from app.domain.deliverability.dns_check import dns_lookup
 
-                p.enrichment = WebsiteContacts(officers, WebsiteFinder())
+                p.enrichment = WebsiteContacts(officers, WebsiteFinder(), dns_lookup(strict=True))
         if settings.verifier_adapter_mode != "mock":
             from app.adapters.verifier.none import NoVerifier
             from app.adapters.website_contacts import WebsiteContacts

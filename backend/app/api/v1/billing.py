@@ -17,6 +17,7 @@ from app.core.crypto import PiiCipher
 from app.core.errors import ProblemError
 from app.core.security import Permission, verify_totp
 from app.db.session import get_engine, transaction
+from app.domain.billing import payments
 from app.domain.billing import service as billing
 from app.domain.billing.eligibility import eligibility
 from app.domain.tenants.config import load_config
@@ -84,6 +85,10 @@ class InvoiceOut(BaseModel):
     customer: dict[str, Any]
     lines: list[LineOut] = []
     disputes_open: int = 0
+    paid_minor: int = 0
+    due_minor: int = 0
+    overdue: bool = False
+    payments: list[dict[str, Any]] = []
 
 
 def _invoice(conn: Connection, r: Any, with_lines: bool) -> InvoiceOut:
@@ -110,6 +115,7 @@ def _invoice(conn: Connection, r: Any, with_lines: bool) -> InvoiceOut:
           WHERE l.invoice_id = :i AND d.status = 'open'"""),
         {"i": r["id"]},
     ).scalar_one()
+    bal = payments.balance(conn, r["id"])
     return InvoiceOut(
         id=str(r["id"]),
         tenant_id=str(r["tenant_id"]),
@@ -129,6 +135,24 @@ def _invoice(conn: Connection, r: Any, with_lines: bool) -> InvoiceOut:
         customer=r["customer_snapshot"],
         lines=lines,
         disputes_open=open_d,
+        paid_minor=bal.paid_minor,
+        due_minor=bal.due_minor if r["status"] in ("issued", "paid") else 0,
+        overdue=r["status"] == "issued" and bal.due_minor > 0 and r["due_date"] < datetime.now(UTC).date(),
+        payments=[
+            {
+                "amount_minor": int(p.amount_minor),
+                "received_on": p.received_on.isoformat(),
+                "method": p.method,
+                "reference": p.reference,
+            }
+            for p in conn.execute(
+                text("""SELECT amount_minor, received_on, method, reference FROM invoice_payments
+                        WHERE invoice_id = :i ORDER BY created_at"""),
+                {"i": r["id"]},
+            )
+        ]
+        if with_lines
+        else [],
     )
 
 
@@ -221,8 +245,53 @@ def void(invoice_id: uuid.UUID, body: VoidIn, user: Manager, cipher: Cipher) -> 
             raise ProblemError(404, "Invoice not found")
         if st != "issued":
             raise ProblemError(409, "Only issued, unpaid invoices can be voided")
+        if payments.balance(conn, invoice_id).paid_minor != 0:
+            raise ProblemError(409, "Money was received against this invoice: record a reversal first")
         billing.void_issued(conn, invoice_id=invoice_id, user_id=user.id, reason=body.reason)
     return {"status": "void"}
+
+
+class PaymentIn(BaseModel):
+    amount_minor: int
+    received_on: date
+    method: Literal["bank_transfer", "card", "direct_debit", "other", "reversal"] = "bank_transfer"
+    reference: str | None = Field(default=None, max_length=100)
+    totp_code: str = Field(min_length=6, max_length=8)
+
+
+PAYMENT_ERRORS = {
+    "NOT_FOUND": (404, "Invoice not found"),
+    "NOT_ISSUED": (409, "Only issued invoices take payments"),
+    "ZERO_AMOUNT": (422, "Enter an amount"),
+    "REVERSAL_MUST_BE_NEGATIVE": (422, "A reversal is a negative amount, and only a reversal is"),
+    "DATE_OUT_OF_RANGE": (422, "The date must be between the issue date and today"),
+    "REVERSAL_EXCEEDS_RECEIVED": (422, "You can't reverse more than was received"),
+    "INVOICE_ALREADY_PAID": (409, "This invoice is paid; a refund needs a credit note"),
+}
+
+
+@router.post("/invoices/{invoice_id}/payments", response_model=InvoiceOut)
+def record_payment(invoice_id: uuid.UUID, body: PaymentIn, user: Manager, cipher: Cipher) -> InvoiceOut:
+    """Money received (e.g. a bank transfer seen on the statement). Needs your authenticator code, like issuing."""
+    with transaction(user.db_context(), get_engine()) as conn:
+        _mfa(conn, cipher, user, body.totp_code)
+    try:
+        with transaction(user.db_context(), get_engine()) as conn:
+            payments.record_payment(
+                conn,
+                invoice_id=invoice_id,
+                user_id=user.id,
+                amount_minor=body.amount_minor,
+                received_on=body.received_on,
+                method=body.method,
+                reference=body.reference,
+                today=datetime.now(UTC).date(),
+            )
+            r = conn.execute(text("SELECT * FROM invoices WHERE id = :i"), {"i": invoice_id}).mappings().one()
+            return _invoice(conn, r, True)
+    except payments.PaymentError as exc:
+        status, title = PAYMENT_ERRORS.get(exc.code, (409, exc.code))
+        raise ProblemError(status, title) from exc
 
 
 # ------------------------------------------------------------------------------------------- eligibility preview

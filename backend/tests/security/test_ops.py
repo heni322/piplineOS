@@ -76,6 +76,11 @@ def test_metrics_need_the_token_and_hold_no_personal_data(world) -> None:  # typ
         "pipelineos_pending_approvals",
         "pipelineos_dpr_overdue",
         "pipelineos_inboxes_paused 0.0",
+        'pipelineos_clients_paused{by="client"} 0.0',
+        'pipelineos_clients_paused{by="operator"} 0.0',
+        "pipelineos_campaigns_pilot_full",
+        "pipelineos_invoices_overdue 0.0",
+        "pipelineos_pilot_requests_waiting 0.0",
         'pipelineos_sends_last_hour{mode="dry_run"}',
         "pipelineos_vat_threshold_pct",
     ):
@@ -196,3 +201,23 @@ def test_hard_bounce_suppresses_and_never_reaches_agent4(world, clean_db) -> Non
         None,
     )
     assert process_inbound(ctx, [soft], providers(), now=AT)[0].actions == ["bounce:unmatched"]
+
+
+def test_stops_and_pilot_limits_show_up_as_alertable_metrics(world, clean_db) -> None:  # type: ignore[no-untyped-def]
+    c, demo, _ = world
+    token = {"Authorization": "Bearer " + "m" * 32}
+    campaign = c.get("/api/v1/campaigns").json()[0]
+    assert campaign["pilot_contacts_used"] > 0
+    assert c.put(f"/api/v1/campaigns/{campaign['id']}/pilot-limit", json={"max_contacts": 1}).status_code == 200
+    with transaction(DbContext(tenant_id=demo.tenant_id, role="operator"), clean_db) as conn:
+        conn.execute(
+            text(
+                "UPDATE tenants SET status = 'paused', paused_reason = 'Client: complaint', paused_at = now() "
+                "WHERE id = :t"
+            ),
+            {"t": demo.tenant_id},
+        )
+    m = TestClient(c.app).get("/metrics", headers=token).text
+    assert 'pipelineos_clients_paused{by="client"} 1.0' in m
+    assert 'pipelineos_clients_paused{by="operator"} 0.0' in m
+    assert "pipelineos_campaigns_pilot_full 1.0" in m

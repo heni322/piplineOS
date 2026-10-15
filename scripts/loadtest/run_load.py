@@ -16,7 +16,8 @@ import pyotp
 OPERATOR = ["/api/v1/pipeline/summary", "/api/v1/approvals", "/api/v1/compliance/log", "/api/v1/dry-run",
             "/api/v1/meetings", "/api/v1/escalations", "/api/v1/data-protection-requests", "/api/v1/leads",
             "/api/v1/invoices?tenant_id={t}", "/api/v1/reports/metrics?tenant_id={t}", "/api/v1/clients",
-            "/api/v1/billing/meetings?tenant_id={t}"]
+            "/api/v1/billing/meetings?tenant_id={t}", "/api/v1/campaigns", "/api/v1/testimonials",
+            "/api/v1/clients/{t}/setup"]
 CLIENT = ["/api/v1/reports/metrics", "/api/v1/billing/meetings", "/api/v1/meetings", "/api/v1/terms",
           "/api/v1/invoices", "/api/v1/pipeline/summary"]
 

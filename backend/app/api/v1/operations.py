@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
+from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -17,6 +18,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection, RowMapping
 
 from app.api.deps import CurrentUser, cipher_dep, require, settings_dep
+from app.api.v1.control_errors import problem_for
 from app.core.crypto import PiiCipher
 from app.core.errors import ProblemError
 from app.core.idempotency import run_idempotent
@@ -24,6 +26,7 @@ from app.core.masking import mask_email, mask_name
 from app.core.security import Permission
 from app.db.session import get_engine, transaction
 from app.domain.approvals import service as approvals
+from app.domain.tenants import controls
 from app.settings import Settings
 
 router = APIRouter(tags=["operations"])
@@ -484,6 +487,9 @@ class CampaignOut(BaseModel):
     status: str
     daily_cap: int
     target_countries: list[str]
+    paused_reason: str | None = None
+    pilot_max_contacts: int | None = None
+    pilot_contacts_used: int = 0
 
 
 @router.get("/campaigns", response_model=list[CampaignOut])
@@ -493,9 +499,12 @@ def campaigns(
     with transaction(user.db_context(tenant_id), get_engine()) as conn:
         rows = (
             conn.execute(
-                text("""SELECT c.*, t.legal_name FROM campaigns c JOIN tenants t ON t.id = c.tenant_id
+                text("""SELECT c.*, t.legal_name, (SELECT count(DISTINCT m.lead_id) FROM messages m
+                     WHERE m.campaign_id = c.id AND m.kind = 'outreach' AND m.sequence_step = 0
+                     AND m.status = ANY(:contacted)) AS used
+              FROM campaigns c JOIN tenants t ON t.id = c.tenant_id
               WHERE CAST(:t AS uuid) IS NULL OR c.tenant_id = :t ORDER BY t.legal_name, c.name"""),
-                {"t": tenant_id},
+                {"t": tenant_id, "contacted": list(controls.CONTACTED_STATUSES)},
             )
             .mappings()
             .all()
@@ -509,9 +518,160 @@ def campaigns(
             status=r["status"],
             daily_cap=r["daily_cap"],
             target_countries=list(r["target_countries"]),
+            paused_reason=r["paused_reason"],
+            pilot_max_contacts=r["pilot_max_contacts"],
+            pilot_contacts_used=r["used"],
         )
         for r in rows
     ]
 
 
+def _campaign(conn: Connection, campaign_id: uuid.UUID) -> CampaignOut:
+    r = (
+        conn.execute(
+            text("""SELECT c.*, t.legal_name FROM campaigns c JOIN tenants t ON t.id = c.tenant_id
+                    WHERE c.id = :c"""),
+            {"c": campaign_id},
+        )
+        .mappings()
+        .first()
+    )
+    if r is None:
+        raise ProblemError(404, "Campaign not found")
+    return CampaignOut(
+        id=str(r["id"]),
+        tenant_id=str(r["tenant_id"]),
+        tenant_name=r["legal_name"],
+        name=r["name"],
+        status=r["status"],
+        daily_cap=r["daily_cap"],
+        target_countries=list(r["target_countries"]),
+        paused_reason=r["paused_reason"],
+        pilot_max_contacts=r["pilot_max_contacts"],
+        pilot_contacts_used=controls.contacts_used(conn, campaign_id),
+    )
+
+
+class CampaignPauseIn(BaseModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class PilotLimitIn(BaseModel):
+    max_contacts: int | None = Field(default=None, ge=1, le=controls.PILOT_MAX)
+
+
+CampaignAdmin = Annotated[CurrentUser, Depends(require(Permission.VIEW_ALL_TENANTS))]
+
+
+def _campaign_control(campaign_id: uuid.UUID, user: CurrentUser, act: Callable[[Connection], object]) -> CampaignOut:
+    try:
+        with transaction(user.db_context(), get_engine()) as conn:
+            act(conn)
+            return _campaign(conn, campaign_id)
+    except controls.ControlError as exc:
+        raise problem_for(exc) from exc
+
+
+@router.post("/campaigns/{campaign_id}/pause", response_model=CampaignOut)
+def pause_campaign(campaign_id: uuid.UUID, body: CampaignPauseIn, user: CampaignAdmin) -> CampaignOut:
+    return _campaign_control(
+        campaign_id,
+        user,
+        lambda c: controls.pause_campaign(c, campaign_id=campaign_id, operator_id=user.id, reason=body.reason),
+    )
+
+
+@router.post("/campaigns/{campaign_id}/resume", response_model=CampaignOut)
+def resume_campaign(campaign_id: uuid.UUID, user: CampaignAdmin) -> CampaignOut:
+    return _campaign_control(
+        campaign_id, user, lambda c: controls.resume_campaign(c, campaign_id=campaign_id, operator_id=user.id)
+    )
+
+
+@router.put("/campaigns/{campaign_id}/pilot-limit", response_model=CampaignOut)
+def pilot_limit(campaign_id: uuid.UUID, body: PilotLimitIn, user: CampaignAdmin) -> CampaignOut:
+    """How many NEW people this campaign may ever email. null = no limit (full volume; audited)."""
+    return _campaign_control(
+        campaign_id,
+        user,
+        lambda c: controls.set_pilot_limit(
+            c, campaign_id=campaign_id, operator_id=user.id, max_contacts=body.max_contacts
+        ),
+    )
+
+
 __all__ = ["mask_email", "router"]
+
+
+class NewCampaignIn(BaseModel):
+    name: str = Field(min_length=3, max_length=120)
+    daily_cap: int = Field(default=50, ge=1, le=1000)
+    pilot_max_contacts: int | None = Field(default=100, ge=1, le=controls.PILOT_MAX)
+
+
+@router.post("/clients/{tenant_id}/campaigns", response_model=CampaignOut, status_code=201)
+def create_campaign(tenant_id: uuid.UUID, body: NewCampaignIn, user: CampaignAdmin) -> CampaignOut:
+    """A new campaign in draft, targeting the client's configured countries, in Pilot Mode by default."""
+    from app.core.audit import write_audit
+    from app.domain.tenants.config import load_config
+
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        try:
+            _, cfg = load_config(conn, tenant_id)
+        except LookupError as exc:
+            raise ProblemError(409, "Set up the client's offer first") from exc
+        cid = conn.execute(
+            text("""INSERT INTO campaigns (tenant_id, name, status, target_countries, language, daily_cap,
+                    pilot_max_contacts) VALUES (:t, :n, 'draft', :c, :l, :d, :p) RETURNING id"""),
+            {
+                "t": tenant_id,
+                "n": body.name.strip(),
+                "c": cfg.icp.countries,
+                "l": cfg.language,
+                "d": body.daily_cap,
+                "p": body.pilot_max_contacts,
+            },
+        ).scalar_one()
+        write_audit(
+            conn,
+            action="campaign.created",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=tenant_id,
+            entity_type="campaign",
+            entity_id=cid,
+            after={"daily_cap": body.daily_cap, "pilot_max_contacts": body.pilot_max_contacts},
+        )
+        return _campaign(conn, cid)
+
+
+@router.post("/campaigns/{campaign_id}/start", response_model=CampaignOut)
+def start_campaign(campaign_id: uuid.UUID, user: CampaignAdmin) -> CampaignOut:
+    """Draft -> active, only for an active client (onboarding complete). Hunting starts on the next run."""
+    from app.core.audit import write_audit
+
+    with transaction(user.db_context(), get_engine()) as conn:
+        r = conn.execute(
+            text("""SELECT c.tenant_id, c.status, t.status AS tenant_status FROM campaigns c
+                    JOIN tenants t ON t.id = c.tenant_id WHERE c.id = :c FOR UPDATE OF c"""),
+            {"c": campaign_id},
+        ).first()
+        if r is None:
+            raise ProblemError(404, "Campaign not found")
+        if r.tenant_status != "active":
+            raise ProblemError(409, "Activate the client first (onboarding checklist)")
+        if r.status != "draft":
+            raise ProblemError(409, "Only a draft campaign can be started")
+        conn.execute(
+            text("UPDATE campaigns SET status = 'active', started_at = now() WHERE id = :c"), {"c": campaign_id}
+        )
+        write_audit(
+            conn,
+            action="campaign.started",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=r.tenant_id,
+            entity_type="campaign",
+            entity_id=campaign_id,
+        )
+        return _campaign(conn, campaign_id)

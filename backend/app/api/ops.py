@@ -4,9 +4,10 @@ and the deliverability controls (inbox status, operator resume after a kill-swit
 from __future__ import annotations
 
 import hmac
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -18,6 +19,7 @@ from app.core.audit import write_audit
 from app.core.errors import ProblemError
 from app.core.security import Permission
 from app.db.session import DbContext, get_engine, transaction
+from app.domain.tenants.controls import CONTACTED_STATUSES
 from app.settings import Settings
 
 if TYPE_CHECKING:
@@ -229,6 +231,65 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
             "pipelineos_inboxes_paused",
             "inboxes paused (kill switch or operator)",
             [({}, one("SELECT count(*) FROM inboxes WHERE status = 'paused'"))],
+        )
+        _gauge(
+            lines,
+            "pipelineos_clients_paused",
+            "clients whose sending is stopped, by who stopped it (the client's own emergency stop, or the operator)",
+            [
+                ({"by": who}, one(f"SELECT count(*) FROM tenants WHERE status = 'paused' AND {cond}"))  # noqa: S608
+                for who, cond in (
+                    ("client", "paused_reason LIKE 'Client: %'"),
+                    ("operator", "coalesce(paused_reason, '') NOT LIKE 'Client: %'"),
+                )
+            ],
+        )
+        _gauge(
+            lines,
+            "pipelineos_campaigns_pilot_full",
+            "active campaigns whose pilot contact limit is reached (new first emails are held)",
+            [
+                (
+                    {},
+                    one(
+                        """SELECT count(*) FROM campaigns c WHERE c.status = 'active'
+                           AND c.pilot_max_contacts IS NOT NULL
+                           AND (SELECT count(DISTINCT m.lead_id) FROM messages m WHERE m.campaign_id = c.id
+                                AND m.kind = 'outreach' AND m.sequence_step = 0 AND m.status = ANY(:contacted))
+                               >= c.pilot_max_contacts""",
+                        contacted=list(CONTACTED_STATUSES),
+                    ),
+                )
+            ],
+        )
+        _gauge(
+            lines,
+            "pipelineos_pilot_requests_waiting",
+            "pilot requests from the landing page unanswered for more than an hour",
+            [
+                (
+                    {},
+                    one(
+                        "SELECT count(*) FROM pilot_requests WHERE status = 'new' "
+                        "AND created_at < now() - interval '1 hour'"
+                    ),
+                )
+            ],
+        )
+        _gauge(
+            lines,
+            "pipelineos_invoices_overdue",
+            "issued invoices past their due date with money still owed",
+            [
+                (
+                    {},
+                    one(
+                        """SELECT count(*) FROM invoices i WHERE i.status = 'issued' AND i.due_date < current_date
+                           AND i.total_minor > coalesce((SELECT sum(p.amount_minor) FROM invoice_payments p
+                                                         WHERE p.invoice_id = i.id), 0)"""
+                    ),
+                )
+            ],
         )
         _gauge(
             lines,
@@ -473,3 +534,110 @@ def check_sending_domain(
         check_and_store(conn, domain_id, _dns_lookup(), datetime.now(UTC))
         r = conn.execute(text(_DOMAINS_SQL + " WHERE d.id = :d GROUP BY d.id, t.legal_name"), {"d": domain_id})
         return _domain_out(r.mappings().one())
+
+
+# ------------------------------------------------------------------ onboarding: sending domain and inbox
+_DOMAIN_RE = re.compile(r"^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$")
+
+
+class DomainIn(BaseModel):
+    domain: str = Field(min_length=4, max_length=253)
+
+
+@router.post("/api/v1/clients/{tenant_id}/sending-domains", response_model=SendingDomainOut, status_code=201)
+def add_sending_domain(
+    tenant_id: uuid.UUID, body: DomainIn, user: Annotated[CurrentUser, Depends(require(Permission.MANAGE_COMPLIANCE))]
+) -> SendingDomainOut:
+    """A separate domain the client sends from (never their main domain). DNS is checked afterwards (Check DNS)."""
+    if user.role != "operator":
+        raise ProblemError(403, "Forbidden")
+    domain = body.domain.strip().lower().rstrip(".")
+    if not _DOMAIN_RE.match(domain):
+        raise ProblemError(422, "Not a valid domain name")
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        if conn.execute(text("SELECT 1 FROM tenants WHERE id = :t"), {"t": tenant_id}).first() is None:
+            raise ProblemError(404, "Client not found")
+        if conn.execute(text("SELECT 1 FROM sending_domains WHERE domain = :d"), {"d": domain}).first():
+            raise ProblemError(409, "This domain is already registered")
+        did = conn.execute(
+            text("INSERT INTO sending_domains (tenant_id, domain) VALUES (:t, :d) RETURNING id"),
+            {"t": tenant_id, "d": domain},
+        ).scalar_one()
+        write_audit(
+            conn,
+            action="sending_domain.added",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=tenant_id,
+            entity_type="sending_domain",
+            entity_id=did,
+            after={"domain": domain},
+        )
+        r = conn.execute(text(_DOMAINS_SQL + " WHERE d.id = :d GROUP BY d.id, t.legal_name"), {"d": did})
+        return _domain_out(r.mappings().one())
+
+
+class NewInboxIn(BaseModel):
+    sending_domain_id: uuid.UUID
+    address: str = Field(min_length=6, max_length=254)
+    display_name: str = Field(min_length=2, max_length=100)
+    provider: Literal["msgraph", "google"]
+
+
+class NewInboxOut(BaseModel):
+    id: str
+    address: str
+    provider: str
+    status: str
+    daily_cap: int
+
+
+@router.post("/api/v1/clients/{tenant_id}/inboxes", response_model=NewInboxOut, status_code=201)
+def add_inbox(
+    tenant_id: uuid.UUID,
+    body: NewInboxIn,
+    user: Annotated[CurrentUser, Depends(require(Permission.MANAGE_COMPLIANCE))],
+) -> NewInboxOut:
+    """A mailbox on the sending domain. It starts warming at the warm-up start cap (config/warmup.yaml)."""
+    from app.config_paths import config_root
+    from app.domain.deliverability.warmup import WarmupPlan
+
+    if user.role != "operator":
+        raise ProblemError(403, "Forbidden")
+    address = body.address.strip().lower()
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        dom = conn.execute(
+            text("SELECT domain FROM sending_domains WHERE id = :d AND tenant_id = :t"),
+            {"d": body.sending_domain_id, "t": tenant_id},
+        ).scalar()
+        if dom is None:
+            raise ProblemError(404, "Sending domain not found for this client")
+        local, _, host = address.partition("@")
+        if not local or host != dom or not re.match(r"^[a-z0-9._%+-]{1,64}$", local):
+            raise ProblemError(422, f"The address must be on {dom}")
+        if conn.execute(text("SELECT 1 FROM inboxes WHERE address = :a"), {"a": address}).first():
+            raise ProblemError(409, "This inbox already exists")
+        cap = WarmupPlan.load(config_root()).start_cap
+        iid = conn.execute(
+            text("""INSERT INTO inboxes (tenant_id, sending_domain_id, address, display_name, provider, status,
+                    daily_cap) VALUES (:t, :d, :a, :n, :p, 'warming', :c) RETURNING id"""),
+            {
+                "t": tenant_id,
+                "d": body.sending_domain_id,
+                "a": address,
+                "n": body.display_name.strip(),
+                "p": body.provider,
+                "c": cap,
+            },
+        ).scalar_one()
+        write_audit(
+            conn,
+            action="inbox.added",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=tenant_id,
+            entity_type="inbox",
+            entity_id=iid,
+            after={"provider": body.provider, "daily_cap": cap},
+        )
+    return NewInboxOut(id=str(iid), address=address, provider=body.provider, status="warming", daily_cap=cap)

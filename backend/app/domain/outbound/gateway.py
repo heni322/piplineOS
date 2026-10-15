@@ -36,6 +36,7 @@ from app.domain.outbound.modes import SendMode, resolve_mode
 from app.domain.suppression import unsubscribe
 from app.domain.suppression.service import RecipientHashes
 from app.domain.suppression.service import check as check_suppression
+from app.domain.tenants.controls import contacts_used
 from app.settings import Settings
 
 log = get_logger(__name__)
@@ -149,7 +150,8 @@ class OutboundGateway:
                    p.subdivision_code, p.subscriber_type, p.email_verification, p.role_relevance,
                    c.country_code AS c_country, t.live_mode, t.legal_name, t.slug,
                    i.address AS inbox_address, i.display_name, i.status AS inbox_status, i.daily_cap AS inbox_cap,
-                   i.oauth_status, i.provider AS inbox_provider, cp.daily_cap AS campaign_cap
+                   i.oauth_status, i.provider AS inbox_provider, cp.daily_cap AS campaign_cap,
+                   t.status AS tenant_status, cp.status AS campaign_status, cp.pilot_max_contacts
             FROM leads l
             JOIN prospects p ON p.id = l.prospect_id
             JOIN companies c ON c.id = l.company_id
@@ -170,6 +172,19 @@ class OutboundGateway:
                 {"e": f"lead is {row['state']}", "id": message_id},
             )
             return SendOutcome("skipped", (f"FOLLOW_UP_CANCELLED_LEAD_{str(row['state']).upper()}",))
+        # 0) emergency stop and pilot limit: HOLD (stay queued), never reject. Checked before compliance so a
+        # paused client never reads as a compliance rejection, and resuming sends exactly what was waiting.
+        if row["tenant_status"] == "paused":
+            return self._block(conn, tenant_id, m, None, ("CLIENT_PAUSED",), permanent=False)
+        if row["campaign_status"] in ("paused", "auto_paused"):
+            return self._block(conn, tenant_id, m, None, ("CAMPAIGN_PAUSED",), permanent=False)
+        if (
+            m["kind"] == "outreach"
+            and m["sequence_step"] == 0
+            and row["pilot_max_contacts"] is not None
+            and self._pilot_full(conn, row["campaign_id"], row["pilot_max_contacts"])
+        ):
+            return self._block(conn, tenant_id, m, None, ("PILOT_LIMIT_REACHED",), permanent=False)
         if row["email_enc"] is None:
             return self._block(conn, tenant_id, m, None, ("PROSPECT_HAS_NO_EMAIL",))
         email = self.cipher.decrypt(conn, tenant_id, "prospects.email", row["email_enc"])
@@ -344,6 +359,12 @@ class OutboundGateway:
             text("UPDATE messages SET status = 'queued', scheduled_for = :w WHERE id = :id"), {"w": when, "id": m["id"]}
         )
         return SendOutcome("deferred", (reason,), decision_id, scheduled_for=when)
+
+    @staticmethod
+    def _pilot_full(conn: Connection, campaign_id: uuid.UUID, limit: int) -> bool:
+        # Lock the campaign row so two concurrent first emails cannot both take the last pilot slot.
+        conn.execute(text("SELECT 1 FROM campaigns WHERE id = :c FOR UPDATE"), {"c": campaign_id})
+        return contacts_used(conn, campaign_id) >= limit
 
     @staticmethod
     def _sent_today(conn: Connection, column: Literal["inbox_id", "campaign_id"], value: object, now: datetime) -> int:

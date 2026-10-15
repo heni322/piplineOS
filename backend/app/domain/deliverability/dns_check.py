@@ -18,7 +18,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-Lookup = Callable[[str, str], list[str]]  # (name, "TXT" | "CNAME") -> records ([] when none)
+Lookup = Callable[[str, str], list[str]]  # (name, "TXT" | "CNAME" | "MX" | "A") -> records ([] when none)
 
 SPF_INCLUDE = {"msgraph": "spf.protection.outlook.com", "google": "_spf.google.com"}
 DKIM_SELECTORS = {"msgraph": [("selector1", "CNAME"), ("selector2", "CNAME")], "google": [("google", "TXT")]}
@@ -38,8 +38,13 @@ class DnsResult:
         return self.spf_ok and self.dkim_ok and self.dmarc_ok
 
 
-def dns_lookup(timeout: float = 5.0) -> Lookup:
-    """Real resolver (public DNS). Missing names and records come back as []."""
+class DnsUnavailable(Exception):
+    """The resolver could not answer (timeout, no reachable name server): NOT the same as "no such record"."""
+
+
+def dns_lookup(timeout: float = 5.0, *, strict: bool = False) -> Lookup:
+    """Real resolver (public DNS). Missing names and records come back as []. With `strict`, a resolver failure
+    raises DnsUnavailable instead of looking like "no records" (so a transient outage never marks an address bad)."""
     import dns.exception
     import dns.resolver
 
@@ -49,10 +54,18 @@ def dns_lookup(timeout: float = 5.0) -> Lookup:
     def lookup(name: str, rdtype: str) -> list[str]:
         try:
             answer = resolver.resolve(name, rdtype)
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers, dns.exception.Timeout):
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            return []
+        except (dns.resolver.NoNameservers, dns.exception.Timeout) as exc:
+            if strict:
+                raise DnsUnavailable(name) from exc
             return []
         if rdtype == "TXT":
             return [b"".join(r.strings).decode("utf-8", "replace") for r in answer]
+        if rdtype == "MX":
+            return [str(r.exchange).rstrip(".") for r in answer]  # "" = null MX (RFC 7505: accepts no mail)
+        if rdtype in ("A", "AAAA"):
+            return [str(r.address) for r in answer]
         return [str(r.target).rstrip(".") for r in answer]
 
     return lookup

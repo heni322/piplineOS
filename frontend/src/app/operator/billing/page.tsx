@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { InvoiceDocument } from "@/components/InvoiceDocument";
+import { PaymentsPanel } from "@/components/PaymentsPanel";
 import { api, type Problem } from "@/lib/api";
 import { money, monthStart } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
@@ -160,6 +161,9 @@ export default function BillingPage() {
           {open && (
             <>
               <InvoiceDocument inv={open} />
+              {(open.status === "issued" || open.status === "paid") && (
+                <PaymentsPanel inv={open} onChange={(inv, m) => { setOpen(inv); setStatus(m); load(); }} />
+              )}
               {open.status === "draft" && (
                 <div className="panel">
                   <h3 style={{ marginTop: 0 }}>{blocked.length ? t.blocked : t.blockedNone}</h3>

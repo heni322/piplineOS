@@ -105,3 +105,80 @@ test("operator sets a client's targeting for the free sources", async ({ page })
   await panel.getByRole("button", { name: "Save targeting" }).click();
   await expect(panel.getByRole("alert")).toContainText("SIC codes are 5 digits");
 });
+
+test("operator onboards a brand-new client from the console, guided step by step", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Clients" }).click();
+  await page.getByRole("button", { name: "Add client" }).click();
+  await page.getByLabel("Legal name").fill("Fabrikam IT Ltd");
+  await page.getByLabel("Short name (used in links)").fill("fabrikam-it");
+  await page.getByLabel("Company number").fill("07654321");
+  await page.getByLabel("Registered address").fill("2 Market St, York");
+  await page.getByRole("button", { name: "Create client", exact: true }).click();
+  const card = page.getByRole("region", { name: "Fabrikam IT Ltd" });
+  const next = card.getByRole("group", { name: "Next step" });
+  await expect(next).toContainText("Next step: Legitimate interests assessment");
+
+  await next.getByRole("button", { name: "Record LIA" }).click();
+  await card.getByLabel("Reference").fill("LIA-FAB-1");
+  await card.getByLabel("Approved on").fill("2026-10-01");
+  await card.getByRole("button", { name: "Save" }).click();
+  await expect(next).toContainText("Next step: Data processing agreement");
+  await next.getByRole("button", { name: "Record DPA" }).click();
+  await card.getByLabel("Version").fill("v1");
+  await card.getByLabel("Signed on").fill("2026-10-02");
+  await card.getByRole("button", { name: "Save" }).click();
+  await expect(next).toContainText("Next step: Offer, criteria and pricing");
+
+  await next.getByRole("button", { name: "Offer & pricing" }).click();
+  const panel = page.getByRole("dialog");
+  await panel.getByLabel("Sender's name").fill("Alex Morgan");
+  await panel.getByLabel("Sender's job title").fill("Managing Director");
+  await panel.getByLabel(/What the client offers/).fill("fixed-price IT support for growing UK companies");
+  await panel.getByLabel(/Purpose of the outreach/).fill("IT support for growing companies");
+  await expect(panel.getByLabel("Criterion 1")).not.toHaveValue("");
+  await panel.getByLabel("Per qualified, attended meeting").fill("250");
+  await accessible(page, "client-offer");
+  await panel.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /configuration version \d+/ })).toBeVisible();
+  await expect(next).toContainText("Next step: Client login");
+
+  await card.getByRole("button", { name: "Sending domain" }).click();
+  await panel.getByLabel(/^Domain/).fill("outreach.fabrikam-it.example");
+  await panel.getByRole("button", { name: "Add domain" }).click();
+  await panel.getByLabel("Inbox address").fill("alex");
+  await panel.getByLabel("Name shown to recipients").fill("Alex Morgan");
+  await panel.getByRole("button", { name: "Add inbox" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "warming at 10 emails a day" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Campaigns" }).click();
+  await page.getByLabel("Client", { exact: true }).selectOption({ label: "Fabrikam IT Ltd" });
+  await page.getByLabel("Campaign name").fill("Pilot: contract winners");
+  await page.getByRole("button", { name: "Create campaign" }).click();
+  const row = page.getByRole("row").filter({ hasText: "Pilot: contract winners" });
+  await expect(row).toContainText("draft");
+  await expect(row).toContainText("0 of 100");
+  await row.getByRole("button", { name: "Start" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Activate the client first" })).toBeVisible();
+});
+
+test("a company asks for a pilot on the landing page and the operator sees it", async ({ page }) => {
+  await page.goto("/");
+  const form = page.getByRole("form", { name: "Ask for a pilot" });
+  await form.getByLabel("Your name").fill("Robin Hart");
+  await form.getByLabel("Company").fill("Litware IT Ltd");
+  await form.getByLabel("Work email").fill("robin@litware.example");
+  await expect(form.getByRole("button", { name: "Send" })).toBeDisabled(); // consent is required
+  await form.getByLabel(/I agree that PipelineOS may contact me/).check();
+  await accessible(page, "landing-form");
+  await form.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("status")).toContainText("We'll be in touch");
+
+  await signIn(page);
+  await page.getByRole("link", { name: "Pilot requests" }).click();
+  const row = page.getByRole("row").filter({ hasText: "Litware IT Ltd" });
+  await expect(row).toContainText("robin@litware.example");
+  await accessible(page, "pilot-requests");
+  await row.getByRole("button", { name: "Mark as Contacted" }).click();
+  await expect(row).toContainText("Contacted");
+});

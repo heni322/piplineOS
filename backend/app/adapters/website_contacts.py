@@ -30,6 +30,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
+from app.adapters.base import RetryableProviderError
 from app.adapters.companies_house.live import normalise_name
 from app.adapters.enrichment.base import EnrichedPerson, EnrichmentProvider
 from app.adapters.signals.ocds import normalise_company_number
@@ -220,15 +221,35 @@ class WebsiteFinder:
         return None
 
 
+Lookup = Callable[[str, str], list[str]]  # (name, "MX" | "A") -> records; same shape as dns_check.dns_lookup()
+
+
+def mail_domain_status(domain: str, lookup: Lookup) -> Verification:
+    """Can this domain receive email at all? Free (public DNS), and it catches the commonest hard bounce: an address
+    on a domain that no longer takes mail. MX present -> valid; null MX (RFC 7505) -> invalid; no MX but an A/AAAA
+    record (implicit MX, RFC 5321) -> risky, which the compliance gate does not send to; nothing -> invalid; the
+    resolver failing (the lookup raises) -> RetryableProviderError: the lead waits and is retried, so a DNS outage never
+    condemns a good address."""
+    try:
+        mx = lookup(domain, "MX")
+        if mx:
+            return "invalid" if all(not h for h in mx) else "valid"
+        return "risky" if lookup(domain, "A") or lookup(domain, "AAAA") else "invalid"
+    except Exception as exc:  # resolver unavailable: decide nothing now; the lead is retried on the next run
+        raise RetryableProviderError(f"dns unavailable for {domain}") from exc
+
+
 class WebsiteContacts:
     """Enrichment (register people + the company's published address) and verifier in one: `verify` says "valid"
-    only for an address this object found published on the company's own verified website."""
+    only for an address this object found published on the company's own verified website, on a domain that
+    accepts email (MX check, when a DNS lookup is given)."""
 
     name = "website.published_contacts"
 
-    def __init__(self, people: EnrichmentProvider, finder: WebsiteFinder) -> None:
-        self._people, self._finder = people, finder
+    def __init__(self, people: EnrichmentProvider, finder: WebsiteFinder, lookup: Lookup | None = None) -> None:
+        self._people, self._finder, self._lookup = people, finder, lookup
         self._published: set[str] = set()
+        self._domain_status: dict[str, Verification] = {}  # one DNS check per domain, not per address
 
     def find_people(
         self,
@@ -246,7 +267,7 @@ class WebsiteContacts:
         if site is None:
             return people
         if site.address:
-            self._published.add(site.address)
+            self._published.add(site.address.lower())
         return [
             replace(
                 p,
@@ -258,7 +279,15 @@ class WebsiteContacts:
         ]
 
     def verify(self, email: str) -> Verification:
-        return "valid" if email.lower() in self._published else "unknown"
+        email = email.lower()
+        if email not in self._published:
+            return "unknown"
+        if self._lookup is None:
+            return "valid"
+        domain = email.rsplit("@", 1)[1]
+        if domain not in self._domain_status:  # an outage raises before caching, so it is retried next time
+            self._domain_status[domain] = mail_domain_status(domain, self._lookup)
+        return self._domain_status[domain]
 
 
 def _number_from(people: list[EnrichedPerson]) -> str | None:

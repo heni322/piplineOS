@@ -1,0 +1,14 @@
+# Data retention (UK GDPR Art. 5(1)(e): storage limitation). LEGAL REVIEW REQUIRED: the periods are the
+# solicitor's decision (docs/LEGAL-REVIEW-CHECKLIST.md B5). Until they are set, every period is null and the
+# retention job does nothing: it never deletes on a default.
+#
+# When a period is set, a prospect's personal data is erased exactly as for an erasure request (hashed suppression
+# entries, anonymised stubs for aggregate numbers and the PII-free audit trail are kept) once EVERY lead for that
+# person is past it:
+#   never_contacted_days: no email was ever sent to them (found, checked, rejected or not approved), counted from
+#                         the lead's last change;
+#   no_reply_days:        emailed but never replied, counted from the last email sent.
+# Anyone who replied, was booked, met or billed is never erased by this job: those records back invoices and
+# disputes, and need their own period from the solicitor.
+never_contacted_days: null
+no_reply_days: null

@@ -4,6 +4,9 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
+# The landing page's pilot-enquiry address, baked in at build time (docker build --build-arg ...). Empty: no button.
+ARG NEXT_PUBLIC_CONTACT_EMAIL=""
+ENV NEXT_PUBLIC_CONTACT_EMAIL=$NEXT_PUBLIC_CONTACT_EMAIL
 RUN pnpm build
 
 FROM node:22-alpine

@@ -56,7 +56,11 @@ test("client sees results, accepted terms and billable meetings, and can dispute
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL("**/client");
   await expect(page.getByRole("heading", { name: "Your results" })).toBeVisible();
-  await expect(page.locator(".ledger div").filter({ hasText: "Booked" }).locator("dd")).toHaveText("1");
+  await expect(page.locator(".ledger").first().locator("div").filter({ hasText: "Booked" }).locator("dd")).toHaveText("1");
+  await expect(page.getByRole("note")).toContainText("dry-run, not sent"); // demo numbers are never read as results
+  await expect(page.getByRole("heading", { name: "Per 100 people reached" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Emergency stop" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Stop all sending" })).toBeVisible();
   await accessible(page, "client-overview");
 
   await page.getByRole("link", { name: "Terms" }).click();
@@ -109,4 +113,39 @@ test("client connects their own CRM; the token is never shown back; disconnectin
   await page.getByRole("button", { name: "Disconnect HubSpot" }).click();
   await expect(page.getByRole("heading", { name: "Disconnected" })).toBeVisible();
   await expect(page.getByText(/Reason: Switching/)).toBeVisible();
+});
+
+test("client shares a testimonial with a chosen scope and can withdraw it", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Work email").fill(CLIENT!);
+  await page.getByLabel("Password").fill(CLIENT_PW!);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL("**/client");
+  const proof = page.getByRole("region", { name: "Recommend us" });
+  await proof.getByLabel(/Your words/).fill("Two qualified meetings in our first month, both with new accounts.");
+  await proof.getByLabel("Where we may use it").selectOption("named");
+  await expect(proof.getByRole("button", { name: "Share" })).toBeDisabled(); // a named quote needs a name
+  await proof.getByLabel(/How to name you/).fill("Sam Carter, MD");
+  await proof.getByRole("button", { name: "Share" }).click();
+  await expect(proof.getByRole("status")).toContainText("Thank you");
+  await accessible(page, "client-testimonial");
+  await proof.getByRole("button", { name: "Withdraw" }).click();
+  await expect(proof.getByRole("status")).toContainText("will not be shown again");
+  await expect(proof).toContainText("Withdrawn");
+});
+
+test("client sees setup progress and can paste target accounts (companies only)", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("Work email").fill(CLIENT!);
+  await page.getByLabel("Password").fill(CLIENT_PW!);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.waitForURL("**/client");
+  await page.getByRole("link", { name: "Target accounts" }).click();
+  await expect(page.getByRole("heading", { name: "Target accounts" })).toBeVisible();
+  await expect(page.getByRole("status").first()).toContainText(/Setup complete|steps done/);
+  await page.getByLabel(/One company per line/).fill("Northwind Traders Ltd, 07777777, northwind.example\nTailspin Toys Ltd");
+  await page.getByRole("button", { name: "Add these" }).click();
+  await expect(page.getByRole("textbox", { name: /Company name/ }).last()).toHaveValue("Tailspin Toys Ltd");
+  await expect(page.getByRole("textbox", { name: /UK company number/ }).nth(-2)).toHaveValue("07777777");
+  await accessible(page, "client-targets");
 });

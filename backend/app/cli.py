@@ -33,6 +33,10 @@ app.add_typer(users_app, name="users")
 app.add_typer(demo_app, name="demo")
 app.add_typer(registers_app, name="registers")
 app.add_typer(signals_app, name="signals")
+retention_app = typer.Typer(help="Data retention (config/retention.yaml; off until the solicitor sets the periods)")
+app.add_typer(retention_app, name="retention")
+economics_app = typer.Typer(help="Unit economics and funnel simulation (assumptions, not measurements)")
+app.add_typer(economics_app, name="economics")
 
 
 @app.callback()
@@ -282,3 +286,38 @@ def demo_billing(period: str = "2026-10-01") -> None:
 
 if __name__ == "__main__":
     app()
+
+
+@economics_app.command("simulate")
+def economics_simulate(
+    price: float = typer.Option(300.0, help="EUR per qualified, attended meeting"),
+    retainer: float = typer.Option(0.0, help="EUR monthly retainer"),
+    hourly: float = typer.Option(30.0, help="EUR per operator hour"),
+) -> None:
+    """Pessimistic/base/optimistic funnel for 100 to 100k leads, a 1000-lead Monte Carlo and revenue targets."""
+    from app.economics.simulator import report
+
+    out = report(price_per_meeting_eur=price, monthly_retainer_eur=retainer, hourly_cost_eur=hourly)
+    typer.echo(json.dumps(out, indent=2))
+
+
+@retention_app.command("run")
+def retention_run(apply: bool = typer.Option(False, help="Erase for real (default: only count what is due)")) -> None:
+    """Count (or, with --apply, erase) prospects past the retention periods, per client."""
+    from datetime import UTC, datetime
+
+    from app.config_paths import config_root
+    from app.domain.dpr.retention import RetentionPolicy, run_retention
+
+    policy = RetentionPolicy.load(config_root())
+    out: dict[str, object] = {"enabled": policy.enabled, "policy": policy.model_dump(), "clients": {}}
+    if policy.enabled:
+        engine = get_engine()
+        with transaction(DbContext.system(), engine) as conn:
+            tenants = conn.execute(text("SELECT id, slug FROM tenants ORDER BY slug")).all()
+        now = datetime.now(UTC)
+        for t in tenants:
+            with transaction(DbContext.system(t.id), engine) as conn:
+                r = run_retention(conn, t.id, policy, now, apply=apply)
+            out["clients"][t.slug] = {"due": r.due, "erased": r.erased}  # type: ignore[index]
+    typer.echo(json.dumps(out, indent=2))

@@ -203,3 +203,37 @@ def test_anonymous_requests_are_refused(world) -> None:  # type: ignore[no-untyp
     anon = TestClient(op.app)
     for path in ("/api/v1/invoices", "/api/v1/disputes", "/api/v1/terms", "/api/v1/reports/metrics", "/api/v1/clients"):
         assert anon.get(path).status_code == 401, path
+
+
+def test_client_sets_their_own_roi_figures(world) -> None:  # type: ignore[no-untyped-def]
+    op, client, _demo = world
+    params = {"start": "2026-01-01", "end": "2026-12-31"}
+    assert client.get("/api/v1/reports/metrics", params=params).json()["roi"] == {"status": "not_configured"}
+    assert (
+        client.put("/api/v1/account/roi", json={"average_deal_value_minor": 1, "close_rate_pct": 101}).status_code
+        == 422
+    )
+    r = client.put("/api/v1/account/roi", json={"average_deal_value_minor": 2_000_000, "close_rate_pct": 25})
+    assert r.status_code == 204
+    m = client.get("/api/v1/reports/metrics", params=params).json()
+    roi = m["roi"]
+    assert roi["status"] == "estimate" and roi["close_rate_pct"] == 25
+    assert roi["pipeline_value_minor"] == m["qualified_meetings"] * 2_000_000
+    assert roi["expected_revenue_minor"] == roi["pipeline_value_minor"] // 4
+    # Only the client's admin sets it; the operator uses the configuration instead.
+    assert op.put("/api/v1/account/roi", json={"average_deal_value_minor": 1, "close_rate_pct": 1}).status_code == 403
+    # Signed terms are untouched by the new configuration version.
+    assert all(t["signed"] for t in client.get("/api/v1/terms").json())
+
+
+def test_only_the_operator_records_payments_with_their_code(world) -> None:  # type: ignore[no-untyped-def]
+    op, client, demo = world
+    inv = _draft(op, demo)["invoice_id"]
+    body = {"amount_minor": 1000, "received_on": "2026-10-10", "method": "bank_transfer", "totp_code": "000000"}
+    assert client.post(f"/api/v1/invoices/{inv}/payments", json=body).status_code == 403
+    assert op.post(f"/api/v1/invoices/{inv}/payments", json=body).status_code == 403  # wrong code
+    code = pyotp.TOTP(demo.operator_totp_secret or "").now()
+    r = op.post(f"/api/v1/invoices/{inv}/payments", json=body | {"totp_code": code})
+    assert r.status_code in (409, 403)  # a draft takes no payment (403 only if the code was already used)
+    listed = op.get("/api/v1/invoices", params={"tenant_id": str(demo.tenant_id)}).json()
+    assert listed and {"paid_minor", "due_minor", "overdue"} <= set(listed[0])

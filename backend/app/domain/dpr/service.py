@@ -9,6 +9,7 @@ import contextlib
 import json
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
@@ -144,23 +145,19 @@ def open_request(
     return dpr_id
 
 
-def complete_erasure(
-    conn: Connection, *, tenant_id: uuid.UUID, dpr_id: uuid.UUID, user_id: uuid.UUID
+def anonymise_prospect(
+    conn: Connection,
+    *,
+    prospect_id: uuid.UUID,
+    company_id: uuid.UUID,
+    actor_id: str,
+    reason: str,
+    actor_type: Literal["user", "system"] = "user",
 ) -> dict[str, int]:
-    """Erase/anonymise the prospect everywhere in this tenant. Keeps only: the hashed suppression entry, anonymised
-    lead/prospect stubs for aggregate metrics, and the audit trail (PII-free). Run after verifying identity."""
-    req = (
-        conn.execute(
-            text("SELECT lead_id, status, request_type FROM data_protection_requests WHERE id = :d FOR UPDATE"),
-            {"d": dpr_id},
-        )
-        .mappings()
-        .one()
-    )
-    if req["lead_id"] is None:
-        raise ValueError("request is not linked to a lead")
-    lead = conn.execute(text("SELECT prospect_id, company_id FROM leads WHERE id = :l"), {"l": req["lead_id"]}).one()
-    pid = lead.prospect_id
+    """Erase/anonymise one prospect everywhere in the current tenant (on request, or by the retention schedule).
+    Keeps only: the hashed suppression entry, anonymised lead/prospect stubs for aggregate metrics, and the audit
+    trail (PII-free). The caller writes its own audit entry."""
+    pid = prospect_id
     lead_ids = conn.execute(text("SELECT id FROM leads WHERE prospect_id = :p"), {"p": pid}).scalars().all()
     counts: dict[str, int] = {}
 
@@ -198,6 +195,12 @@ def complete_erasure(
         {"ls": list(lead_ids)},
     )
     run("meetings", "UPDATE meetings SET brief_enc = NULL WHERE lead_id = ANY(:ls)", {"ls": list(lead_ids)})
+    run(  # the operator's free-text note on a contact task may name the person
+        "contact_tasks",
+        "UPDATE alternative_channel_tasks SET outcome_note = NULL WHERE lead_id = ANY(:ls) "
+        "AND outcome_note IS NOT NULL",
+        {"ls": list(lead_ids)},
+    )
     run(
         "dry_run_log",
         "UPDATE dry_run_log SET payload_enc = NULL, recipient_bidx = NULL WHERE entity_id = ANY(:ls) "
@@ -214,13 +217,37 @@ def complete_erasure(
         "company",
         """UPDATE companies SET name = '[erased sole trader]', name_enc = NULL, name_is_personal = false
         WHERE id = :c AND name_is_personal""",
-        {"c": lead.company_id},
+        {"c": company_id},
     )
     for lid in lead_ids:
         with contextlib.suppress(TransitionError):
-            transition(
-                conn, lid, State.ERASED, actor_type="user", actor_id=str(user_id), reason="erasure request completed"
-            )
+            transition(conn, lid, State.ERASED, actor_type=actor_type, actor_id=actor_id, reason=reason)
+    return counts
+
+
+def complete_erasure(
+    conn: Connection, *, tenant_id: uuid.UUID, dpr_id: uuid.UUID, user_id: uuid.UUID
+) -> dict[str, int]:
+    """Erase/anonymise the prospect everywhere in this tenant. Keeps only: the hashed suppression entry, anonymised
+    lead/prospect stubs for aggregate metrics, and the audit trail (PII-free). Run after verifying identity."""
+    req = (
+        conn.execute(
+            text("SELECT lead_id, status, request_type FROM data_protection_requests WHERE id = :d FOR UPDATE"),
+            {"d": dpr_id},
+        )
+        .mappings()
+        .one()
+    )
+    if req["lead_id"] is None:
+        raise ValueError("request is not linked to a lead")
+    lead = conn.execute(text("SELECT prospect_id, company_id FROM leads WHERE id = :l"), {"l": req["lead_id"]}).one()
+    counts = anonymise_prospect(
+        conn,
+        prospect_id=lead.prospect_id,
+        company_id=lead.company_id,
+        actor_id=str(user_id),
+        reason="erasure request completed",
+    )
     conn.execute(
         text(
             "UPDATE data_protection_requests SET status = 'completed', completed_at = now(), responded_at = "

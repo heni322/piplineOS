@@ -63,6 +63,9 @@ class BrandVoice(_Strict):
 class Sequence(_Strict):
     follow_ups: int = Field(default=2, ge=0, le=3)
     spacing_business_days: int = Field(default=3, ge=2, le=10)
+    # Subject-line A/B test: 1 = off (always the writer's first subject line); 2 or 3 = each lead gets one of the
+    # first N subject lines, fixed per lead, and the report compares replies per 100 people reached by variant.
+    subject_variants: int = Field(default=1, ge=1, le=3)
 
 
 class Criterion(_Strict):
@@ -120,6 +123,13 @@ class Pricing(_Strict):
     dispute_window_days: int = Field(default=14, ge=1, le=60)
 
 
+class Roi(_Strict):
+    """The client's OWN estimates, used only to show an estimated return. Never used for billing."""
+
+    average_deal_value_minor: int = Field(ge=0, le=10_000_000_000)
+    close_rate_pct: int = Field(ge=0, le=100)  # of qualified, attended meetings that become a deal
+
+
 class TenantConfig(_Strict):
     schema_version: int = 1
     niche_slug: str
@@ -144,6 +154,7 @@ class TenantConfig(_Strict):
     ai_disclosure_text: str = "This reply was drafted with the help of AI."
     nurture_days: int = Field(default=90, ge=14, le=365)
     pricing: Pricing | None = None
+    roi: Roi | None = None
     watchlist: list[WatchedCompany] = Field(default=[], max_length=500)
 
     @field_validator("language")
@@ -157,7 +168,17 @@ class TenantConfig(_Strict):
         return v
 
 
+def current_version(conn: Connection, tenant_id: uuid.UUID) -> int:
+    return int(
+        conn.execute(
+            text("SELECT coalesce(max(version), 0) FROM tenant_configs WHERE tenant_id = :t"), {"t": tenant_id}
+        ).scalar_one()
+    )
+
+
 def save_config(conn: Connection, tenant_id: uuid.UUID, cfg: TenantConfig, created_by: uuid.UUID | None = None) -> int:
+    # One save at a time per client (the operator and the client admin can both save): no duplicate version.
+    conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(CAST(:t AS text), 7019))"), {"t": tenant_id})
     version = int(
         conn.execute(
             text("SELECT coalesce(max(version), 0) + 1 FROM tenant_configs WHERE tenant_id = :t"), {"t": tenant_id}
@@ -173,12 +194,16 @@ def save_config(conn: Connection, tenant_id: uuid.UUID, cfg: TenantConfig, creat
     return version
 
 
+class ConfigMissing(LookupError):
+    """The client has no configuration yet (it is still being onboarded). The API answers 409, never 500."""
+
+
 def load_config(conn: Connection, tenant_id: uuid.UUID) -> tuple[uuid.UUID, TenantConfig]:
     row = conn.execute(
         text("SELECT id, config FROM tenant_configs WHERE tenant_id = :t ORDER BY version DESC LIMIT 1"),
         {"t": tenant_id},
     ).one_or_none()
     if row is None:
-        raise LookupError(f"tenant {tenant_id} has no configuration")
+        raise ConfigMissing(f"tenant {tenant_id} has no configuration")
     cfg = row.config if isinstance(row.config, dict) else json.loads(row.config)
     return row.id, TenantConfig.model_validate(cfg)

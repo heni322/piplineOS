@@ -1,0 +1,47 @@
+# Starter configuration for a client that is a UK IT managed service provider (ICP #1, docs/GO-TO-MARKET.md §3).
+# A STARTING POINT, not a recommendation: the operator adjusts it with the client in the onboarding call, and the
+# client signs the qualification criteria in their portal before any meeting can be billed.
+# Brand voice, outreach purpose and pricing are not here: they are entered per client in Clients → Offer & pricing.
+title: "UK IT managed service provider (selling to UK organisations with a fresh buying signal)"
+config:
+  niche_slug: uk-it-msp
+  icp:
+    description: "UK organisations of 20-500 staff that just won a public contract, are hiring IT or operations roles,
+      appointed a new director or raised funding: a moment when IT support capacity becomes urgent."
+    industry_keywords: ["it services", "managed services", "software", "consultancy", "engineering", "facilities",
+      "logistics", "professional services"]
+    exclude_keywords: ["school", "nhs trust", "council", "charity shop"]
+    hiring_keywords: ["it support", "service desk", "it manager", "systems administrator", "infrastructure",
+      "-intern"]
+    sic_codes: ["62020", "62090", "70229", "71129", "82990"]
+    countries: ["GB"]
+  personas:
+    - name: "Business or IT decision-maker"
+      titles: ["managing director", "director", "chief executive", "ceo", "chief operating officer", "coo",
+        "operations director", "head of it", "it director", "it manager", "chief technology officer", "cto",
+        "finance director"]
+      seniority_keywords: ["director", "head", "chief", "manager", "owner", "founder"]
+  signal_threshold: 60
+  sequence: { follow_ups: 2, spacing_business_days: 3 }
+  qualification:
+    framework: custom
+    criteria:
+      - id: need
+        question: "They have an IT support or capacity need the client can meet (growth, new contract, gap in cover)"
+        hint_keywords: ["support", "capacity", "growing", "new contract", "struggling", "gap", "outsourc", "cover"]
+      - id: authority
+        question: "The contact decides on, or directly influences, IT services"
+        evidence_from: profile
+      - id: timing
+        question: "They want to act within the next 6 months"
+        hint_keywords: ["this quarter", "next quarter", "soon", "asap", "this month", "next month", "weeks"]
+  objection_playbook:
+    - id: already_have_provider
+      objection: "We already have an IT provider"
+      match_keywords: ["already have", "existing provider", "current provider", "already use"]
+      approved_response: "Understood. Many companies keep their provider and compare once a year or when a contract
+        is up for renewal; a short call now gives you a benchmark, with no obligation."
+    - id: not_now
+      objection: "Not the right time"
+      match_keywords: ["not now", "bad time", "maybe later", "next year"]
+      approved_response: "No problem. I'll leave it there; if anything changes, my details are below."

@@ -11,6 +11,7 @@ from sqlalchemy import text
 from app.core.logging import configure_logging, get_logger
 from app.db.session import DbContext, get_engine, transaction
 from app.domain.outbound.gateway import reconcile_stuck_sends
+from app.domain.tenants.controls import LISTENING_STATUSES
 from app.settings import get_settings
 from app.workflows.outbox import relay_batch
 
@@ -37,6 +38,8 @@ celery_app.conf.update(
         "deliverability-kill-switch": {"task": "pipelineos.system.deliverability", "schedule": 900.0},
         "crm-sync": {"task": "pipelineos.system.crm_sync", "schedule": 300.0},
         "daily-deliverability": {"task": "pipelineos.system.daily_deliverability", "schedule": 24 * 3600.0},
+        "daily-retention": {"task": "pipelineos.system.retention", "schedule": 24 * 3600.0},
+        "weekly-client-report": {"task": "pipelineos.system.weekly_report", "schedule": 6 * 3600.0},
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
         "renew-gmail-watches": {"task": "pipelineos.replies.renew_gmail_watches", "schedule": 24 * 3600.0},
         **(
@@ -117,6 +120,38 @@ def daily_deliverability_task() -> dict[str, int]:
     from app.workflows.daily import daily_deliverability
 
     return daily_deliverability(get_engine(), now=datetime.now(UTC))
+
+
+@celery_app.task(name="pipelineos.system.weekly_report")
+def weekly_report_task() -> int:
+    """Each client's admins get last week's results on Monday (once per person per week; dry-run until live)."""
+    from app.core.crypto import PiiCipher
+    from app.domain.reporting.weekly import weekly_digest
+
+    return weekly_digest(get_engine(), settings, PiiCipher(settings.key("pii_master_key")))
+
+
+@celery_app.task(name="pipelineos.system.retention")
+def retention_task() -> dict[str, int]:
+    """Once a day: erase prospects past the retention periods (config/retention.yaml). Does nothing until the
+    solicitor's periods are set there."""
+    from datetime import UTC, datetime
+
+    from app.config_paths import config_root
+    from app.domain.dpr.retention import RetentionPolicy, run_retention
+
+    policy = RetentionPolicy.load(config_root())
+    if not policy.enabled:
+        return {"enabled": 0, "erased": 0}
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        tenant_ids = conn.execute(text("SELECT id FROM tenants")).scalars().all()
+    erased = 0
+    now = datetime.now(UTC)
+    for t in tenant_ids:
+        with transaction(DbContext.system(t), engine) as conn:
+            erased += run_retention(conn, t, policy, now, apply=True).erased
+    return {"enabled": 1, "erased": erased}
 
 
 @celery_app.task(name="pipelineos.system.crm_sync")
@@ -206,7 +241,8 @@ def fetch_inbound_task() -> int:
     with transaction(DbContext.system(), engine) as conn:
         rows = conn.execute(
             text("""SELECT t.id, (SELECT c.id FROM campaigns c WHERE c.tenant_id = t.id ORDER BY c.created_at
-              LIMIT 1) AS campaign_id FROM tenants t WHERE t.status = 'active'""")
+              LIMIT 1) AS campaign_id FROM tenants t WHERE t.status = ANY(:s)"""),
+            {"s": list(LISTENING_STATUSES)},
         ).all()
     cipher, handled = PiiCipher(settings.key("pii_master_key")), 0
     for tenant_id, campaign_id in rows:
@@ -233,8 +269,12 @@ def reply_sla_task() -> int:
     from app.workflows.pipeline import reply_sla_breaches
 
     engine = get_engine()
-    with transaction(DbContext.system(), engine) as conn:
-        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
+    with transaction(DbContext.system(), engine) as conn:  # paused clients' replies are still handled
+        tenant_ids = (
+            conn.execute(text("SELECT id FROM tenants WHERE status = ANY(:s)"), {"s": list(LISTENING_STATUSES)})
+            .scalars()
+            .all()
+        )
     total = 0
     for t in tenant_ids:
         n = reply_sla_breaches(engine, t)
@@ -356,8 +396,12 @@ def deliverability_task() -> int:
 
     th = Thresholds.load(config_root())
     engine = get_engine()
-    with transaction(DbContext.system(), engine) as conn:
-        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
+    with transaction(DbContext.system(), engine) as conn:  # bounces and complaints still count during a pause
+        tenant_ids = (
+            conn.execute(text("SELECT id FROM tenants WHERE status = ANY(:s)"), {"s": list(LISTENING_STATUSES)})
+            .scalars()
+            .all()
+        )
     paused = 0
     for t in tenant_ids:
         with transaction(DbContext.system(t), engine) as conn:

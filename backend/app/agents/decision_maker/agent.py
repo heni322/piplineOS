@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import text
 
+from app.adapters.base import RetryableProviderError
 from app.adapters.companies_house.base import CompaniesRegistry
 from app.adapters.enrichment.base import EnrichedPerson, EnrichmentProvider
 from app.adapters.verifier.base import EmailVerifier, PersonObjected
@@ -145,8 +146,8 @@ def find_decision_maker(
 
     try:
         verification = verifier.verify(person.professional_email) if person.professional_email else "unknown"
-    except PaidCallDeferred:
-        return None
+    except (PaidCallDeferred, RetryableProviderError):
+        return None  # the lead stays "discovered" and is retried on the next run (e.g. DNS briefly unavailable)
     except PersonObjected as exc:
         _objected_at_source(ctx, lead_id, exc.email, verifier.name)
         return None
