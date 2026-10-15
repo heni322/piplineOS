@@ -8,7 +8,7 @@
 **Business readiness: 5.1 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
-- 805 backend tests, 19 browser tests with WCAG checks, strict typing;
+- 806 backend tests, 19 browser tests with WCAG checks, strict typing;
 - database-enforced tenant isolation and a three-key send switch.
 
 It is **not yet a business**:
