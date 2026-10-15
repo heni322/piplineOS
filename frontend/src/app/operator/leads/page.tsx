@@ -80,7 +80,7 @@ export default function LeadsPage() {
       </div>
       {error && <p role="alert" className="error">{error}</p>}
       {!rows ? <p className="muted" aria-busy="true">{getMessages().operator.loading}</p> : rows.length === 0 ? <p className="muted">{t.empty}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.title}>
           <table>
             <thead>
               <tr><th scope="col">{t.company}</th><th scope="col">{t.prospect}</th><th scope="col">{t.email}</th><th scope="col">{t.jobTitle}</th>

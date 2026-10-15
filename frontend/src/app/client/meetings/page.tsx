@@ -42,7 +42,7 @@ export default function ClientMeetings() {
       {status && <p className="status" role="status">{status}</p>}
       {error && <p role="alert" className="error">{error}</p>}
       {rows.length === 0 ? <p className="muted">{t.emptyMeetings}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.meetingsTitle}>
           <table>
             <thead><tr><th scope="col">{getMessages().meetings.when}</th><th scope="col">{getMessages().meetings.company}</th>
               <th scope="col">{getMessages().meetings.status}</th><th scope="col">{getMessages().billing.title}</th><th scope="col"><span className="skip">{t.dispute}</span></th></tr></thead>

@@ -204,7 +204,7 @@ export default function GovernancePage() {
         <h2 id="health-h" style={{ marginTop: 32 }}>{t.healthTitle}</h2>
         <p className="muted" style={{ maxWidth: "70ch" }}>{t.healthIntro}</p>
         {health.length === 0 ? <p className="muted">{t.healthEmpty}</p> : (
-          <div className="table-wrap">
+          <div className="table-wrap" tabIndex={0} role="region" aria-label={t.healthTitle}>
             <table className="health">
               <thead><tr><th scope="col">{t.healthSource}</th><th scope="col">{t.healthStatus}</th><th scope="col">{t.healthRuns}</th>
                 <th scope="col">{t.healthFailures}</th><th scope="col">{t.healthFound}</th><th scope="col">{t.healthLastRun}</th>
@@ -253,7 +253,7 @@ export default function GovernancePage() {
       <section aria-labelledby="countries-h">
         <h2 id="countries-h" style={{ marginTop: 32 }}>{t.countriesTitle}</h2>
         <p className="muted" style={{ maxWidth: "70ch" }}>{t.countriesIntro}</p>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.countriesTitle}>
           <table>
             <thead><tr><th scope="col">{t.country}</th><th scope="col">{t.stage}</th><th scope="col">{t.rule}</th>
               <th scope="col">{t.counsel}</th><th scope="col">{t.built}</th><th scope="col">{t.stillNeeded}</th>
@@ -307,7 +307,7 @@ export default function GovernancePage() {
       <section aria-labelledby="tax-h">
         <h2 id="tax-h" style={{ marginTop: 32 }}>{t.taxTitle}</h2>
         <p className="muted" style={{ maxWidth: "70ch" }}>{t.taxIntro}</p>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.taxTitle}>
           <table>
             <thead><tr><th scope="col">{t.code}</th><th scope="col">{t.rate}</th><th scope="col">{t.wording}</th>
               <th scope="col">{t.accountant}</th></tr></thead>

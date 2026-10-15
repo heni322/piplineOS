@@ -95,7 +95,7 @@ export function TargetingPanel({ id, name, onClose, onSaved }: {
           <h3>{t.watchlist}</h3>
           <p className="hint">{t.watchlistHint}</p>
           {watch.length > 0 && (
-            <div className="table-wrap">
+            <div className="table-wrap" tabIndex={0} role="region" aria-label={t.watchlist}>
               <table>
                 <thead><tr><th scope="col">{t.wName}</th><th scope="col">{t.wNumber}</th><th scope="col">{t.wBoard}</th>
                   <th scope="col">{t.wDomain}</th><th scope="col"><span className="skip">{t.remove}</span></th></tr></thead>

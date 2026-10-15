@@ -46,7 +46,7 @@ function Domains() {
       {notice && <p className="status" role="status">{notice}</p>}
       {error && <p role="alert" className="error">{error}</p>}
       {!rows ? <p className="muted" aria-busy="true">{getMessages().operator.loading}</p> : rows.length === 0 ? <p className="muted">{t.noDomains}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.domainsTitle}>
           <table>
             <thead><tr><th scope="col">{t.domain}</th><th scope="col">{t.client}</th><th scope="col">{t.spf}</th><th scope="col">{t.dkim}</th>
               <th scope="col">{t.dmarc}</th><th scope="col"><span className="sr-only">{t.check}</span></th></tr></thead>
@@ -108,7 +108,7 @@ export default function InboxesPage() {
       {notice && <p className="status" role="status">{notice}</p>}
       {error && <p role="alert" className="error">{error}</p>}
       {rows.length === 0 ? <p className="muted">{t.empty}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.title}>
           <table>
             <thead><tr><th scope="col">{t.inbox}</th><th scope="col">{t.client}</th><th scope="col">{t.status}</th><th scope="col">{t.today}</th>
               <th scope="col">{t.bounces}</th><th scope="col">{t.complaints}</th><th scope="col"><span className="sr-only">{t.pause}</span></th></tr></thead>

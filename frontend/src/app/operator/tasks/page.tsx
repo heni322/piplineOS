@@ -69,7 +69,7 @@ export default function TasksPage() {
       {status && <p className="status" role="status">{status}</p>}
       {error && !closing && <p role="alert" className="error">{error}</p>}
       {rows.length === 0 ? <p className="muted">{t.empty}</p> : (
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={t.title}>
           <table>
             <thead><tr><th scope="col">{t.company}</th><th scope="col">{t.contact}</th><th scope="col">{t.trigger}</th>
               <th scope="col">{t.channel}</th><th scope="col">{t.created}</th><th scope="col"><span className="skip">{t.close}</span></th></tr></thead>
