@@ -51,7 +51,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | Billing | Billable meeting = system-booked + attended (confirmed by calendar/CRM/client) + qualified against SIGNED criteria + signed pricing + no dispute; evidence chain; dispute window; invoices; **payments recorded (append-only, reversals), paid status, overdue alert** | An invoice issued and paid by a real client | No real invoice paid; no payment provider; tax rules not checked by an accountant | High | P1 (external) | 6 |
 | Analytics | **New:** delivered, bounces, complaints, KPIs per 100 people reached, qualified meetings, dry-run flag, client ROI estimate | Measured against a pilot | No real data | Medium | done/P1 | 7 |
 | Operations | Backups and restore scripts, Prometheus metrics, alerts, runbooks, **new emergency stop that holds work** | Staging and production, restore drill done | No staging or production server | High | P1 | 6 |
-| Customer success | Portal: results, meetings with evidence, disputes, CRM, **new emergency stop and ROI** | Proof capture, reviews, renewal | No proof or case-study workflow | Medium | P2 | 4 |
+| Customer success | Portal: results, meetings with evidence, disputes, CRM, emergency stop, ROI, **testimonials with consent scope** | Reviews and renewal with real clients | No real client; renewal is manual | Medium | P2 | 5 |
 | Scalability | Celery workers, per-tenant caps, load test (Phase 6) | Proven at 10+ clients | Single server design | Low now | P2 | 5 |
 
 **Overall: 4.8 / 10.** This is the weighted view: the four "MISSING" rows of section 1 dominate.
@@ -77,7 +77,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 15 | Onboarding a client in the console (it needed JSON and SQL) | P1 | me | **DONE (6.8)**: guided by the operator; a client self-serve wizard is still open |
 | 16 | External penetration test | P1 | **Pen tester** | open |
 | 17 | Inbox-placement (seed) test before each campaign | P1 | me + owner (seed mailboxes) | open |
-| 18 | Customer proof capture (consent to quote results) | P2 | me | open |
+| 18 | Customer proof capture (consent to quote results) | P2 | me | **DONE (6.10)** |
 | 19 | PipelineOS selling itself (operator's own tenant) | P2 | owner + solicitor | architecture supports it (`is_operator_own`) |
 | 20 | Automatic data-retention schedule | P1 | me, then solicitor sets the periods | **built (6.7); off until the periods are set** |
 
@@ -274,6 +274,20 @@ source link, the relevance score, every claim with its source, and the quality s
   - The API needs the operator's code and refuses drafts.
 - **Remaining risk.** No real invoice has been paid yet. VAT treatment is still unverified by an accountant.
 
+### 6.10 Customer proof with consent (P2)
+- **Problem.** There was no honest way to collect proof for the landing page and for sales.
+- **Change.**
+  - The client's admin writes a testimonial in the portal and chooses its scope: anonymous, named, or named with
+    logo.
+  - They can withdraw it at any time. A withdrawn testimonial is never shown again, but is kept as the record of
+    consent. Nothing can be deleted.
+  - The operator sees only testimonials that are still consented, on the new **Customer proof** page, labelled with
+    their scope.
+  - We can't write or edit a client's words.
+- **Tests.** Access control (viewer, other client, operator), withdrawal, no deletion, and an e2e flow with an
+  accessibility check.
+- **Remaining risk.** None technically. There will be nothing to show until a real client is happy.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -291,7 +305,7 @@ source link, the relevance score, every claim with its source, and the quality s
 | Billing | 5 | **6** (payments, paid, overdue) |
 | Analytics | 4 | **7** |
 | Operations | 5 | **6** (emergency stop, stop alerts) |
-| Customer success | 3 | **4** (client stop, ROI) |
+| Customer success | 3 | **5** (client stop, ROI, consented proof) |
 | Scalability | 5 | 5 |
 | Go-to-market | 1 | **4** (model, pricing, ICP, plan, landing page, economics) |
 | **Overall** | **~4.0** | **4.8** |
