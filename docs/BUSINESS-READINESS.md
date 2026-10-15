@@ -8,7 +8,7 @@
 **Business readiness: 5.1 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
-- 808 backend tests, 19 browser tests with WCAG checks, strict typing;
+- 811 backend tests, 19 browser tests with WCAG checks, strict typing;
 - database-enforced tenant isolation and a three-key send switch.
 
 It is **not yet a business**:
@@ -442,6 +442,16 @@ Ten more findings, all fixed:
     invoice notices, so it is recorded in dry-run until live.
 - **Tests.** Mondays only, once per admin even when run twice, the quiet client skipped, a client sees only its
   own numbers, and the demo label.
+
+### 6.21 Fresh security scans, and the weekly email opt-out
+- **Scans run on 2026-10-15 against this branch:**
+  - `pip-audit`: no known vulnerabilities in the backend dependencies.
+  - `trivy fs` (vulnerabilities, secrets, misconfiguration; HIGH and CRITICAL): **0 findings**.
+  - `pnpm audit`: one HIGH advisory, `braces` (GHSA-vfj7-8cjw-p6xm, a denial of service on crafted glob
+    patterns). It reaches us only through the **lint** tooling (`eslint-config-next`), never the shipped app,
+    and **no fixed version exists** yet. It is accepted and recorded; Dependabot will offer the fix when there is one.
+- **Weekly email opt-out.** Each client admin turns the weekly results email off or on under Email preferences,
+  and every email says how. Viewers can't change it, and one admin's choice doesn't touch anyone else.
 
 ## 7. New score per area (after this phase)
 
