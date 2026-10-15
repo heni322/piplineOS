@@ -58,7 +58,7 @@ item has been signed off. The live view of this list is on the **Go-live** page:
   | Nordic languages | 95.4% |
   | French | 90.5% |
 
-- **Tests:** 749 backend and 14 browser tests pass in the cloud (Phase 15).
+- **Tests:** 749 backend and 14 browser tests pass in the cloud, and GitHub CI passes all four jobs (Phase 16).
 
 ## Still needed: yours only
 1. **Legal.**
@@ -85,5 +85,5 @@ item has been signed off. The live view of this list is on the **Go-live** page:
    (`docs/GO-LIVE-RUNBOOK.md`).
 
 ## Code
-- Phases 2–10.1 are on `main`; Phases 11–15 are on branch `phase/11-free-sources`.
+- Phases 2–10.1 are on `main`; Phases 11–16 are on branch `phase/11-free-sources`.
 - Merging into `main` (by pull request, no history rewritten) is your call, whenever you are happy with the review.

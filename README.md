@@ -22,6 +22,7 @@ operator-signed go-live checklist with `GLOBAL_GO_LIVE=true` in production).
 | 13 Contact tasks queue (operator page) | **Done, awaiting review** — `docs/PHASE-13-REPORT.md` |
 | 14 Client targeting form (keywords, SIC codes, countries, watchlist) | **Done, awaiting review** — `docs/PHASE-14-REPORT.md` |
 | 15 Source health: isolated sources, run log, Go-live table, alert | **Done, awaiting review** — `docs/PHASE-15-REPORT.md` |
+| 16 CI green on GitHub, time-safe tests, dependency review | **Done, awaiting review** — `docs/PHASE-16-REPORT.md` |
 
 The current state, and what is still needed from you, is in `docs/STATUS.md`.
 
