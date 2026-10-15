@@ -232,6 +232,36 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
         )
         _gauge(
             lines,
+            "pipelineos_clients_paused",
+            "clients whose sending is stopped, by who stopped it (the client's own emergency stop, or the operator)",
+            [
+                ({"by": who}, one(f"SELECT count(*) FROM tenants WHERE status = 'paused' AND {cond}"))  # noqa: S608
+                for who, cond in (
+                    ("client", "paused_reason LIKE 'Client: %'"),
+                    ("operator", "coalesce(paused_reason, '') NOT LIKE 'Client: %'"),
+                )
+            ],
+        )
+        _gauge(
+            lines,
+            "pipelineos_campaigns_pilot_full",
+            "active campaigns whose pilot contact limit is reached (new first emails are held)",
+            [
+                (
+                    {},
+                    one(
+                        """SELECT count(*) FROM campaigns c WHERE c.status = 'active'
+                           AND c.pilot_max_contacts IS NOT NULL
+                           AND (SELECT count(DISTINCT m.lead_id) FROM messages m WHERE m.campaign_id = c.id
+                                AND m.kind = 'outreach' AND m.sequence_step = 0 AND m.status IN
+                                ('sending','sent','dry_run_sent','needs_reconciliation','bounced','complained'))
+                               >= c.pilot_max_contacts"""
+                    ),
+                )
+            ],
+        )
+        _gauge(
+            lines,
             "pipelineos_llm_calls_last_hour",
             "AI calls in the last hour by outcome",
             grouped(
