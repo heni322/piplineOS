@@ -430,6 +430,19 @@ Ten more findings, all fixed:
   - Clients that aren't configured yet see a clear message instead of an editor that can't save.
   - Client saves go through the same audited config path as the operator's.
 
+### 6.20 Weekly results email to clients (P2)
+- **Why.** Clients who see their numbers every week stay; clients who have to log in to find out leave.
+- **What it sends.** Every Monday, each active client's admins get last week's numbers: people reached, replies,
+  positive replies per 100 reached, meetings booked, held and qualified, bounces and complaints. It links to the
+  portal and reminds them they can stop all sending at any time.
+- **Honesty.**
+  - Demo (dry-run) weeks say so in the first line.
+  - Quiet weeks send nothing.
+  - At most one email per admin per week (an idempotency key), through the same three-key-gated channel as
+    invoice notices, so it is recorded in dry-run until live.
+- **Tests.** Mondays only, once per admin even when run twice, the quiet client skipped, a client sees only its
+  own numbers, and the demo label.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -447,7 +460,7 @@ Ten more findings, all fixed:
 | Billing | 5 | **6** (payments, paid, overdue) |
 | Analytics | 4 | **7** |
 | Operations | 5 | **7** (emergency stop, stop alerts, restore drill run, staging) |
-| Customer success | 3 | **5** (client stop, ROI, consented proof) |
+| Customer success | 3 | **5.5** (client stop, ROI, consented proof, weekly results email) |
 | Scalability | 5 | **5.5** (re-measured at 100k leads: worst p95 633 ms, target 2 s; still one server) |
 | Go-to-market | 1 | **5** (model, pricing, ICP, plan, landing page with inbound form, economics, own-outreach account) |
 | **Overall** | **~4.0** | **5.1** |

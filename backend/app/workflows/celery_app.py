@@ -39,6 +39,7 @@ celery_app.conf.update(
         "crm-sync": {"task": "pipelineos.system.crm_sync", "schedule": 300.0},
         "daily-deliverability": {"task": "pipelineos.system.daily_deliverability", "schedule": 24 * 3600.0},
         "daily-retention": {"task": "pipelineos.system.retention", "schedule": 24 * 3600.0},
+        "weekly-client-report": {"task": "pipelineos.system.weekly_report", "schedule": 6 * 3600.0},
         "renew-graph-subscriptions": {"task": "pipelineos.replies.renew_graph_subscriptions", "schedule": 6 * 3600.0},
         "renew-gmail-watches": {"task": "pipelineos.replies.renew_gmail_watches", "schedule": 24 * 3600.0},
         **(
@@ -119,6 +120,15 @@ def daily_deliverability_task() -> dict[str, int]:
     from app.workflows.daily import daily_deliverability
 
     return daily_deliverability(get_engine(), now=datetime.now(UTC))
+
+
+@celery_app.task(name="pipelineos.system.weekly_report")
+def weekly_report_task() -> int:
+    """Each client's admins get last week's results on Monday (once per person per week; dry-run until live)."""
+    from app.core.crypto import PiiCipher
+    from app.domain.reporting.weekly import weekly_digest
+
+    return weekly_digest(get_engine(), settings, PiiCipher(settings.key("pii_master_key")))
 
 
 @celery_app.task(name="pipelineos.system.retention")

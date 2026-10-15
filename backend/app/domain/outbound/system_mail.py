@@ -18,7 +18,7 @@ from app.domain.outbound.modes import SendMode, resolve_mode
 from app.domain.outbound.providers import email_senders
 from app.settings import Settings
 
-Kind = Literal["invite", "password_reset", "invoice_issued"]
+Kind = Literal["invite", "password_reset", "invoice_issued", "weekly_report"]
 
 
 def send(
