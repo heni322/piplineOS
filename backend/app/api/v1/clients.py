@@ -18,7 +18,7 @@ from app.core.errors import ProblemError
 from app.core.security import Permission
 from app.db.session import get_engine, transaction
 from app.domain.reporting.metrics import metrics, roi
-from app.domain.tenants import accounts, controls, onboarding, signoffs
+from app.domain.tenants import accounts, controls, onboarding, setup, signoffs
 from app.domain.tenants.config import Roi, load_config, save_config
 from app.settings import Settings
 
@@ -111,6 +111,95 @@ def put_config(tenant_id: uuid.UUID, body: dict[str, Any], user: Operator) -> di
             return {"version": onboarding.set_config(conn, tenant_id=tenant_id, operator_id=user.id, config=body)}
     except ValidationError as exc:
         raise ProblemError(422, "Invalid configuration", str(exc.errors()[:5])) from exc
+
+
+class SetupOut(BaseModel):
+    configured: bool
+    templates: dict[str, str]
+    niche: str | None
+    sender_name: str
+    sender_title: str
+    value_proposition: str
+    outreach_purpose: str
+    criteria: list[dict[str, Any]]
+    pricing: dict[str, Any]
+    currency: str
+
+
+@router.get("/clients/{tenant_id}/setup", response_model=SetupOut)
+def get_setup(tenant_id: uuid.UUID, user: Operator) -> SetupOut:
+    """The offer and pricing as configured, or the defaults a new client starts from."""
+    from app.config_paths import config_root
+
+    tpls = setup.templates(config_root())
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        currency = conn.execute(text("SELECT billing_currency FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar()
+        if currency is None:
+            raise ProblemError(404, "Client not found")
+        try:
+            _, cfg = load_config(conn, tenant_id)
+        except LookupError:
+            cfg = None
+    if cfg is None:
+        first = next(iter(tpls.values()), None)
+        crit = (first["config"].get("qualification") or {}).get("criteria", []) if first else []
+        return SetupOut(
+            configured=False,
+            templates={k: v["title"] for k, v in tpls.items()},
+            niche=next(iter(tpls), None),
+            sender_name="",
+            sender_title="",
+            value_proposition="",
+            outreach_purpose="",
+            criteria=[
+                {k: c.get(k, d) for k, d in (("question", ""), ("required", True), ("evidence_from", "reply"))}
+                for c in crit
+            ],
+            pricing=setup.PricingIn().model_dump(),
+            currency=currency,
+        )
+    return SetupOut(
+        configured=True,
+        templates={k: v["title"] for k, v in tpls.items()},
+        niche=cfg.niche_slug,
+        sender_name=cfg.brand_voice.sender_name,
+        sender_title=cfg.brand_voice.sender_title,
+        value_proposition=cfg.brand_voice.value_proposition,
+        outreach_purpose=cfg.outreach_purpose,
+        criteria=[
+            c.model_dump(include={"question", "required", "evidence_from"})
+            for c in (cfg.qualification.criteria if cfg.qualification else [])
+        ],
+        pricing=(cfg.pricing.model_dump(exclude={"currency"}) if cfg.pricing else setup.PricingIn().model_dump()),
+        currency=currency,
+    )
+
+
+@router.put("/clients/{tenant_id}/setup")
+def put_setup(tenant_id: uuid.UUID, body: setup.SetupIn, user: Operator) -> dict[str, int]:
+    """Saves a new configuration version. Changed criteria or pricing must be accepted again by the client."""
+    from app.config_paths import config_root
+
+    tpls = setup.templates(config_root())
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        currency = conn.execute(text("SELECT billing_currency FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar()
+        if currency is None:
+            raise ProblemError(404, "Client not found")
+        try:
+            _, current = load_config(conn, tenant_id)
+        except LookupError:
+            current = None
+        if current is None and body.niche not in tpls:
+            raise ProblemError(422, "Choose a starting template")
+        try:
+            cfg = setup.build(current, tpls.get(body.niche or ""), body, currency)
+        except setup.SetupError as exc:
+            raise ProblemError(422, "Incomplete setup", exc.code) from exc
+        except ValidationError as exc:
+            problems = "; ".join(f"{'.'.join(str(x) for x in e['loc'])}: {e['msg']}" for e in exc.errors()[:5])
+            raise ProblemError(422, "Invalid setup", problems) from exc
+        version = onboarding.set_config(conn, tenant_id=tenant_id, operator_id=user.id, config=cfg.model_dump())
+    return {"version": version}
 
 
 class WatchedIn(BaseModel):

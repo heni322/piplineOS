@@ -602,3 +602,77 @@ def pilot_limit(campaign_id: uuid.UUID, body: PilotLimitIn, user: CampaignAdmin)
 
 
 __all__ = ["mask_email", "router"]
+
+
+class NewCampaignIn(BaseModel):
+    name: str = Field(min_length=3, max_length=120)
+    daily_cap: int = Field(default=50, ge=1, le=1000)
+    pilot_max_contacts: int | None = Field(default=100, ge=1, le=controls.PILOT_MAX)
+
+
+@router.post("/clients/{tenant_id}/campaigns", response_model=CampaignOut, status_code=201)
+def create_campaign(tenant_id: uuid.UUID, body: NewCampaignIn, user: CampaignAdmin) -> CampaignOut:
+    """A new campaign in draft, targeting the client's configured countries, in Pilot Mode by default."""
+    from app.core.audit import write_audit
+    from app.domain.tenants.config import load_config
+
+    with transaction(user.db_context(tenant_id), get_engine()) as conn:
+        try:
+            _, cfg = load_config(conn, tenant_id)
+        except LookupError as exc:
+            raise ProblemError(409, "Set up the client's offer first") from exc
+        cid = conn.execute(
+            text("""INSERT INTO campaigns (tenant_id, name, status, target_countries, language, daily_cap,
+                    pilot_max_contacts) VALUES (:t, :n, 'draft', :c, :l, :d, :p) RETURNING id"""),
+            {
+                "t": tenant_id,
+                "n": body.name.strip(),
+                "c": cfg.icp.countries,
+                "l": cfg.language,
+                "d": body.daily_cap,
+                "p": body.pilot_max_contacts,
+            },
+        ).scalar_one()
+        write_audit(
+            conn,
+            action="campaign.created",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=tenant_id,
+            entity_type="campaign",
+            entity_id=cid,
+            after={"daily_cap": body.daily_cap, "pilot_max_contacts": body.pilot_max_contacts},
+        )
+        return _campaign(conn, cid)
+
+
+@router.post("/campaigns/{campaign_id}/start", response_model=CampaignOut)
+def start_campaign(campaign_id: uuid.UUID, user: CampaignAdmin) -> CampaignOut:
+    """Draft -> active, only for an active client (onboarding complete). Hunting starts on the next run."""
+    from app.core.audit import write_audit
+
+    with transaction(user.db_context(), get_engine()) as conn:
+        r = conn.execute(
+            text("""SELECT c.tenant_id, c.status, t.status AS tenant_status FROM campaigns c
+                    JOIN tenants t ON t.id = c.tenant_id WHERE c.id = :c FOR UPDATE OF c"""),
+            {"c": campaign_id},
+        ).first()
+        if r is None:
+            raise ProblemError(404, "Campaign not found")
+        if r.tenant_status != "active":
+            raise ProblemError(409, "Activate the client first (onboarding checklist)")
+        if r.status != "draft":
+            raise ProblemError(409, "Only a draft campaign can be started")
+        conn.execute(
+            text("UPDATE campaigns SET status = 'active', started_at = now() WHERE id = :c"), {"c": campaign_id}
+        )
+        write_audit(
+            conn,
+            action="campaign.started",
+            actor_type="user",
+            actor_id=str(user.id),
+            tenant_id=r.tenant_id,
+            entity_type="campaign",
+            entity_id=campaign_id,
+        )
+        return _campaign(conn, campaign_id)
