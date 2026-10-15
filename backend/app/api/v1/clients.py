@@ -234,11 +234,13 @@ class TargetingIn(BaseModel):
     config_version: int | None = None
 
 
-def _clean_watchlist(rows: list[WatchedIn]) -> tuple[list[dict[str, Any]], list[int]]:
-    """Trimmed rows without blank names, and for each kept row its 1-based row number in what was submitted."""
+def _clean_watchlist(rows: list[WatchedIn], *, drop_blank: bool) -> tuple[list[dict[str, Any]], list[int]]:
+    """Trimmed rows, and for each kept row its 1-based row number in what was submitted. With `drop_blank`, rows
+    with no name are skipped (the client's paste-friendly list); without it they stay and fail validation (the
+    operator's form, where a blank row is a mistake to point out)."""
     kept, numbers = [], []
     for i, w in enumerate(rows):
-        if w.name.strip():
+        if w.name.strip() or not drop_blank:
             kept.append(
                 {k: (v.strip() if isinstance(v, str) else v) or None for k, v in w.model_dump().items()}
                 | {"name": w.name.strip()}
@@ -307,7 +309,7 @@ def put_targeting(tenant_id: uuid.UUID, body: TargetingIn, user: Operator) -> di
             "sic_codes": _clean(body.sic_codes),
             "countries": countries,
         }
-        data["watchlist"] = _clean_watchlist(body.watchlist)[0]
+        data["watchlist"] = _clean_watchlist(body.watchlist, drop_blank=False)[0]
         try:
             version = onboarding.set_config(conn, tenant_id=tenant_id, operator_id=user.id, config=data)
         except ValidationError as exc:
@@ -627,7 +629,7 @@ def put_watchlist(body: WatchlistIn, user: ClientAdmin) -> WatchlistOut:
         except LookupError as exc:
             raise ProblemError(409, "Your account is not configured yet") from exc
         _stale(conn, user.tenant_id, body.config_version)
-        cleaned, numbers = _clean_watchlist(body.watchlist)
+        cleaned, numbers = _clean_watchlist(body.watchlist, drop_blank=True)
         try:
             new = TenantConfig.model_validate(cfg.model_dump() | {"watchlist": cleaned})
         except ValidationError as exc:
