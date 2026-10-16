@@ -29,7 +29,7 @@ All five assume the base case of §8: 1,000 leads a month gives about 0.7 qualif
 
 | Item | Pilot (first 4–6 weeks) | After the pilot |
 |---|---|---|
-| Fixed | **£/€490 once** (domain, 2 mailboxes, DNS, warm-up, set-up, 300 contacts) | **£/€750 / month** |
+| Fixed | **£/€490 once** (domain, 3 mailboxes, DNS, warm-up, set-up, 300 contacts) | **£/€750 / month** |
 | Per qualified, attended meeting | **£/€250** | **£/€250–300** |
 | Guarantee | If fewer than 3 positive replies from 300 people reached, the fixed fee is credited to month 1 or refunded (`LEGAL REVIEW REQUIRED`: refund wording) | none |
 
@@ -81,7 +81,7 @@ public and specific. In small companies the directors in the register are the bu
 - **Before the first send:**
   - a separate sending domain (never the client's main domain);
   - SPF, DKIM, DMARC at `p=none`, then `quarantine`;
-  - 2 mailboxes;
+  - 3 mailboxes for a 300-person pilot in 14 days (see the capacity note in §6);
   - 21 days of warm-up starting at 10 a day (`config/warmup.yaml`).
 - **During the pilot:**
   - at most 40 a day per warmed inbox (hard cap 50), business hours only;
@@ -104,14 +104,20 @@ qualified meeting** is:
 | 300 | 21% | **73%** | 99% |
 | 500 | 32% | 89% | 100% |
 
-So **100 people proves deliverability and reply quality, not meeting economics. Sell 300.** That is about
+So **100 people proves deliverability and reply quality, not meeting economics. Sell 300.**
+
+**Capacity check.**
+- 300 people with up to 2 follow-ups is about 880 sends. Each inbox starts at 10 a day and rises by 2 a day
+  (`config/warmup.yaml`), and follow-ups go first.
+- In 14 working days, 2 inboxes send about 640 and 3 inboxes about 970.
+- So a 14-day pilot of 300 needs **3 inboxes**. With 2, plan about 3½ weeks. That is about
 1,800 leads discovered at the base funnel.
 
 | Day | What happens | Pass threshold |
 |---|---|---|
 | −21 | Domain and mailboxes live, warm-up starts | DNS all green on the Inboxes page |
 | 0 | Campaign active, Pilot Mode limit 300 | Checklist complete |
-| 1–5 | ~40–80 first emails a day, all approved | Bounces < 3%, complaints 0 |
+| 1–5 | Each inbox starts at 10 emails a day and rises by 2 a day; follow-ups go first. About 30–50 first emails a day across 3 inboxes, all approved | Bounces < 3%, complaints 0 |
 | 5 | Checkpoint | ≥ 1 reply per 100 reached; otherwise change the copy |
 | 6–12 | Follow-ups; replies handled | Positive replies ≥ 1.0 per 100 reached |
 | 14 | Review with the client | **Success:** ≥ 1 qualified meeting OR ≥ 3 positive replies. **Stop:** complaint rate ≥ 0.3%, or 0 positive replies from 300 |
