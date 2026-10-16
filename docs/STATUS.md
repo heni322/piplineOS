@@ -21,6 +21,11 @@ mailboxes, a first pilot client, and payment. See `docs/BUSINESS-READINESS.md`, 
 - **Retention schedule**, off until the solicitor sets the periods (`config/retention.yaml`).
 - **Public landing page** at `/`, and `pipelineos economics simulate` for the unit economics.
 
+**Your next steps, ready to use:**
+- `docs/LAUNCH-PLAN-30-DAYS.md`: the next 30 days, step by step.
+- `docs/SOLICITOR-BRIEF.md`: the email and documents for the legal review.
+- `docs/FIRST-CLIENT-KIT.md`: how to win the first pilot.
+
 ## Built
 - **The five agents and the compliance gate.** Finding signals, finding decision-makers, writing, handling
   replies and booking, orchestrated together. Every send goes through the compliance gate, the suppression check
