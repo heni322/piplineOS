@@ -9,6 +9,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -107,11 +108,31 @@ _SUBJECT = re.compile(
     r"returned mail|failure notice|delivery has failed",
     re.IGNORECASE,
 )
-_HARD = re.compile(
-    r"\b5\.\d\.\d{1,3}\b|does not exist|user unknown|no such user|recipient address rejected|"
+# RFC 3463 enhanced status codes. Only 5.1.x (bad address/mailbox) and 5.2.1 (mailbox disabled) say THE RECIPIENT
+# is unreachable for good. Others are about US or the moment: 5.7.x (policy, reputation, authentication), 5.4.x
+# (routing), 5.3.x (their system), 5.2.2 (mailbox full). Those must never suppress the person everywhere.
+_CODE = re.compile(r"\b([45])\.(\d{1,3})\.(\d{1,3})\b")
+_HARD_PHRASE = re.compile(
+    r"does not exist|user unknown|no such user|recipient address rejected|"
     r"address couldn't be found|mailbox unavailable|invalid recipient",
     re.IGNORECASE,
 )
+BounceKind = Literal["hard", "policy", "soft"]
+
+
+def classify_bounce(body: str) -> BounceKind:
+    """hard: the address is dead (suppress it). policy: a permanent refusal about the sender (counts against the
+    sending inbox, the person is NOT suppressed). soft: temporary (logged only)."""
+    codes = [(int(a), int(b), int(c)) for a, b, c in _CODE.findall(body)]
+    if any(a == 5 and (b == 1 or (b, c) == (2, 1)) for a, b, c in codes):
+        return "hard"
+    if any(a == 5 for a, _, _ in codes):
+        return "policy"
+    if codes:  # only 4.x.x codes: temporary
+        return "soft"
+    return "hard" if _HARD_PHRASE.search(body) else "soft"
+
+
 _MSGID = re.compile(r"<[^<>@\s]{8,}@[^<>\s]+>")
 
 
@@ -140,8 +161,32 @@ def handle_bounce(
             conn, action="deliverability.bounce_unmatched", actor_type="system", actor_id="inbound", tenant_id=tenant_id
         )
         return ["bounce:unmatched"]
-    hard = bool(_HARD.search(msg.body_text or ""))
-    if not hard:
+    kind = classify_bounce(msg.body_text or "")
+    if kind == "policy":
+        # The receiving server refused US (reputation, authentication, policy). Counted as a bounce for this inbox,
+        # so the kill switch can pause it; the recipient is not suppressed and their lead is left as it is.
+        if m.status == "sent":
+            conn.execute(
+                text("UPDATE messages SET status = 'bounced', last_error = 'policy_block' WHERE id = :i"), {"i": m.id}
+            )
+        conn.execute(  # their server will refuse the follow-ups too: stop them (the person stays contactable)
+            text(
+                "UPDATE messages SET status = 'cancelled' WHERE lead_id = :l AND status IN "
+                "('draft','pending_approval','approved','queued','failed_retryable')"
+            ),
+            {"l": m.lead_id},
+        )
+        write_audit(
+            conn,
+            action="deliverability.policy_block",
+            actor_type="system",
+            actor_id="inbound",
+            tenant_id=tenant_id,
+            entity_type="message",
+            entity_id=m.id,
+        )
+        return ["bounce:policy"]
+    if kind == "soft":
         write_audit(
             conn,
             action="deliverability.soft_bounce",

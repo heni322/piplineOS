@@ -23,7 +23,7 @@ from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
 from app.domain.compliance.jurisdiction import parse_location
 from app.domain.sources.health import describe_error, record_run
-from app.llm.client import LLMEscalation, UntrustedSource, wrap_untrusted
+from app.llm.client import LLMEscalation, LLMUnavailable, UntrustedSource, wrap_untrusted
 from app.llm.prompts import PromptFile, load_prompt
 
 log = get_logger(__name__)
@@ -42,6 +42,7 @@ class HuntStats:
     insolvent: int = 0
     bad_source_url: int = 0
     source_failures: int = 0
+    deferred: int = 0  # not scored because the model was unavailable; seen again on the next run
     signals: list[TriggerSignal] = field(default_factory=list)
 
 
@@ -166,6 +167,9 @@ def _process(
             agent="trigger_hunter",
             policy=policy,
         )
+    except LLMUnavailable:  # the model is down: the signal is fetched again (lookback window) on the next run
+        stats.deferred += 1
+        return
     except LLMEscalation as exc:
         stats.escalated += 1
         log.warning("trigger_scoring_escalated", reason=exc.reason, source=source_name)

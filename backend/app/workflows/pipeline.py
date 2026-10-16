@@ -25,6 +25,7 @@ from app.agents.writer.agent import write_for_lead
 from app.core import i18n
 from app.core.crypto import PiiCipher
 from app.core.logging import get_logger
+from app.core.resilience import is_transient
 from app.db.session import DbContext, transaction
 from app.domain.approvals import service as approvals
 from app.domain.compliance.gate import run_gate
@@ -41,6 +42,7 @@ from app.llm.factory import build_llm_client
 from app.settings import Settings
 
 log = get_logger(__name__)
+OUTAGE_BREAKER = 3  # consecutive leads failing on an unreachable provider: stop this run (ADR-0019)
 
 
 @dataclass
@@ -110,18 +112,33 @@ def run_campaign(ctx: AgentContext, providers: Providers, since: datetime | None
         lead_ids = (
             conn.execute(
                 # 'enriched' too: leads held by a pause (e.g. referrals) get their compliance check after resuming.
-                text(
-                    "SELECT id FROM leads WHERE campaign_id = :c AND state IN ('discovered', 'enriched') "
-                    "ORDER BY created_at"
-                ),
+                # 'compliance_checked' without a draft: the writer deferred it (model unavailable) on an earlier run.
+                text("""SELECT l.id FROM leads l WHERE l.campaign_id = :c AND (l.state IN ('discovered', 'enriched')
+                  OR (l.state = 'compliance_checked' AND NOT EXISTS (
+                      SELECT 1 FROM messages m WHERE m.lead_id = l.id AND m.kind = 'outreach')))
+                  ORDER BY l.created_at"""),
                 {"c": ctx.campaign_id},
             )
             .scalars()
             .all()
         )
+    consecutive_outages = 0
     for lid in lead_ids:
-        final = process_lead(ctx, lid, providers)
+        try:
+            final = process_lead(ctx, lid, providers)
+            consecutive_outages = 0
+        except Exception as exc:  # bulkhead: one lead's failure never stops the rest of the run
+            transient = is_transient(exc)
+            final = "deferred" if transient else "error"
+            log.warning("lead_processing_failed", lead_id=str(lid), error=type(exc).__name__, transient=transient)
+            consecutive_outages = consecutive_outages + 1 if transient else 0
         run.outcomes[final] = run.outcomes.get(final, 0) + 1
+        if consecutive_outages >= OUTAGE_BREAKER:
+            # Run-scoped circuit breaker: a provider is down. Stop here instead of hitting it once per lead; the
+            # remaining leads keep their state and are picked up by the next run.
+            run.outcomes["deferred"] = run.outcomes.get("deferred", 0) + (len(lead_ids) - sum(run.outcomes.values()))
+            log.warning("campaign_run_stopped_provider_outage", campaign_id=str(ctx.campaign_id))
+            break
     log.info("campaign_run", tenant_id=str(ctx.tenant_id), discovered=stats.discovered, outcomes=run.outcomes)
     return run
 
@@ -231,31 +248,37 @@ def send_due(
         gateway = OutboundGateway(settings, engine, cipher, live_sender=live, sandbox_sender=sandbox, clock=lambda: at)
     gw = gateway
     with transaction(DbContext.system(tenant_id), engine) as conn:
-        due = (
-            conn.execute(
-                # Held work (paused client or campaign, pilot limit reached) is skipped here so it is not
-                # re-examined every tick; the gateway enforces the same holds for any other caller.
-                text("""WITH used AS (  -- people first-emailed per campaign, counted once per campaign
+        due = conn.execute(
+            # Held work (paused client or campaign, pilot limit reached) is skipped here so it is not
+            # re-examined every tick; the gateway enforces the same holds for any other caller.
+            text("""WITH used AS (  -- people first-emailed per campaign, counted once per campaign
                 SELECT campaign_id, count(DISTINCT lead_id) AS n FROM messages
                 WHERE kind = 'outreach' AND sequence_step = 0 AND status = ANY(:contacted) GROUP BY campaign_id)
-              SELECT m.id FROM messages m
+              SELECT m.id, m.inbox_id FROM messages m
               JOIN tenants t ON t.id = m.tenant_id LEFT JOIN campaigns cp ON cp.id = m.campaign_id
               LEFT JOIN used u ON u.campaign_id = m.campaign_id
               WHERE m.status IN ('approved','queued','failed_retryable')
               AND (m.scheduled_for IS NULL OR m.scheduled_for <= :now)
+              AND (m.next_attempt_at IS NULL OR m.next_attempt_at <= :now)  -- backoff after a provider refusal
               AND (m.sequence_step = 0 OR m.scheduled_for IS NOT NULL)
               AND t.status <> 'paused' AND coalesce(cp.status, 'active') NOT IN ('paused','auto_paused')
               AND NOT (m.kind = 'outreach' AND m.sequence_step = 0 AND cp.pilot_max_contacts IS NOT NULL
                        AND coalesce(u.n, 0) >= cp.pilot_max_contacts)
               ORDER BY m.sequence_step, m.created_at LIMIT 500"""),
-                {"now": at, "contacted": list(controls.CONTACTED_STATUSES)},
-            )
-            .scalars()
-            .all()
-        )
+            {"now": at, "contacted": list(controls.CONTACTED_STATUSES)},
+        ).all()
     results = []
-    for mid in due:
-        out = gw.send_message(tenant_id, mid)
+    refusing: set[uuid.UUID] = set()  # inboxes whose provider refused this tick: their other messages wait too
+    for mid, inbox_id in due:
+        if inbox_id is not None and inbox_id in refusing:
+            continue
+        try:
+            out = gw.send_message(tenant_id, mid)
+        except Exception as exc:  # bulkhead: outcome unknown for THIS message (left for reconciliation); go on
+            log.error("send_failed_unknown_outcome", message_id=str(mid), error=type(exc).__name__)
+            continue
+        if out.status == "retry_later" and inbox_id is not None:
+            refusing.add(inbox_id)
         results.append(out)
         if out.status in ("sent", "dry_run_sent"):
             _schedule_follow_ups(engine, settings, tenant_id, mid, at)
@@ -274,39 +297,58 @@ def process_inbound(
     now: datetime | None = None,
 ) -> list[replies.Outcome]:
     """Agent 4 over new inbound replies. Referral leads are drafted after their compliance check commits;
-    AI-handled replies follow the tenant's approval mode."""
+    AI-handled replies follow the tenant's approval mode.
+
+    Bulkhead: one reply that fails (a "poison" message, a dependency down) never blocks the replies after it. The
+    first failure is re-raised once the others are done, so the caller still retries it (push task) or reports it
+    (sweep); every reply is idempotent by Message-ID, so the ones already handled are not handled twice."""
     cal = calendar or CalendarGateway(ctx.settings, ctx.cipher)
     outcomes = []
+    first_error: Exception | None = None
     for msg in messages:
-        out = replies.handle(ctx, msg, providers=providers, calendar=cal, now=now)
+        try:
+            out = _handle_one(ctx, msg, providers, cal, now)
+        except Exception as exc:
+            log.error("inbound_reply_failed", tenant_id=str(ctx.tenant_id), error=type(exc).__name__)
+            first_error = first_error or exc
+            continue
         outcomes.append(out)
-        if out.new_lead_id is not None:
-            with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
-                state = conn.execute(text("SELECT state FROM leads WHERE id = :l"), {"l": out.new_lead_id}).scalar_one()
-            if state == "compliance_checked" and write_for_lead(ctx, out.new_lead_id).status == "pending_approval":
-                with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
-                    approvals.route(conn, ctx.tenant_id, out.new_lead_id)
-        if out.reply_id is not None:
-            with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
-                for mid, lid in conn.execute(
-                    text(
-                        "SELECT id, lead_id FROM messages WHERE reply_id = :r AND kind = "
-                        "'agent_reply' AND status = 'pending_approval'"
-                    ),
-                    {"r": out.reply_id},
-                ):
-                    approvals.route_reply(conn, ctx.tenant_id, mid, lid)
-                for mid, lid in conn.execute(
-                    text(
-                        "SELECT m.id, m.lead_id FROM messages m JOIN slot_offers o ON o.message_id "
-                        "= m.id WHERE m.status = 'pending_approval' AND o.status = 'open' AND "
-                        "m.reply_id IS NULL AND m.lead_id IN (SELECT lead_id FROM replies WHERE "
-                        "id = :r)"
-                    ),
-                    {"r": out.reply_id},
-                ):
-                    approvals.route_reply(conn, ctx.tenant_id, mid, lid)
+    if first_error is not None:
+        raise first_error
     return outcomes
+
+
+def _handle_one(
+    ctx: AgentContext, msg: InboundEmail, providers: Providers, cal: CalendarGateway, now: datetime | None
+) -> replies.Outcome:
+    out = replies.handle(ctx, msg, providers=providers, calendar=cal, now=now)
+    if out.new_lead_id is not None:
+        with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+            state = conn.execute(text("SELECT state FROM leads WHERE id = :l"), {"l": out.new_lead_id}).scalar_one()
+        if state == "compliance_checked" and write_for_lead(ctx, out.new_lead_id).status == "pending_approval":
+            with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+                approvals.route(conn, ctx.tenant_id, out.new_lead_id)
+    if out.reply_id is not None:
+        with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
+            for mid, lid in conn.execute(
+                text(
+                    "SELECT id, lead_id FROM messages WHERE reply_id = :r AND kind = "
+                    "'agent_reply' AND status = 'pending_approval'"
+                ),
+                {"r": out.reply_id},
+            ):
+                approvals.route_reply(conn, ctx.tenant_id, mid, lid)
+            for mid, lid in conn.execute(
+                text(
+                    "SELECT m.id, m.lead_id FROM messages m JOIN slot_offers o ON o.message_id "
+                    "= m.id WHERE m.status = 'pending_approval' AND o.status = 'open' AND "
+                    "m.reply_id IS NULL AND m.lead_id IN (SELECT lead_id FROM replies WHERE "
+                    "id = :r)"
+                ),
+                {"r": out.reply_id},
+            ):
+                approvals.route_reply(conn, ctx.tenant_id, mid, lid)
+    return out
 
 
 def reply_sla_breaches(engine: Engine, tenant_id: uuid.UUID, minutes: int = 5, now: datetime | None = None) -> int:

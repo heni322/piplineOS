@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 import pytest
 
-from app.adapters.base import RateLimited
+from app.adapters.base import RateLimited, RetryableProviderError
 from app.adapters.companies_house.live import CompaniesHouseRegistry
 from app.adapters.hunter import CreditsExhausted, HunterEnrichment, HunterVerifier
 from app.adapters.signals.ocds import contracts_finder, find_a_tender, normalise_company_number, parse_query
@@ -275,7 +275,8 @@ def test_hunter_verifier_objection_and_pending() -> None:
         objected.verify("pat.objector@contoso-it.example")
     assert exc.value.email == "pat.objector@contoso-it.example"
     pending = HunterVerifier("k", transport=httpx.MockTransport(lambda r: httpx.Response(202, json={})))
-    assert pending.verify("dana.reyes@contoso-it.example") == "unknown"
+    with pytest.raises(RetryableProviderError):  # "still checking" is not an answer: the lead waits, never rejected
+        pending.verify("dana.reyes@contoso-it.example")
 
 
 # ------------------------------------------------------------------------------------------- Companies House

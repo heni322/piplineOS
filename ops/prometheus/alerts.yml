@@ -76,6 +76,21 @@ groups:
         for: 5m
         labels: { severity: warn }
         annotations: { summary: "Outbox events older than 5 minutes are not being dispatched." }
+      - alert: OutboxDeadLetter
+        expr: pipelineos_outbox_dead > 0
+        for: 1m
+        labels: { severity: warn }
+        annotations: { summary: "An outbox event failed every retry and is dead-lettered (it will not be retried). Check the worker logs for outbox_dead_lettered, fix the cause, then reset its attempts to 0." }
+      - alert: SendsFailing
+        expr: pipelineos_sends_failed_24h > 0
+        for: 1m
+        labels: { severity: warn }
+        annotations: { summary: "An email failed for good (the provider refused it, or every retry was used). An escalation (send_failed) is open with the error; check the inbox's connection." }
+      - alert: ProviderRefusingSends
+        expr: pipelineos_sends_retrying > 20
+        for: 30m
+        labels: { severity: warn }
+        annotations: { summary: "More than 20 emails are waiting to retry because the mail provider refused them (rate limit or outage). They retry with backoff; check the provider's status." }
       - alert: AiFailures
         expr: sum(pipelineos_llm_calls_last_hour{outcome=~"error|timeout|refusal"}) > 10
         labels: { severity: warn }

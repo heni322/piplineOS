@@ -21,6 +21,7 @@ from app.core.security import Permission
 from app.db.session import DbContext, get_engine, transaction
 from app.domain.tenants.controls import CONTACTED_STATUSES
 from app.settings import Settings
+from app.workflows.outbox import MAX_ATTEMPTS as OUTBOX_MAX
 
 if TYPE_CHECKING:
     from app.domain.deliverability.dns_check import Lookup
@@ -181,7 +182,33 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
             lines,
             "pipelineos_outbox_backlog",
             "undispatched outbox events",
-            [({}, one("SELECT count(*) FROM outbox WHERE dispatched_at IS NULL"))],
+            [({}, one("SELECT count(*) FROM outbox WHERE dispatched_at IS NULL AND attempts < :m", m=OUTBOX_MAX))],
+        )
+        _gauge(
+            lines,
+            "pipelineos_outbox_dead",
+            "outbox events that failed every retry and wait for a human",
+            [({}, one("SELECT count(*) FROM outbox WHERE dispatched_at IS NULL AND attempts >= :m", m=OUTBOX_MAX))],
+        )
+        _gauge(
+            lines,
+            "pipelineos_sends_retrying",
+            "messages a provider refused, waiting for their next attempt (backoff)",
+            [({}, one("SELECT count(*) FROM messages WHERE status = 'failed_retryable'"))],
+        )
+        _gauge(
+            lines,
+            "pipelineos_sends_failed_24h",
+            "messages that failed for good in the last 24 hours (refused, or every retry used)",
+            [
+                (
+                    {},
+                    one(
+                        "SELECT count(*) FROM messages WHERE status = 'failed_permanent' AND updated_at > :d",
+                        d=now - timedelta(hours=24),
+                    ),
+                )
+            ],
         )
         _gauge(
             lines,
@@ -192,7 +219,8 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
                     {},
                     one(
                         "SELECT coalesce(extract(epoch FROM now() - min(created_at)), 0) FROM outbox "
-                        "WHERE dispatched_at IS NULL"
+                        "WHERE dispatched_at IS NULL AND attempts < :m",
+                        m=OUTBOX_MAX,
                     ),
                 )
             ],

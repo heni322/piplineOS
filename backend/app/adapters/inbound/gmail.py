@@ -104,14 +104,18 @@ class GmailInbox:
         return parse_raw(b64url_decode(raw))
 
     def fetch_since(self, start_history_id: int, limit: int = 100) -> tuple[list[InboundEmail], int]:
-        """Messages added to INBOX after start_history_id, and the newest historyId seen.
-        If the start point is too old (404), returns nothing and the caller restarts from the current historyId."""
+        """Messages added to INBOX after start_history_id (at most `limit`), and the historyId to resume from.
+        If the start point is too old (404), returns nothing and the caller restarts from the current historyId.
+
+        When there are more than `limit` messages, the cursor returned is that of the last history record whose
+        messages were ALL returned, never the mailbox's newest id: the rest are fetched next time, none skipped."""
         ids: list[str] = []
+        record_of: dict[str, int] = {}
         newest = start_history_id
         page: str | None = None
         with self.creds.api(GMAIL, self.mailbox, SCOPE_READ) as g:
             try:
-                while len(ids) < limit:
+                while len(ids) <= limit:
                     params: dict[str, str | int] = {
                         "startHistoryId": start_history_id,
                         "historyTypes": "messageAdded",
@@ -124,8 +128,9 @@ class GmailInbox:
                     for h in data.get("history", []):
                         for added in h.get("messagesAdded", []):
                             mid = added["message"]["id"]
-                            if mid not in ids and "SENT" not in added["message"].get("labelIds", []):
+                            if mid not in record_of and "SENT" not in added["message"].get("labelIds", []):
                                 ids.append(mid)
+                                record_of[mid] = int(h.get("id") or 0)
                     page = data.get("nextPageToken")
                     if not page:
                         break
@@ -133,6 +138,10 @@ class GmailInbox:
                 if exc.status == 404:
                     return [], newest
                 raise
+            if len(ids) > limit or page:  # more is waiting: resume after the last record returned in full
+                boundary = record_of[ids[limit]] if len(ids) > limit else None
+                done = [record_of[m] for m in ids[:limit] if boundary is None or record_of[m] < boundary]
+                newest = max(done, default=start_history_id)
             out = []
             for mid in ids[:limit]:
                 raw = check(g.get(f"/users/me/messages/{mid}", params={"format": "raw"})).json()["raw"]

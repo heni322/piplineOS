@@ -322,3 +322,37 @@ def test_graph_sweep_lists_ids_only_across_pages() -> None:
     first = next(c for c in rec.calls if c.url.path == path)
     assert first.url.params["$select"] == "id,internetMessageId"  # no bodies are read when listing
     assert first.url.params["$filter"] == "receivedDateTime ge 2026-10-11T00:00:00Z"
+
+
+def test_graph_mail_outcome_unknown_is_never_marked_retryable() -> None:
+    from app.adapters.http import AmbiguousSendError
+
+    for status in (500, 502, 504):  # Graph may have sent it: the gateway routes this to human reconciliation
+        creds, _ = graph(
+            {
+                ("POST", "/v1.0/users/jordan@outreach.northwind-demo.example/sendMail"): lambda r, s=status: (
+                    httpx.Response(s)
+                )
+            }
+        )
+        with pytest.raises(AmbiguousSendError):
+            GraphEmailSender(creds).send(PAYLOAD)
+
+    def read_timeout(req: httpx.Request) -> httpx.Response:
+        if req.url.path.endswith("/sendMail"):
+            raise httpx.ReadTimeout("no answer after hand-over", request=req)
+        return httpx.Response(200, json={"access_token": "tok-1", "expires_in": 3600})
+
+    timing_out = GraphCredentials("t", "c", "s", transport=httpx.MockTransport(read_timeout))
+    with pytest.raises(httpx.ReadTimeout) as exc:
+        GraphEmailSender(timing_out).send(PAYLOAD)
+    assert not isinstance(exc.value, RetryableProviderError)
+
+
+def test_graph_mail_token_failure_is_retryable_because_nothing_was_sent() -> None:
+    def token_down(req: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("login.microsoftonline.com unreachable", request=req)
+
+    creds = GraphCredentials("t", "c", "s", transport=httpx.MockTransport(token_down))
+    with pytest.raises(RetryableProviderError):
+        GraphEmailSender(creds).send(PAYLOAD)

@@ -349,3 +349,79 @@ def test_gmail_sweep_lists_inbox_ids_with_message_id_and_skips_our_sent_mail() -
     assert GmailInbox(c, MAILBOX).recent_ids(since) == [("m1", "<m1@x>")]
     listing = next(r for r in rec.calls if r.url.path == "/gmail/v1/users/me/messages")
     assert listing.url.params["q"] == f"after:{int(since.timestamp())}" and listing.url.params["labelIds"] == "INBOX"
+
+
+def test_gmail_never_resends_when_only_the_message_id_read_back_fails() -> None:
+    # The email was accepted; the read-back of Gmail's Message-ID then fails. Raising here would be read as
+    # "retry" and send the same email twice, so the sender keeps our own Message-ID and reports success.
+    for failure in (lambda r: httpx.Response(500, json={}), lambda r: httpx.Response(429, json={})):
+        c, rec = creds(
+            {
+                ("POST", "/gmail/v1/users/me/messages/send"): {"id": "m3"},
+                ("GET", "/gmail/v1/users/me/messages/m3"): failure,
+            }
+        )
+        result = GmailSender(c).send(payload())
+        assert result.provider_message_id.endswith("@outreach.example.co.uk>")
+        assert sum(1 for r in rec.calls if r.url.path.endswith("/messages/send")) == 1
+
+
+def test_gmail_send_outcomes_are_classified_by_what_may_have_happened() -> None:
+    from app.adapters.http import AmbiguousSendError
+
+    ambiguous, _ = creds({("POST", "/gmail/v1/users/me/messages/send"): lambda r: httpx.Response(500, json={})})
+    with pytest.raises(AmbiguousSendError):  # it may have been sent: never retried automatically
+        GmailSender(ambiguous).send(payload())
+
+    def no_token(req: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("token endpoint down", request=req)
+
+    down = GoogleCredentials(SA, transport=httpx.MockTransport(no_token))
+    with pytest.raises(RetryableProviderError):  # nothing was handed over yet: safe to retry
+        GmailSender(down).send(payload())
+
+
+def test_inbox_cursor_never_skips_messages_beyond_the_batch_limit() -> None:
+    def history(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "historyId": "999",  # the mailbox's newest id: must NOT become the cursor while messages wait
+                "history": [
+                    {"id": str(200 + i), "messagesAdded": [{"message": {"id": f"m{i}", "labelIds": ["INBOX"]}}]}
+                    for i in range(5)
+                ],
+            },
+        )
+
+    routes: dict[tuple[str, str], Any] = {("GET", "/gmail/v1/users/me/history"): history}
+    for i in range(5):
+        routes[("GET", f"/gmail/v1/users/me/messages/m{i}")] = {"raw": raw_reply(f"<m{i}@contoso.example>")}
+    c, _ = creds(routes)
+    msgs, cursor = GmailInbox(c, MAILBOX).fetch_since(100, limit=3)
+    assert [m.provider_message_id for m in msgs] == [f"<m{i}@contoso.example>" for i in range(3)]
+    assert cursor == 202  # resume after the last record returned; m3 and m4 come next time
+    msgs, cursor = GmailInbox(c, MAILBOX).fetch_since(100, limit=10)
+    assert len(msgs) == 5 and cursor == 999  # nothing left over: jump to the newest id
+
+
+def test_push_verifier_keeps_working_on_cached_keys_when_google_is_briefly_unreachable() -> None:
+    clock = [time.time()]
+    state = {"down": False}
+
+    def certs(req: httpx.Request) -> httpx.Response:
+        if state["down"]:
+            raise httpx.ConnectError("down", request=req)
+        return httpx.Response(200, json=jwks())
+
+    v = PushVerifier(AUD, PUSH_SA, transport=httpx.MockTransport(certs), clock=lambda: clock[0])
+
+    def token() -> str:
+        return oidc(iat=int(clock[0]), exp=int(clock[0]) + 3600)
+
+    v.verify(token())
+    state["down"], clock[0] = True, clock[0] + 2 * 3600  # keys are stale and the endpoint is down
+    v.verify(token())  # still verified with yesterday's key (stale-if-error)
+    clock[0] += 2 * 24 * 3600  # too stale to trust: fail closed
+    with pytest.raises(httpx.HTTPError):
+        v.verify(token())

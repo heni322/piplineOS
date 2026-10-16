@@ -23,6 +23,7 @@ from typing import Any
 
 import httpx
 
+from app.adapters.base import RateLimited, RetryableProviderError
 from app.adapters.http import ProviderError, check, client
 from app.adapters.signals.base import RawSignal
 from app.adapters.signals.ocds import _matches, _parse_dt, parse_query
@@ -168,7 +169,9 @@ class JobBoardSource:
             _base, path, parser, page = ATS[ats]
             try:
                 postings = parser(check(self._clients[ats].get(path.format(b=board))).json())
-            except (ProviderError, httpx.HTTPError, ValueError):
+            except RateLimited:  # the whole source waits: the hunt counts it and fetches again next run
+                raise
+            except (ProviderError, RetryableProviderError, httpx.HTTPError, ValueError):
                 self.failed.append(w.board)  # a removed or renamed board must not stop the others
                 continue
             new = [

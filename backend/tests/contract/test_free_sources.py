@@ -165,6 +165,15 @@ def test_a_failing_board_does_not_stop_the_others() -> None:
     assert src.failed == ["greenhouse:gone", "workday:bad"]
 
 
+def test_a_board_whose_server_is_down_does_not_stop_the_others() -> None:
+    src = JobBoardSource(
+        [WatchedBoard("Down Ltd", "greenhouse:down"), WatchedBoard("Fabrikam Ltd", "lever:fabrikam")],
+        transports={"greenhouse": _json({}, 503), "lever": _json(LEVER)},
+    )
+    assert [s.company_name for s in src.fetch("", SINCE)] == ["Fabrikam Ltd"]
+    assert src.failed == ["greenhouse:down"]  # reported as partial; fetched again on the next run
+
+
 def test_a_rate_limited_board_is_reported() -> None:
     src = JobBoardSource([WatchedBoard("C", "ashby:c")], transports={"ashby": _json({}, 429)})
     with pytest.raises(RateLimited):  # the hunt counts it and retries on the next run

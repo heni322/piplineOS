@@ -155,7 +155,7 @@ class HunterVerifier(_Hunter):
         resp = self._get("/v2/email-verifier", {"email": email})
         if resp.status_code == 451:
             raise PersonObjected(email)
-        if resp.status_code == 202:  # still checking: treated as unknown (blocked), checked again on a later run
-            return "unknown"
+        if resp.status_code == 202:  # still checking: not an answer. The lead waits and is verified on a later run
+            raise RetryableProviderError("verification still in progress")
         status = str((resp.json().get("data") or {}).get("status") or "unknown")
         return VERIFIER_STATUS.get(status, "unknown")

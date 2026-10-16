@@ -1,5 +1,7 @@
 """Rate limiting shared by every API worker: a token bucket in Valkey (atomic Lua). If Valkey is unreachable the
-limiter falls back to a per-process bucket, so limits get looser (per process) but never disappear."""
+limiter falls back to a per-process bucket, so limits get looser (per process) but never disappear. A circuit
+breaker skips Valkey for a cooldown after repeated failures, so an outage does not add a socket timeout to every
+request (ADR-0019)."""
 
 from __future__ import annotations
 
@@ -9,6 +11,7 @@ from typing import Any
 
 from app.adapters.base import TokenBucket
 from app.core.logging import get_logger
+from app.core.resilience import CircuitBreaker
 
 log = get_logger(__name__)
 _LUA = """
@@ -23,6 +26,7 @@ redis.call('EXPIRE', key, math.ceil(cap / rate) + 60)
 return ok
 """
 _local: dict[str, TokenBucket] = {}
+_valkey = CircuitBreaker("valkey:ratelimit", threshold=2, cooldown=30.0)
 
 
 @lru_cache
@@ -33,14 +37,19 @@ def _client(url: str) -> Any:
 
 
 def allow(key: str, *, rate_per_sec: float, capacity: int, redis_url: str | None) -> bool:
-    if redis_url and not key.startswith("test:"):
+    if redis_url and not key.startswith("test:") and _valkey.allow():
         try:
-            return bool(_client(redis_url).eval(_LUA, 1, f"rl:{key}", rate_per_sec, capacity, time.time()))
+            ok = bool(_client(redis_url).eval(_LUA, 1, f"rl:{key}", rate_per_sec, capacity, time.time()))
         except Exception:  # any Valkey problem: degrade to the local bucket, never to "no limit"
+            _valkey.failure()
             log.warning("rate_limiter_fallback")
+        else:
+            _valkey.success()
+            return ok
     bucket = _local.setdefault(key, TokenBucket(rate_per_sec=rate_per_sec, capacity=capacity))
     return bucket.try_acquire()
 
 
 def reset_local() -> None:  # tests
     _local.clear()
+    _valkey.reset()

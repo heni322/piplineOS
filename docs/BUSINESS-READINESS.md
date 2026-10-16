@@ -1,4 +1,4 @@
-# PipelineOS: business readiness (2026-10-15)
+# PipelineOS: business readiness (2026-10-16)
 
 > Companion documents: [GO-TO-MARKET.md](GO-TO-MARKET.md) (model, pricing, ICP, pilot plan, unit economics, risks)
 > and [LEGAL-REVIEW-CHECKLIST.md](LEGAL-REVIEW-CHECKLIST.md) (what the solicitor must review).
@@ -8,7 +8,7 @@
 **Business readiness: 5.1 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
-- 810 backend tests, 19 browser tests with WCAG checks, strict typing;
+- 850 backend tests, 19 browser tests with WCAG checks, strict typing;
 - database-enforced tenant isolation and a three-key send switch.
 
 It is **not yet a business**:
@@ -453,6 +453,44 @@ Ten more findings, all fixed:
 - **Weekly email opt-out.** Each client admin turns the weekly results email off or on under Email preferences,
   and every email says how. Viewers can't change it, and one admin's choice doesn't touch anyone else.
 
+### 6.22 Fallback and resilience review (P0/P1, ADR-0019)
+- **Why.** Once live, every dependency will fail at some point: the AI model, Microsoft and Google, Companies
+  House and the other sources, DNS, Valkey, the database. The question was not "does it work" but "what does it
+  decide when something it needs is down".
+- **How.** A dependency-by-dependency audit: timeouts, retries, failure behaviour and existing fallbacks, for each.
+  It found 15 real failure modes, among them:
+  - **duplicate emails:** Gmail accepted the email, the read-back of its id failed, so it was sent again;
+  - **unsubscribes delayed:** a model outage stopped reply handling before the rules applied;
+  - **dead retries:** Celery's retry setting matched no real error, so no retry ever fired;
+  - **wrong suppressions:** a 5.7.x "we don't accept your mail" bounce suppressed the person everywhere;
+  - **skipped replies:** an inbox with more than 100 new messages skipped the rest;
+  - **no isolation:** one failing lead, message, reply or client stopped all the others.
+- **One rule now holds everywhere: an outage defers work, it never decides it.**
+  - **Failure taxonomy by error type:** "certainly not done" is retried; "refused" fails; "may have happened" is
+    never retried and goes to a person.
+  - **At-most-once sending:** nothing after the provider's acceptance can trigger a resend.
+  - **Bounded retries with backoff:** sends get 6 attempts and honour Retry-After, then an escalation. Outbox
+    events get 10 attempts, then a dead letter with an alert. Celery retries now match real errors.
+  - **Circuit breakers** for the AI model, the campaign run, each sending inbox and the Valkey limiter. **Bulkheads**
+    per lead, message, reply and client.
+  - **Model outage:** unsubscribes are still honoured (rules first), drafts wait for the next run, and qualification
+    goes to a person rather than defaulting to "not met". Falling back to the simulator was rejected: it would
+    put fake text into live work.
+  - **Transient states aren't answers:** DNS timeouts, the daily domain check and Hunter's "still checking" all
+    wait. Bounces are classed by RFC 3463 code.
+  - **Fail fast instead of hanging:** database connect, statement and lock timeouts, and task time limits below
+    the broker's redelivery time. Google's push keys stay usable for up to 24 h during a refresh outage.
+- **Tests.** Every behaviour has a test against the real database or the adapter contracts: duplicate-send
+  prevention, backoff and give-up, a definite refusal, the per-inbox pause, a send crash that doesn't stop the
+  loop, outbox dead letter, policy bounce vs dead address, model-down drafting that completes on the next run, the
+  provider-outage stop, an unsubscribe with the model down, the Gmail cursor, stale keys, the job-board outage,
+  and the Valkey breaker.
+- **Still open** (ADR-0019 §Consequences):
+  - reply handling still calls the model inside one database transaction (safe, but locks are held);
+  - a reschedule cancels before it re-books;
+  - "website down" can't be told from "no website";
+  - OAuth expiry isn't detected on its own (sends now give up and escalate instead of looping).
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
@@ -462,14 +500,14 @@ Ten more findings, all fixed:
 | Lead acquisition | 4 | **4.5** (client-supplied target accounts; still untested live) |
 | Data quality | 5 | **5.5** (MX check) |
 | Outreach | 6 | **6.5** (A/B testing with honest statistics) |
-| Deliverability | 4 | 4 |
+| Deliverability | 4 | 4 (bounce classes now protect people from sender-side blocks; real domains still missing) |
 | Compliance (technical / legal) | 8 / 0 | **8.5** / 0 (retention schedule) |
 | Security | 7 | **7.5** (automated cross-tenant sweep; external test still missing) |
 | Sales workflow | 6 | 6 |
 | Meeting booking | 5 | 5 |
 | Billing | 5 | **6** (payments, paid, overdue) |
 | Analytics | 4 | **7** |
-| Operations | 5 | **7** (emergency stop, stop alerts, restore drill run, staging) |
+| Operations | 5 | **7.5** (emergency stop, stop alerts, restore drill run, staging; fallback rules: retries with backoff, breakers, bulkheads, dead letter) |
 | Customer success | 3 | **5.5** (client stop, ROI, consented proof, weekly results email) |
 | Scalability | 5 | **5.5** (re-measured at 100k leads: worst p95 633 ms, target 2 s; still one server) |
 | Go-to-market | 1 | **5** (model, pricing, ICP, plan, landing page with inbound form, economics, own-outreach account) |

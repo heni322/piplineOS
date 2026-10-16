@@ -524,3 +524,18 @@ def test_an_unsubscribe_during_a_pause_is_honoured_before_anything_resumes(world
         n=PROSEWARE,
     )
     assert sent[0].n == 0
+
+
+class _ModelDown:
+    def complete(self, **kw):  # type: ignore[no-untyped-def]
+        import httpx
+
+        raise httpx.ConnectError("model unreachable")
+
+
+def test_an_unsubscribe_is_honoured_while_the_model_is_down(world: World) -> None:
+    """ADR-0019: the safety rules need no model. A model outage must never delay an unsubscribe."""
+    world.ctx.llm.backend = _ModelDown()  # type: ignore[attr-defined]
+    out = world.say(PROSEWARE, "Please remove me from your mailing list.", START + timedelta(hours=1))
+    assert out.classification == "unsubscribe" and "suppressed_globally" in out.actions
+    assert lead_state(world, PROSEWARE) == "objected"

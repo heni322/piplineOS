@@ -7,6 +7,13 @@ send_message():
   tx2  mark 'sent' / 'dry_run_sent' (the DB send-gate trigger re-verifies) -> lead -> contacted -> commit
 A crash between tx1 and tx2 leaves the message in 'sending'; the reconciler moves it to
 'needs_reconciliation' for a human. It is NEVER automatically re-sent.
+
+Provider failures (ADR-0019), decided by error type only:
+- RetryableProviderError (nothing was sent: 429/503, unreachable, no access token): 'failed_retryable' with
+  exponential backoff (Retry-After honoured), at most MAX_SEND_ATTEMPTS times; then 'failed_permanent' + escalation.
+- ProviderError (a definite 4xx refusal: nothing was sent): 'failed_permanent' + escalation at once.
+- anything else (outcome unknown, e.g. a 500 or a read timeout after the hand-over): stays 'sending' ->
+  reconciliation by a human. Never retried.
 """
 
 from __future__ import annotations
@@ -20,8 +27,9 @@ from typing import Literal
 from sqlalchemy import RowMapping, text
 from sqlalchemy.engine import Connection, Engine
 
-from app.adapters.base import RetryableProviderError
+from app.adapters.base import RateLimited, RetryableProviderError
 from app.adapters.email.base import EmailPayload, EmailSender, SendResult
+from app.adapters.http import ProviderError
 from app.core.audit import write_audit
 from app.core.crypto import PiiCipher
 from app.core.logging import get_logger
@@ -41,8 +49,18 @@ from app.settings import Settings
 
 log = get_logger(__name__)
 
-SendStatus = Literal["sent", "dry_run_sent", "blocked", "deferred", "skipped", "retry_later"]
+SendStatus = Literal["sent", "dry_run_sent", "blocked", "deferred", "skipped", "retry_later", "failed"]
 SENDABLE = ("approved", "queued", "failed_retryable")
+MAX_SEND_ATTEMPTS = 6  # with the backoff below: retried over about an hour, then a human is told
+BACKOFF_CAP = timedelta(minutes=60)
+
+
+def retry_delay(attempts: int, retry_after: str | None = None) -> timedelta:
+    """Exponential backoff (2, 4, 8 ... minutes, capped), never sooner than the provider's Retry-After (seconds)."""
+    delay = min(timedelta(minutes=2**attempts), BACKOFF_CAP)
+    if retry_after and retry_after.strip().isdigit():
+        delay = max(delay, min(timedelta(seconds=int(retry_after.strip())), BACKOFF_CAP))
+    return delay
 
 
 @dataclass(frozen=True)
@@ -82,16 +100,12 @@ class OutboundGateway:
 
         try:
             result = self._dispatch(tenant_id, message_id, prepared)
-        except RetryableProviderError as exc:
+        except RetryableProviderError as exc:  # nothing was sent: back off and retry, a bounded number of times
             with transaction(ctx, self.engine) as conn:
-                conn.execute(
-                    text(
-                        "UPDATE messages SET status = 'failed_retryable', last_error = :e WHERE id = :id "
-                        "AND status = 'sending'"
-                    ),
-                    {"e": type(exc).__name__, "id": message_id},
-                )
-            return SendOutcome("retry_later", (type(exc).__name__,), prepared.decision_id, mode=prepared.mode)
+                return self._retry_or_fail(conn, tenant_id, message_id, prepared, exc)
+        except ProviderError as exc:  # a definite refusal: nothing was sent, and retrying would not help
+            with transaction(ctx, self.engine) as conn:
+                return self._fail(conn, tenant_id, message_id, prepared, f"ProviderError {exc.status}")
         # Any other exception propagates and leaves the message in 'sending' -> reconciliation (never resent).
 
         with transaction(ctx, self.engine) as conn:
@@ -298,9 +312,56 @@ class OutboundGateway:
                     conn, self.cipher, self.settings.key("blind_index_key"), tenant_id, message_id, p.payload
                 )
         sender = self.live_sender if p.mode == "live" else self.sandbox_sender
-        if sender is None:
-            raise RuntimeError(f"no {p.mode} email sender configured")
+        if sender is None:  # nothing was sent; retried (bounded), then a human is told
+            raise RetryableProviderError(f"no {p.mode} email sender configured")
         return sender.send(p.payload)
+
+    # ------------------------------------------------------------------ provider failures
+    def _retry_or_fail(
+        self, conn: Connection, tenant_id: uuid.UUID, message_id: uuid.UUID, p: _Prepared, exc: Exception
+    ) -> SendOutcome:
+        attempts = int(
+            conn.execute(
+                text("UPDATE messages SET send_attempts = send_attempts + 1 WHERE id = :id RETURNING send_attempts"),
+                {"id": message_id},
+            ).scalar_one()
+        )
+        if attempts >= MAX_SEND_ATTEMPTS:
+            return self._fail(conn, tenant_id, message_id, p, f"{type(exc).__name__} after {attempts} attempts")
+        when = self.clock() + retry_delay(attempts, str(exc) if isinstance(exc, RateLimited) else None)
+        conn.execute(
+            text("""UPDATE messages SET status = 'failed_retryable', last_error = :e, next_attempt_at = :w
+              WHERE id = :id AND status = 'sending'"""),
+            {"e": type(exc).__name__, "w": when, "id": message_id},
+        )
+        log.warning("send_retry_scheduled", message_id=str(message_id), attempts=attempts, error=type(exc).__name__)
+        return SendOutcome("retry_later", (type(exc).__name__,), p.decision_id, scheduled_for=when, mode=p.mode)
+
+    def _fail(
+        self, conn: Connection, tenant_id: uuid.UUID, message_id: uuid.UUID, p: _Prepared, why: str
+    ) -> SendOutcome:
+        conn.execute(
+            text("UPDATE messages SET status = 'failed_permanent', last_error = :e WHERE id = :id"),
+            {"e": why[:200], "id": message_id},
+        )
+        conn.execute(
+            text("""INSERT INTO escalations (tenant_id, lead_id, reason, context)
+              VALUES (:t, :l, 'send_failed',
+                      jsonb_build_object('message_id', CAST(:m AS text), 'error', CAST(:e AS text)))"""),
+            {"t": tenant_id, "l": p.lead_id, "m": str(message_id), "e": why[:200]},
+        )
+        write_audit(
+            conn,
+            action="message.failed_permanent",
+            actor_type="system",
+            actor_id="outbound_gateway",
+            tenant_id=tenant_id,
+            entity_type="message",
+            entity_id=message_id,
+            after={"error": why[:200]},
+        )
+        log.error("send_failed_permanent", message_id=str(message_id), error=why[:200])
+        return SendOutcome("failed", (why[:200],), p.decision_id, mode=p.mode)
 
     # ------------------------------------------------------------------ helpers
     def _block(

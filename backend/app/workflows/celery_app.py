@@ -9,6 +9,7 @@ from celery import Celery
 from sqlalchemy import text
 
 from app.core.logging import configure_logging, get_logger
+from app.core.resilience import TRANSIENT_ERRORS, Bulkhead
 from app.db.session import DbContext, get_engine, transaction
 from app.domain.outbound.gateway import reconcile_stuck_sends
 from app.domain.tenants.controls import LISTENING_STATUSES
@@ -27,6 +28,10 @@ celery_app.conf.update(
     task_default_queue="default",
     task_routes={"pipelineos.send.*": {"queue": "send"}, "pipelineos.replies.*": {"queue": "replies"}},
     broker_transport_options={"visibility_timeout": 3600},
+    # A task is stopped well before the broker would hand it to a second worker (acks_late + visibility timeout),
+    # so a slow dependency can never make the same job run twice in parallel.
+    task_soft_time_limit=1500,
+    task_time_limit=1800,
     timezone="UTC",
     beat_schedule={
         "outbox-relay": {"task": "pipelineos.system.relay_outbox", "schedule": 5.0},
@@ -61,6 +66,25 @@ celery_app.conf.update(
 )
 
 
+# Transient failures (provider unreachable, database failover, broker blip) are retried with jittered exponential
+# backoff; every job is idempotent (state-checked), so a retry never repeats a side effect.
+_RETRY: dict[str, Any] = {
+    "autoretry_for": TRANSIENT_ERRORS,
+    "retry_backoff": True,
+    "retry_backoff_max": 600,
+    "retry_jitter": True,
+}
+
+
+def _active_tenants(statuses: tuple[str, ...] | None = None) -> list[uuid.UUID]:
+    with transaction(DbContext.system(), get_engine()) as conn:
+        if statuses is None:
+            return list(conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars())
+        return list(
+            conn.execute(text("SELECT id FROM tenants WHERE status = ANY(:s)"), {"s": list(statuses)}).scalars()
+        )
+
+
 def _dispatch(topic: str, payload: dict[str, Any]) -> None:
     log.info("outbox_event", topic=topic, lead_id=payload.get("lead_id"))
     if topic == "lead.discovered":
@@ -69,9 +93,7 @@ def _dispatch(topic: str, payload: dict[str, Any]) -> None:
         draft_referral_task.delay(payload["lead_id"])
 
 
-@celery_app.task(
-    name="pipelineos.pipeline.process_lead", autoretry_for=(ConnectionError,), retry_backoff=True, max_retries=5
-)
+@celery_app.task(name="pipelineos.pipeline.process_lead", **_RETRY, max_retries=5)
 def process_lead_task(lead_id: str) -> str:
     """Agent 2 -> compliance gate -> Agent 3 -> approval routing. Idempotent: state-checked at every step."""
     from app.adapters.registry import providers_for
@@ -85,7 +107,7 @@ def process_lead_task(lead_id: str) -> str:
     return process_lead(ctx, uuid.UUID(lead_id), providers_for(settings, ctx))
 
 
-@celery_app.task(name="pipelineos.pipeline.hunt")
+@celery_app.task(name="pipelineos.pipeline.hunt", soft_time_limit=3000, time_limit=3300)
 def hunt_task() -> dict[str, int]:
     """Agent 1 for every active campaign, then Agents 2-3 for waiting leads (paid lookups via the three-key gate)."""
     from app.core.crypto import PiiCipher
@@ -146,12 +168,13 @@ def retention_task() -> dict[str, int]:
     engine = get_engine()
     with transaction(DbContext.system(), engine) as conn:
         tenant_ids = conn.execute(text("SELECT id FROM tenants")).scalars().all()
-    erased = 0
     now = datetime.now(UTC)
-    for t in tenant_ids:
+
+    def one(t: uuid.UUID) -> int:
         with transaction(DbContext.system(t), engine) as conn:
-            erased += run_retention(conn, t, policy, now, apply=True).erased
-    return {"enabled": 1, "erased": erased}
+            return run_retention(conn, t, policy, now, apply=True).erased
+
+    return {"enabled": 1, "erased": sum(Bulkhead("retention").run(tenant_ids, one))}
 
 
 @celery_app.task(name="pipelineos.system.crm_sync")
@@ -163,15 +186,14 @@ def crm_sync_task() -> int:
     from app.domain.outbound.crm import sync_tenant
 
     engine = get_engine()
-    with transaction(DbContext.system(), engine) as conn:
-        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
     cipher = PiiCipher(settings.key("pii_master_key"))
     now = datetime.now(UTC)
-    done = 0
-    for t in tenant_ids:
+
+    def one(t: uuid.UUID) -> int:
         r = sync_tenant(engine, settings, cipher, t, now=now)
-        done += r.recorded + r.written + r.attendance
-    return done
+        return r.recorded + r.written + r.attendance
+
+    return sum(Bulkhead("crm_sync").run(_active_tenants(), one))
 
 
 @celery_app.task(name="pipelineos.send.send_due")
@@ -180,10 +202,8 @@ def send_due_task() -> int:
     from app.workflows.pipeline import send_due
 
     engine = get_engine()
-    with transaction(DbContext.system(), engine) as conn:
-        tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status = 'active'")).scalars().all()
     cipher = PiiCipher(settings.key("pii_master_key"))
-    return sum(len(send_due(engine, settings, cipher, t)) for t in tenant_ids)
+    return sum(Bulkhead("send_due").run(_active_tenants(), lambda t: len(send_due(engine, settings, cipher, t))))
 
 
 @celery_app.task(name="pipelineos.system.relay_outbox")
@@ -196,7 +216,11 @@ def reconcile_sends() -> int:
     engine = get_engine()
     with transaction(DbContext.system(), engine) as conn:
         tenant_ids = conn.execute(text("SELECT id FROM tenants WHERE status <> 'offboarded'")).scalars().all()
-    return sum(reconcile_stuck_sends(engine, t, settings.sending_reconcile_after_minutes) for t in tenant_ids)
+    return sum(
+        Bulkhead("reconcile_sends").run(
+            tenant_ids, lambda t: reconcile_stuck_sends(engine, t, settings.sending_reconcile_after_minutes)
+        )
+    )
 
 
 def _ctx_for_lead(lead_id: str):  # type: ignore[no-untyped-def]
@@ -209,7 +233,7 @@ def _ctx_for_lead(lead_id: str):  # type: ignore[no-untyped-def]
     return agent_context(engine, settings, PiiCipher(settings.key("pii_master_key")), row.tenant_id, row.campaign_id)
 
 
-@celery_app.task(name="pipelineos.pipeline.draft_referral", autoretry_for=(ConnectionError,), retry_backoff=True)
+@celery_app.task(name="pipelineos.pipeline.draft_referral", **_RETRY)
 def draft_referral_task(lead_id: str) -> str:
     """Recovery path for referral leads: drafts only if compliance allowed it and no draft exists yet (the inbound
     handler normally drafts straight after its commit, so this is usually a no-op)."""
@@ -230,7 +254,7 @@ def draft_referral_task(lead_id: str) -> str:
     return "drafted"
 
 
-@celery_app.task(name="pipelineos.replies.fetch_inbound", autoretry_for=(ConnectionError,), retry_backoff=True)
+@celery_app.task(name="pipelineos.replies.fetch_inbound", **_RETRY)
 def fetch_inbound_task() -> int:
     """Pulls new replies per tenant mailbox and runs Agent 4 (mock mailboxes; real ones push and are swept)."""
     from app.adapters.registry import inbox_for, providers_for
@@ -244,14 +268,17 @@ def fetch_inbound_task() -> int:
               LIMIT 1) AS campaign_id FROM tenants t WHERE t.status = ANY(:s)"""),
             {"s": list(LISTENING_STATUSES)},
         ).all()
-    cipher, handled = PiiCipher(settings.key("pii_master_key")), 0
-    for tenant_id, campaign_id in rows:
+    cipher = PiiCipher(settings.key("pii_master_key"))
+
+    def one(row: Any) -> int:
+        tenant_id, campaign_id = row
         msgs = inbox_for(settings, tenant_id).fetch_new()
         if not msgs or campaign_id is None:
-            continue
+            return 0
         ctx = agent_context(engine, settings, cipher, tenant_id, campaign_id)
-        handled += len(process_inbound(ctx, msgs, providers_for(settings, ctx)))
-    return handled
+        return len(process_inbound(ctx, msgs, providers_for(settings, ctx)))
+
+    return sum(Bulkhead("fetch_inbound").run(rows, one))
 
 
 @celery_app.task(name="pipelineos.replies.sweep_inbound")
@@ -275,18 +302,17 @@ def reply_sla_task() -> int:
             .scalars()
             .all()
         )
-    total = 0
-    for t in tenant_ids:
+
+    def one(t: uuid.UUID) -> int:
         n = reply_sla_breaches(engine, t)
         if n:
             log.warning("reply_sla_breach", tenant_id=str(t), count=n)
-        total += n
-    return total
+        return n
+
+    return sum(Bulkhead("reply_sla").run(tenant_ids, one))
 
 
-@celery_app.task(
-    name="pipelineos.replies.graph_message", autoretry_for=(ConnectionError,), retry_backoff=True, max_retries=8
-)
+@celery_app.task(name="pipelineos.replies.graph_message", **_RETRY, max_retries=8)
 def graph_message_task(mailbox: str, message_id: str) -> str:
     """Fetches one inbound message from Microsoft Graph and runs Agent 4 on it (idempotent by message id)."""
     from app.adapters.inbound.msgraph import GraphInbox
@@ -324,9 +350,7 @@ def renew_graph_subscriptions_task() -> int:
     return renew_all(graph_credentials(settings))
 
 
-@celery_app.task(
-    name="pipelineos.replies.gmail_history", autoretry_for=(ConnectionError,), retry_backoff=True, max_retries=8
-)
+@celery_app.task(name="pipelineos.replies.gmail_history", **_RETRY, max_retries=8)
 def gmail_history_task(mailbox: str, history_id: int) -> int:
     """Fetches what arrived in a Google Workspace inbox since the last processed historyId and runs Agent 4 on each
     reply (idempotent by Message-ID). The cursor only moves forward."""
@@ -402,10 +426,12 @@ def deliverability_task() -> int:
             .scalars()
             .all()
         )
-    paused = 0
-    for t in tenant_ids:
+
+    def one(t: uuid.UUID) -> int:
         with transaction(DbContext.system(t), engine) as conn:
-            paused += sum(1 for r in evaluate(conn, t, datetime.now(UTC), th) if r["paused"])
+            return sum(1 for r in evaluate(conn, t, datetime.now(UTC), th) if r["paused"])
+
+    paused = sum(Bulkhead("deliverability").run(tenant_ids, one))
     if paused:
         log.warning("inboxes_paused", count=paused)
     return paused

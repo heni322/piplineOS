@@ -13,6 +13,8 @@ from typing import Any, Literal, Protocol, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from app.adapters.base import RetryableProviderError
+from app.core.resilience import CircuitBreaker
 from app.llm.prompts import PromptFile
 
 T = TypeVar("T", bound=BaseModel)
@@ -25,6 +27,27 @@ class LLMEscalation(Exception):
     def __init__(self, reason: str, detail: str = "") -> None:
         super().__init__(f"{reason}: {detail}")
         self.reason = reason
+
+
+class LLMUnavailable(LLMEscalation, RetryableProviderError):
+    """The model could not be reached (down, overloaded, rate-limited, or its circuit is open). Nothing is wrong
+    with the work itself, so callers that can wait DEFER it (ADR-0019). It is still an LLMEscalation, so a caller
+    that cannot wait (e.g. reply classification) falls back exactly as before: rules first, then a human."""
+
+    def __init__(self, detail: str = "") -> None:
+        super().__init__("provider_unavailable", detail)
+
+
+# One breaker per backend type, shared by every client in the process: when the model is down, the first few
+# calls fail and the rest fail fast (no timeout each) until a trial call succeeds after the cooldown.
+_BREAKERS: dict[str, CircuitBreaker] = {}
+
+
+def breaker_for(backend: object) -> CircuitBreaker:
+    name = type(backend).__name__
+    if name not in _BREAKERS:
+        _BREAKERS[name] = CircuitBreaker(f"llm:{name}", threshold=3, cooldown=120.0)
+    return _BREAKERS[name]
 
 
 @dataclass(frozen=True)
@@ -118,8 +141,11 @@ class LLMClient:
         system = (policy + "\n\n" + prompt.body).strip()
         messages: list[dict[str, str]] = [{"role": "user", "content": user_content}]
         spent = 0
+        breaker = breaker_for(self.backend)
         for attempt in range(1, MAX_REPAIRS + 2):
             started = time.monotonic()
+            if not breaker.allow():
+                raise LLMUnavailable("circuit open: the model failed repeatedly; retried after the cooldown")
             try:
                 resp = self.backend.complete(
                     model=model,
@@ -129,7 +155,9 @@ class LLMClient:
                     json_schema=schema.model_json_schema(),
                     timeout=self.timeout,
                 )
+                breaker.success()
             except TimeoutError as exc:
+                breaker.failure()
                 self._rec(
                     tenant_id,
                     lead_id,
@@ -147,6 +175,27 @@ class LLMClient:
                     "",
                 )
                 raise LLMEscalation("timeout", str(exc)) from exc
+            except AssertionError:  # a test double ran out of scripted answers: a bug, never an outage
+                raise
+            except Exception as exc:  # unreachable, 5xx, overloaded, rate-limited: the model, not the work
+                breaker.failure()
+                self._rec(
+                    tenant_id,
+                    lead_id,
+                    agent,
+                    prompt,
+                    model,
+                    attempt,
+                    0,
+                    0,
+                    None,
+                    started,
+                    "error",
+                    None,
+                    user_content,
+                    "",
+                )
+                raise LLMUnavailable(type(exc).__name__) from exc
             used_model = resp.model or model  # e.g. 'simulated' when the simulator answered
             cost = self.pricer(used_model, resp.input_tokens, resp.output_tokens)
             spent += cost or 0

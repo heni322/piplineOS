@@ -59,6 +59,9 @@ def test_outbox_relays_once_and_retries_failures(clean_db) -> None:  # type: ign
         seen.append(payload["i"])
 
     assert relay_batch(clean_db, flaky) == 2
+    assert relay_batch(clean_db, flaky) == 0  # the failed event backs off (ADR-0019): not retried in a hot loop
+    with transaction(DbContext.system(t), clean_db) as conn:
+        conn.execute(text("UPDATE outbox SET next_attempt_at = now() - interval '1 second'"))  # backoff elapsed
     assert relay_batch(clean_db, flaky) == 1
     assert relay_batch(clean_db, flaky) == 0
     assert sorted(seen) == [0, 1, 2]

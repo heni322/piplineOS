@@ -15,8 +15,9 @@ from typing import Any, Protocol
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
-from app.adapters.base import RateLimited
+from app.adapters.base import RetryableProviderError
 from app.adapters.companies_house.stream import FilingEvent, StreamSlice
+from app.adapters.http import ProviderError
 from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
 from app.domain.sources.health import describe_error, record_run
@@ -111,9 +112,11 @@ def ingest_filings(
                 break
             try:
                 seen[ev.company_number] = profiles.profile(ev.company_number)
-            except RateLimited:
+            except RetryableProviderError:  # rate limit or register unreachable: resume here next run, lose nothing
                 resume_at, stats.deferred = ev.timepoint - 1, len(sl.events) - i
                 break
+            except ProviderError:  # a definite refusal for this one company: skip it, never stall the cursor
+                seen[ev.company_number] = None
             lookups += 1
         prof = seen[ev.company_number]
         if prof is None:

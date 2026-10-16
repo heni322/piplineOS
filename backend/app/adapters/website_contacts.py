@@ -67,8 +67,10 @@ def has_mx(domain: str) -> bool:
 
     try:
         return len(dns.resolver.resolve(domain, "MX", lifetime=5.0)) > 0
-    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers, dns.exception.Timeout):
+    except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
         return False
+    except (dns.resolver.NoNameservers, dns.exception.Timeout) as exc:  # resolver down: decide nothing now
+        raise RetryableProviderError(f"dns unavailable for {domain}") from exc
 
 
 def candidate_domains(company_name: str) -> list[str]:

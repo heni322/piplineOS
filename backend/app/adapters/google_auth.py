@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from app.adapters.http import check, client
+from app.core.logging import get_logger
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 CERTS_URL = "https://www.googleapis.com/oauth2/v3/certs"
@@ -28,6 +29,8 @@ SCOPE_SEND = "https://www.googleapis.com/auth/gmail.send"
 SCOPE_READ = "https://www.googleapis.com/auth/gmail.readonly"
 SCOPE_EVENTS = "https://www.googleapis.com/auth/calendar.events"
 SCOPE_FREEBUSY = "https://www.googleapis.com/auth/calendar.freebusy"
+
+log = get_logger(__name__)
 
 
 def b64url(data: bytes) -> str:
@@ -111,8 +114,16 @@ class PushVerifier:
     def _key(self, kid: str) -> rsa.RSAPublicKey | None:
         now = float(self.clock())
         if kid not in self._keys or now - self._keys_at > 3600:
-            with client("https://www.googleapis.com", self.transport) as c:
-                jwks = check(c.get("/oauth2/v3/certs")).json()
+            try:
+                with client("https://www.googleapis.com", self.transport) as c:
+                    jwks = check(c.get("/oauth2/v3/certs")).json()
+            except Exception:
+                if kid in self._keys and now - self._keys_at < 24 * 3600:
+                    # stale-if-error: Google rotates keys over days, so yesterday's key is still valid evidence;
+                    # a short outage of the key endpoint must not reject every genuine push notification.
+                    log.warning("google_jwks_refresh_failed_using_cached")
+                    return self._keys[kid]
+                raise
             keys = {}
             for k in jwks.get("keys", []):
                 if k.get("kty") == "RSA":

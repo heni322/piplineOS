@@ -26,6 +26,9 @@ def test_logs_never_contain_emails_or_secrets(capsys: pytest.CaptureFixture[str]
         name="Alex Morgan",
     )
     out = capsys.readouterr().out
+    import structlog
+
+    structlog.reset_defaults()  # the logger was bound to this test's capture stream, which pytest closes next
     record = json.loads(out.strip().splitlines()[-1])
     assert "alex@contoso.example" not in out
     assert "hunter2" not in out and "sk-ant-secret" not in out and "Alex Morgan" not in out

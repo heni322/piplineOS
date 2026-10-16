@@ -23,3 +23,4 @@ Status values: Proposed · Accepted · Superseded. All are **Proposed** until th
 | [0016](0016-stage-2-nordics.md) | Stage 2 readiness: Norway and Finland, EU/EEA representative check | Proposed |
 | [0017](0017-sweden-denmark-registers.md) | Sweden and Denmark registers (credentials issued free on registration) | Proposed |
 | [0018](0018-stage-4-and-open-data-registers.md) | Stage 4 languages; Belgium and Ireland registers from open-data files | Proposed |
+| [0019](0019-fallback-and-resilience.md) | Fallback and resilience: an outage defers work, never decides it | Proposed |

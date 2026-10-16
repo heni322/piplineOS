@@ -10,8 +10,8 @@ import hashlib
 from email.message import EmailMessage
 from email.utils import formataddr, formatdate
 
-from app.adapters.email.base import EmailPayload, SendResult
-from app.adapters.http import check
+from app.adapters.email.base import EmailPayload, SendResult, open_before_send
+from app.adapters.http import check_send
 from app.adapters.msgraph_auth import GraphCredentials
 
 
@@ -45,8 +45,8 @@ class GraphEmailSender:
 
     def send(self, payload: EmailPayload) -> SendResult:
         raw, mid = build_mime(payload)
-        with self.creds.graph() as g:
-            check(
+        with open_before_send(self.creds.graph) as g:
+            check_send(
                 g.post(
                     f"/users/{payload.from_address}/sendMail",
                     content=base64.b64encode(raw),

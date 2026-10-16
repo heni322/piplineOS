@@ -128,7 +128,7 @@ def qualify(
         return None, {}, 0.0
     joined = "\n---\n".join(sanitise_untrusted(t).text for t in reply_texts)
     data = {"criteria": [c.model_dump(include={"id", "question", "evidence_from"}) for c in q.criteria]}
-    res = ctx.llm.run_structured(
+    res = ctx.llm.run_structured(  # LLMEscalation propagates: the caller escalates (never "not met" by default)
         prompt=load_prompt("reply_handler/qualify.v1.md"),
         schema=QualificationResult,
         tenant_id=ctx.tenant_id,
@@ -220,15 +220,18 @@ def draft_reply(
     issues: list[str] = []
     for _ in range(2):
         payload = {**data, "fix_issues": issues} if issues else data
-        d = ctx.llm.run_structured(
-            prompt=load_prompt("reply_handler/respond.v1.md"),
-            schema=ReplyDraft,
-            tenant_id=ctx.tenant_id,
-            lead_id=lead_id,
-            agent="reply_handler.respond",
-            policy=_policy(),
-            user_content=f"INPUT_JSON: {json.dumps(payload)}\n{wrapped}",
-        )
+        try:
+            d = ctx.llm.run_structured(
+                prompt=load_prompt("reply_handler/respond.v1.md"),
+                schema=ReplyDraft,
+                tenant_id=ctx.tenant_id,
+                lead_id=lead_id,
+                agent="reply_handler.respond",
+                policy=_policy(),
+                user_content=f"INPUT_JSON: {json.dumps(payload)}\n{wrapped}",
+            )
+        except LLMEscalation:  # no draft: every caller already escalates to a human on None
+            return None
         if intent == "playbook" and playbook and d.playbook_id != playbook.id:
             issues = [f"must use playbook entry {playbook.id}"]
             continue

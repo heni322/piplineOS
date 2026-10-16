@@ -72,6 +72,23 @@ LINES = [
 ]
 
 
+class FlakyRegister(FakeRegister):
+    """The register is unreachable for one company (outage) or refuses another one outright (4xx)."""
+
+    def __init__(self, down_for: str | None = None, refuse: str | None = None) -> None:
+        super().__init__()
+        self.down_for, self.refuse = down_for, refuse
+
+    def profile(self, company_number: str) -> dict[str, Any] | None:
+        from app.adapters.http import ProviderError, ProviderUnreachable
+
+        if company_number == self.down_for:
+            raise ProviderUnreachable("register unreachable")
+        if company_number == self.refuse:
+            raise ProviderError(400, "bad company number")
+        return super().profile(company_number)
+
+
 def rows(engine):  # type: ignore[no-untyped-def]
     with transaction(DbContext.system(), engine) as conn:
         return conn.execute(
@@ -179,3 +196,11 @@ def test_a_signal_with_a_non_web_link_is_never_stored(clean_db, settings, cipher
     with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
         urls = conn.execute(text("SELECT source_url FROM signals")).scalars().all()
     assert urls == ["https://jobs.example/1"]
+
+
+def test_register_outage_resumes_later_and_a_refused_company_never_stalls_the_cursor(clean_db) -> None:  # type: ignore[no-untyped-def]
+    stream = FakeStream(LINES)
+    first = ingest_filings(clean_db, stream, FlakyRegister(down_for="05555555"))
+    assert first.stored == 2 and first.deferred == 3 and cursor(clean_db) == 2  # waits at the outage, loses nothing
+    second = ingest_filings(clean_db, stream, FlakyRegister(refuse="06666666"))
+    assert second.stored == 1 and cursor(clean_db) == 6  # the refused company is skipped; the cursor moves on

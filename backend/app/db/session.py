@@ -36,7 +36,16 @@ class DbContext:
 
 @lru_cache
 def get_engine(url: str | None = None) -> Engine:
-    return create_engine(url or get_settings().database_url, pool_pre_ping=True, pool_size=10, max_overflow=10)
+    # Fail fast instead of hanging (ADR-0019): a database that does not answer within 5 s, a statement running over
+    # two minutes, or a lock not granted within 15 s raise an OperationalError, which jobs treat as transient.
+    return create_engine(
+        url or get_settings().database_url,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=10,
+        pool_timeout=30,
+        connect_args={"connect_timeout": 5, "options": "-c statement_timeout=120000 -c lock_timeout=15000"},
+    )
 
 
 def apply_context(conn: Connection, ctx: DbContext) -> None:

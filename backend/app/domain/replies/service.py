@@ -51,6 +51,7 @@ from app.domain.outbound.messages import create_draft
 from app.domain.outbound.tenant_footer import tenant_footer
 from app.domain.suppression.service import RecipientHashes, suppress_email
 from app.domain.tenants import controls
+from app.llm.client import LLMEscalation
 
 if TYPE_CHECKING:
     from app.workflows.pipeline import Providers
@@ -646,7 +647,11 @@ def _interested(
         if prospect["role_relevance"] is not None
         else role_relevance(prospect["title"] or "", cfg)
     )
-    overall, evidence, conf = agent4.qualify(ctx, lead_id, texts, rr, prospect["title"])
+    try:
+        overall, evidence, conf = agent4.qualify(ctx, lead_id, texts, rr, prospect["title"])
+    except LLMEscalation as exc:  # never guess "met" or "not met" without the model: a human decides
+        _escalate(conn, ctx.tenant_id, lead_id, "llm_failure", {"step": "qualify", "reason": exc.reason})
+        return ["escalated:llm_failure"]
     if cfg.qualification:
         cfg_id = conn.execute(text("SELECT id FROM tenant_configs ORDER BY version DESC LIMIT 1")).scalar_one()
         conn.execute(

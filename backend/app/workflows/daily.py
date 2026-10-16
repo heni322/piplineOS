@@ -18,7 +18,9 @@ log = get_logger(__name__)
 
 
 def daily_deliverability(engine: Engine, *, now: datetime, lookup: Lookup | None = None) -> dict[str, int]:
-    look = lookup or dns_lookup()
+    # strict: a resolver outage raises (the domain is skipped and keeps yesterday's result) instead of looking
+    # like "no SPF/DKIM/DMARC", which would clear the domain's verification.
+    look = lookup or dns_lookup(strict=True)
     plan = warmup.WarmupPlan.load(config_root())
     th = killswitch.Thresholds.load(config_root())
     totals = {"domains_checked": 0, "domains_ok": 0, "inboxes_advanced": 0, "inboxes_promoted": 0}

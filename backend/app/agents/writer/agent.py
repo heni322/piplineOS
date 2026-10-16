@@ -16,15 +16,18 @@ from app.agents.writer.checks import check_draft
 from app.agents.writer.schemas import PersonalizationSource, WriterCritique, WriterDraft, WriterOutput
 from app.config_paths import config_root
 from app.core.audit import write_audit
+from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
 from app.domain.leads.state_machine import State, transition
 from app.domain.outbound.footer import FooterError, FooterTemplate
 from app.domain.outbound.messages import create_draft
-from app.llm.client import LLMEscalation, UntrustedSource, wrap_untrusted
+from app.llm.client import LLMEscalation, LLMUnavailable, UntrustedSource, wrap_untrusted
 from app.llm.prompts import load_prompt
 
 DRAFT, CRITIQUE = "writer/draft.v2.md", "writer/critique.v1.md"
 LEGAL_SUFFIX = re.compile(r"\s+(ltd|limited|plc|llp|lp|inc|gmbh|sarl|sas|bv)\.?$", re.IGNORECASE)
+
+log = get_logger(__name__)
 
 
 @dataclass
@@ -146,6 +149,9 @@ def write_for_lead(ctx: AgentContext, lead_id: uuid.UUID) -> WriteResult:
                 policy=policy,
                 user_content=f"INPUT_JSON: {json.dumps(rewrite)}\n{wrapped}",
             )
+    except LLMUnavailable as exc:  # the model is down, not the draft bad: the lead waits for the next run
+        log.warning("writer_deferred_llm_unavailable", lead_id=str(lead_id), detail=str(exc)[:120])
+        return WriteResult("skipped", reason="llm_unavailable")
     except LLMEscalation as exc:
         return _escalate(ctx, lead_id, f"llm: {exc.reason}", "llm_failure")
     return _escalate(ctx, lead_id, "quality below threshold after max rewrites: " + "; ".join(issues)[:500])

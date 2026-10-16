@@ -157,3 +157,13 @@ def cipher(settings):  # type: ignore[no-untyped-def]
     from app.core.crypto import PiiCipher
 
     return PiiCipher(settings.key("pii_master_key"))
+
+
+@pytest.fixture(autouse=True)
+def _close_circuit_breakers() -> Iterator[None]:
+    """Circuit breakers are per process; one test's simulated outage must not open them for the next test."""
+    from app.llm import client as llm_client
+
+    llm_client._BREAKERS.clear()
+    yield
+    llm_client._BREAKERS.clear()
