@@ -8,7 +8,7 @@
 **Business readiness: 5.1 / 10.** It was about 4.0 before this phase.
 
 PipelineOS is a technically strong system:
-- 850 backend tests, 19 browser tests with WCAG checks, strict typing;
+- 878 backend tests, 19 browser tests with WCAG checks, strict typing;
 - database-enforced tenant isolation and a three-key send switch.
 
 It is **not yet a business**:
@@ -491,13 +491,37 @@ Ten more findings, all fixed:
   - "website down" can't be told from "no website";
   - OAuth expiry isn't detected on its own (sends now give up and escalate instead of looping).
 
+### 6.23 Hiring signals from companies' own careers pages (P1, ADR-0020)
+- **Why.** Hiring is the best free timing signal, but most UK SMEs post vacancies on their own website, not on
+  Greenhouse, Lever or Ashby. For those targets there was no hiring signal at all.
+- **What.** A reusable web-collection layer (`app/scraping/`) and a careers-page source built on it:
+  - **Polite fetcher:** robots.txt per RFC 9309, an identified bot, one request per site every 2 s at most,
+    size, type and redirect limits, a request budget per run, same-site and public-internet-only (SSRF),
+    conditional GET, and a per-host circuit breaker.
+  - **Structured extraction:** schema.org `JobPosting` JSON-LD, careers links and sitemaps, no CSS selectors. A
+    linked hosted board (Greenhouse, Lever, Ashby) is detected and read through its free API.
+  - **Data quality:** an allow-list of fields (nothing personal), validation, deduplication, and a counted
+    reason for every rejected ad (expired, stale, another employer, contact details, duplicate...). "New" means
+    posted in the window or first seen after the baseline crawl, never "already there when we started".
+  - **Incremental and shared:** each site is crawled at most daily and rediscovered monthly; one crawl serves
+    every client watching that company; ads unseen for 180 days are deleted.
+  - **Observable:** run metrics in source health. `pipelineos signals check careers --target <domain>` validates a
+    real site live without storing anything.
+- **Tests.** 28 new tests on simulated sites and PostgreSQL: robots rules (allow, deny, 4xx, 5xx, unreachable),
+  Crawl-delay, off-site and private-address blocking, size and type limits, 304s, breaker and budget, JSON-LD
+  variants, link and sitemap discovery, every quality rule, no personal data kept, baseline vs new, backoff for a
+  site that is down, robots denial respected, and the wiring into the hunt.
+- **Not measured.** This environment has no web access, so how many target sites publish JobPosting markup is
+  unknown until the `signals check careers` command is run on the server. **Legal:** question B9 for the
+  solicitor; the crawler turns off with `CAREER_PAGES=false`.
+
 ## 7. New score per area (after this phase)
 
 | Area | Before | After |
 |---|---|---|
 | Product | 7 | 7 |
 | Onboarding | 5 | **7.5** (guided, no JSON, client self-service for target accounts and progress) |
-| Lead acquisition | 4 | **4.5** (client-supplied target accounts; still untested live) |
+| Lead acquisition | 4 | **5** (client-supplied target accounts; hiring signals from their own careers pages; still untested live) |
 | Data quality | 5 | **5.5** (MX check) |
 | Outreach | 6 | **6.5** (A/B testing with honest statistics) |
 | Deliverability | 4 | 4 (bounce classes now protect people from sender-side blocks; real domains still missing) |

@@ -79,13 +79,15 @@ def hunt(
             record_run(ctx.engine, b.source.name, started_at=started, outcome="failed", error=describe_error(exc))
             continue
         failed_parts = list(getattr(b.source, "failed", []) or [])
+        metrics = dict(getattr(b.source, "metrics", {}) or {})  # e.g. the crawler's pages read, ads rejected by reason
+        detail = ({"failed": failed_parts[:20]} if failed_parts else {}) | ({"metrics": metrics} if metrics else {})
         record_run(
             ctx.engine,
             b.source.name,
             started_at=started,
             outcome="partial" if failed_parts else "ok",
             fetched=len(raw),
-            detail={"failed": failed_parts[:20]} if failed_parts else None,
+            detail=detail or None,
         )
         for s in sorted(raw, key=lambda r: r.detected_at):
             stats.fetched += 1

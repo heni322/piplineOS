@@ -79,8 +79,10 @@ def import_register(country: str, source: Path) -> None:
 
 @signals_app.command("check")
 def check_sources(
-    source: str = typer.Argument(..., help="ted | job-board | gazette | website | officers | stream"),
-    target: str = typer.Option("", help="ted: country (FR); job-board: greenhouse:name; others: company number"),
+    source: str = typer.Argument(..., help="ted | job-board | gazette | website | officers | stream | careers"),
+    target: str = typer.Option(
+        "", help="ted: country (FR); job-board: greenhouse:name; careers: domain; others: company number"
+    ),
     name: str = typer.Option("", help="website: the company name"),
     query: str = typer.Option("IT; software; service", help="keywords for ted / job-board"),
     days: int = typer.Option(14, help="look back this many days"),
@@ -132,8 +134,15 @@ def check_sources(
             "last_timepoint": sl.last_timepoint,
             "triggers": [(e.company_number, e.filing_type, str(e.filed_on)) for e in sl.events[:10]],
         }
+    elif source == "careers":
+        from app.adapters.signals.career_pages import CareerPageSource
+        from app.scraping.store import MemoryScrapeStore
+
+        if not target:
+            raise typer.BadParameter("careers needs --target <domain> (and --name <company name>)")
+        out |= CareerPageSource([], store=MemoryScrapeStore()).diagnose(target, name or target)
     else:
-        raise typer.BadParameter("source must be ted, job-board, gazette, website, officers or stream")
+        raise typer.BadParameter("source must be ted, job-board, gazette, website, officers, stream or careers")
     typer.echo(json.dumps(out, indent=2, default=str))
 
 

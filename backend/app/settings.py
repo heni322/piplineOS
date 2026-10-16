@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     # Free-only: take the generic business address (sales@, info@...) the company publishes on its own website,
     # once a page of that site states the company's registered number. Off = register contacts stay without email.
     website_contacts: bool = True
+    career_pages: bool = True  # watched companies' own careers pages (ADR-0020); False turns the crawler off
 
     # Three-key live switch, key 3 (keys 1 and 2: adapter mode + tenant.live_mode). Default OFF.
     global_go_live: bool = False

@@ -37,7 +37,7 @@ This unlocks the largest part of the score: legal validation goes from 0 to 6–
 > Kind regards, [name, phone]
 
 ## 3. What you need back, in writing
-- An answer for each row of the checklist (A1–C6, B8): **OK as is**, **change X**, or **don't do this**.
+- An answer for each row of the checklist (A1–C6, B8, B9): **OK as is**, **change X**, or **don't do this**.
 - Approved texts:
   - the privacy notice (`/privacy/<client>`);
   - the email footer;

@@ -24,3 +24,4 @@ Status values: Proposed · Accepted · Superseded. All are **Proposed** until th
 | [0017](0017-sweden-denmark-registers.md) | Sweden and Denmark registers (credentials issued free on registration) | Proposed |
 | [0018](0018-stage-4-and-open-data-registers.md) | Stage 4 languages; Belgium and Ireland registers from open-data files | Proposed |
 | [0019](0019-fallback-and-resilience.md) | Fallback and resilience: an outage defers work, never decides it | Proposed |
+| [0020](0020-web-collection.md) | Web collection: polite, structured, quality-checked crawler for careers pages | Proposed |

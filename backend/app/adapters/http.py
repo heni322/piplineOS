@@ -56,10 +56,14 @@ class _ClassifyingClient(httpx.Client):
             raise  # a write may have happened: the outcome is unknown, so it is NOT made retryable
 
 
-def client(base_url: str, transport: httpx.BaseTransport | None = None, **kw: Any) -> httpx.Client:
-    return _ClassifyingClient(
-        base_url=base_url, timeout=DEFAULT_TIMEOUT, transport=transport, follow_redirects=False, **kw
-    )
+def client(
+    base_url: str,
+    transport: httpx.BaseTransport | None = None,
+    *,
+    timeout: httpx.Timeout = DEFAULT_TIMEOUT,
+    **kw: Any,
+) -> httpx.Client:
+    return _ClassifyingClient(base_url=base_url, timeout=timeout, transport=transport, follow_redirects=False, **kw)
 
 
 def check(resp: httpx.Response) -> httpx.Response:

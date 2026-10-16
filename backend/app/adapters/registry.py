@@ -3,7 +3,8 @@ misconfiguration fails loudly (AdapterNotConfigured) instead of silently calling
 
 - signals: mock -> the synthetic demo dataset; sandbox/live -> Contracts Finder + Find a Tender award notices
   (free, public, read-only), searched with the client's ICP keywords, plus the client's watchlist: its companies'
-  public job boards (Greenhouse, Lever, Ashby; free, no key) and new directors on the Companies House register,
+  public job boards (Greenhouse, Lever, Ashby; free, no key) or, without one, the job ads on its own website
+  (schema.org JobPosting, crawled politely: app.scraping), and new directors on the Companies House register,
   plus, for clients with SIC codes, market-wide funding filings (SH01/MR01) from the Companies House stream ingest
 - FREE_ONLY=true: no paid provider is ever built. Enrichment -> the Companies House officers list (free; no email
   addresses), verifier -> none ("unknown"), AI -> the local model
@@ -57,6 +58,14 @@ def live_sources(
     ]
     if boards:
         out.append(SourceBinding(JobBoardSource(boards), hiring_query(cfg)))
+    sites = [w for w in cfg.watchlist if w.domain and not w.job_board]
+    if sites and engine is not None and (settings is None or settings.career_pages):
+        # their own careers pages (schema.org JobPosting), politely crawled; state shared by every client
+        from app.adapters.signals.career_pages import CareerPageSource, WatchedSite
+        from app.scraping.store import DbScrapeStore
+
+        career_sites = [WatchedSite(w.name, w.domain or "", w.company_number, w.country) for w in sites]
+        out.append(SourceBinding(CareerPageSource(career_sites, store=DbScrapeStore(engine)), hiring_query(cfg)))
     if any(c != "GB" for c in cfg.icp.countries):  # EU awards (TED: free, no key) for the client's EU countries
         from app.adapters.signals.ted import TedAwardSource
 
