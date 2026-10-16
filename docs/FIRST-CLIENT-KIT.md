@@ -38,7 +38,7 @@ Short. One question. No attachment in the first message.
 3. **The offer (5 min).** See §4. Ask: "Shall we set it up?"
 
 ## 4. The pilot offer (from GO-TO-MARKET §2)
-- **£490 once.** Covers the domain, 2 mailboxes, DNS, the 21-day warm-up, set-up and **300 contacts**.
+- **£490 once.** Covers the domain, 3 mailboxes, DNS, the 21-day warm-up, set-up and **300 contacts**.
 - **£250 per qualified, attended meeting**, judged against criteria **they** sign in the portal.
 - **Guarantee:** fewer than 3 positive replies from 300 people means the fee is credited or refunded.
   `LEGAL REVIEW REQUIRED` on the wording.

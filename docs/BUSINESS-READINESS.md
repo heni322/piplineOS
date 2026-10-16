@@ -63,7 +63,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 1 | Solicitor review of the UK legal position (PECR reg. 22 corporate subscribers, UK GDPR legitimate interests, Art. 14 notice) | P0 | **Solicitor** | open |
 | 2 | Client contract: terms of service, DPA, billable-meeting definition, dispute process | P0 | **Solicitor + owner** | drafts in code only |
 | 3 | First pilot client found and signed | P0 | **Owner** | open |
-| 4 | Sending domain(s) bought, DNS set, 2 mailboxes, 21-day warm-up | P0 | **Owner (domain/mailbox)** | open |
+| 4 | Sending domain(s) bought, DNS set, 3 mailboxes, 21-day warm-up | P0 | **Owner (domain/mailbox)** | open |
 | 5 | Production server (VPS, TLS, secrets, backups) and a staging copy | P0 | **Owner** (+ me for config) | runbooks exist |
 | 6 | Supplier details (`config/supplier.yaml`), ICO registration fee | P0 | **Owner** | placeholder |
 | 7 | Emergency stop that holds work, not destroys it | P0 | me | **DONE (this phase)** |
@@ -87,7 +87,7 @@ source link, the relevance score, every claim with its source, and the quality s
 ## 4. Fastest route to the first paying client
 
 1. **Week 0 (owner).** Book a solicitor (fixed fee) with [LEGAL-REVIEW-CHECKLIST.md](LEGAL-REVIEW-CHECKLIST.md).
-   Buy one domain and two mailboxes and start the warm-up. The warm-up only advances on live sends, so it needs
+   Buy one domain and three mailboxes and start the warm-up. The warm-up only advances on live sends, so it needs
    the solicitor's go-ahead for UK corporate subscribers first.
 2. **Week 0 (owner).** Pick 10 UK IT MSPs you can reach personally. Offer the pilot from GO-TO-MARKET §6.
 3. **Week 1–3.** Deploy to a VPS (`docs/DEPLOYMENT.md`). Record the solicitor's review on the Go-live page, enable
