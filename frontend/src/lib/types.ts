@@ -105,7 +105,7 @@ export type Targeting = {
   countries: string[]; watchlist: Watched[]; config_version: number; available_countries: string[];
 };
 export type SourceHealth = {
-  source: string; status: "healthy" | "degraded" | "failing"; runs_24h: number; failures_24h: number; fetched_24h: number;
+  source: string; status: "healthy" | "degraded" | "failing" | "silent"; runs_24h: number; failures_24h: number; fetched_24h: number;
   last_run_at: string; last_outcome: string; last_error: string | null; last_success_at: string | null;
 };
 export type Account = { status: string; paused_reason: string | null; paused_at: string | null };

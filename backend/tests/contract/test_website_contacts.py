@@ -245,3 +245,24 @@ def test_one_dns_check_per_domain() -> None:
     wc.find_people("", ["Operations Director"], "Lakeside Networks Ltd", company_number=NUMBER)
     assert wc.verify("sales@lakesidenetworks.co.uk") == wc.verify("SALES@lakesidenetworks.co.uk") == "valid"
     assert calls == [("lakesidenetworks.co.uk", "MX")]
+
+
+def test_user_agent_names_a_contact_because_wikidata_refuses_anonymous_bots() -> None:
+    """Seen live (2026-10-19): Wikidata answered 403 "Please respect our robot policy" to the contact-less
+    User-Agent and 200 once a contact URL was included."""
+    seen: list[httpx.Request] = []
+
+    def wd(req: httpx.Request) -> httpx.Response:
+        seen.append(req)
+        return httpx.Response(200, json={"results": {"bindings": []}})
+
+    f = WebsiteFinder(
+        transport=site({}),
+        wikidata_transport=httpx.MockTransport(wd),
+        public_host=lambda h: True,
+        mx=lambda d: True,
+        contact="https://ops.example/contact",
+    )
+    f.wikidata_domains(NUMBER)
+    assert "+https://ops.example/contact" in seen[0].headers["user-agent"]
+    assert seen[0].headers["user-agent"].startswith("PipelineOS-contact-check/1.0")  # robots.txt token unchanged

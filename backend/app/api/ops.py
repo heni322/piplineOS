@@ -208,6 +208,12 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
         )
         _gauge(
             lines,
+            "pipelineos_source_silent",
+            "1 when a signal source answered successfully but found nothing at all for 7 days (retired or changed?)",
+            [({"source": h.source}, 1.0 if h.status == "silent" else 0.0) for h in health],
+        )
+        _gauge(
+            lines,
             "pipelineos_source_failures_24h",
             "failed runs of each signal source in the last 24 hours",
             [({"source": h.source}, float(h.failures_24h)) for h in health],

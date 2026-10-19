@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     public_base_url: str = "http://localhost:3000"
     api_base_url: str = "http://localhost:8000"
+    # Contact named in the User-Agent of our polite crawlers (company websites, Wikidata). Wikimedia refuses
+    # requests without one (HTTP 403, robot policy). A page or mailbox where site owners can reach you.
+    crawler_contact: str = "https://github.com/heni322/piplineOS"
 
     database_url: str = "postgresql+psycopg://pipelineos_app:app_dev_only@localhost:5433/pipelineos"
     database_owner_url: str = "postgresql+psycopg://pipelineos_owner:owner_dev_only@localhost:5433/pipelineos"

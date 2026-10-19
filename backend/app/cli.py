@@ -110,7 +110,7 @@ def check_sources(
     elif source == "website":
         from app.adapters.website_contacts import WebsiteFinder
 
-        site = WebsiteFinder().find(target, name or None, None)
+        site = WebsiteFinder(contact=settings.crawler_contact).find(target, name or None, None)
         out |= {"site": site.__dict__ if site else None}
     elif source == "officers":
         from app.adapters.companies_house.officers import CompaniesHouseOfficers

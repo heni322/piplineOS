@@ -66,7 +66,15 @@ class SourceHealth:
     last_outcome: str
     last_error: str | None
     last_success_at: datetime | None
-    status: str  # healthy | degraded | failing
+    status: str  # healthy | degraded | failing | silent
+    runs_7d: int = 0
+    fetched_7d: int = 0
+
+
+# A source that answers successfully but finds nothing at all, run after run, is as useless as a failing one, and
+# it is how a retired endpoint or a changed format usually shows up. Reported as "silent" (a warning: a quiet week
+# for a narrow keyword list is possible, so it says "check", not "broken").
+SILENT_MIN_RUNS = 10
 
 
 def summary(conn: Connection) -> list[SourceHealth]:
@@ -76,12 +84,16 @@ def summary(conn: Connection) -> list[SourceHealth]:
         last AS (SELECT DISTINCT ON (source) source, finished_at, outcome, error FROM source_runs
                  ORDER BY source, finished_at DESC),
         ok AS (SELECT source, max(finished_at) AS at FROM source_runs WHERE outcome IN ('ok', 'partial')
-               GROUP BY source)
+               GROUP BY source),
+        week AS (SELECT source, count(*) FILTER (WHERE outcome IN ('ok', 'partial')) AS runs,
+                   coalesce(sum(fetched), 0) AS fetched
+                 FROM source_runs WHERE finished_at > now() - interval '7 days' GROUP BY source)
         SELECT l.source, l.finished_at, l.outcome, l.error, ok.at AS last_success,
           count(r.id) AS runs, count(r.id) FILTER (WHERE r.outcome = 'failed') AS failures,
-          coalesce(sum(r.fetched), 0) AS fetched
+          coalesce(sum(r.fetched), 0) AS fetched, coalesce(w.runs, 0) AS runs_7d, coalesce(w.fetched, 0) AS fetched_7d
         FROM last l LEFT JOIN recent r ON r.source = l.source LEFT JOIN ok ON ok.source = l.source
-        GROUP BY l.source, l.finished_at, l.outcome, l.error, ok.at ORDER BY l.source""")
+          LEFT JOIN week w ON w.source = l.source
+        GROUP BY l.source, l.finished_at, l.outcome, l.error, ok.at, w.runs, w.fetched ORDER BY l.source""")
     ).all()
     out = []
     for r in rows:
@@ -89,11 +101,23 @@ def summary(conn: Connection) -> list[SourceHealth]:
             status = "failing"
         elif r.outcome in ("failed", "partial", "rate_limited") or r.failures:
             status = "degraded"
+        elif r.runs_7d >= SILENT_MIN_RUNS and r.fetched_7d == 0:
+            status = "silent"
         else:
             status = "healthy"
         out.append(
             SourceHealth(
-                r.source, r.runs, r.failures, int(r.fetched), r.finished_at, r.outcome, r.error, r.last_success, status
+                r.source,
+                r.runs,
+                r.failures,
+                int(r.fetched),
+                r.finished_at,
+                r.outcome,
+                r.error,
+                r.last_success,
+                status,
+                int(r.runs_7d),
+                int(r.fetched_7d),
             )
         )
     return out

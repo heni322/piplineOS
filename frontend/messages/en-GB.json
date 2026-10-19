@@ -704,7 +704,7 @@
       "each client": "Each client"
     },
     "healthTitle": "Source health",
-    "healthIntro": "Each signal source's runs in the last 24 hours. A failing source finds nothing until it is fixed; run `pipelineos signals check` for it on the server.",
+    "healthIntro": "Each signal source's runs in the last 24 hours. A failing source finds nothing until it is fixed; run `pipelineos signals check` for it on the server. A silent source answers but has found nothing for a week: a quiet market, or a retired or changed service.",
     "healthEmpty": "No source has run yet. Sources run with the scheduled hunt once real sources are switched on.",
     "healthSource": "Source",
     "healthStatus": "Status",
@@ -718,7 +718,8 @@
     "healthStates": {
       "healthy": "Healthy",
       "degraded": "Degraded",
-      "failing": "Failing"
+      "failing": "Failing",
+      "silent": "Silent: nothing found for 7 days"
     }
   },
   "leads": {

@@ -123,3 +123,19 @@ def test_operator_api_and_metrics(clean_db, settings) -> None:  # type: ignore[n
     m = TestClient(app).get("/metrics", headers={"Authorization": "Bearer " + "m" * 32}).text
     assert 'pipelineos_source_failing{source="ted.live"} 1.0' in m
     assert 'pipelineos_source_failures_24h{source="ted.live"} 1.0' in m
+
+
+def test_a_source_that_answers_but_never_finds_anything_is_reported_silent(clean_db) -> None:  # type: ignore[no-untyped-def]
+    """Seen live (2026-10-19): Contracts Finder's OCDS search answered 200 with no releases for every query."""
+    from app.domain.sources.health import SILENT_MIN_RUNS
+
+    now = datetime.now(UTC)
+    for _ in range(SILENT_MIN_RUNS):
+        record_run(clean_db, "contracts_finder.live", started_at=now, outcome="ok", fetched=0)
+    for _ in range(SILENT_MIN_RUNS - 1):
+        record_run(clean_db, "young.source", started_at=now, outcome="ok", fetched=0)  # too few runs to judge
+    record_run(clean_db, "busy.source", started_at=now, outcome="ok", fetched=3)
+    with transaction(DbContext.system(), clean_db) as conn:
+        h = {x.source: x for x in summary(conn)}
+    assert h["contracts_finder.live"].status == "silent" and h["contracts_finder.live"].runs_7d == SILENT_MIN_RUNS
+    assert h["young.source"].status == "healthy" and h["busy.source"].status == "healthy"

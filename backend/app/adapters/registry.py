@@ -105,7 +105,9 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
                 from app.adapters.website_contacts import WebsiteContacts, WebsiteFinder
                 from app.domain.deliverability.dns_check import dns_lookup
 
-                p.enrichment = WebsiteContacts(officers, WebsiteFinder(), dns_lookup(strict=True))
+                p.enrichment = WebsiteContacts(
+                    officers, WebsiteFinder(contact=settings.crawler_contact), dns_lookup(strict=True)
+                )
         if settings.verifier_adapter_mode != "mock":
             from app.adapters.verifier.none import NoVerifier
             from app.adapters.website_contacts import WebsiteContacts

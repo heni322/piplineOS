@@ -39,6 +39,18 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 USER_AGENT = "PipelineOS-contact-check/1.0 (published business contacts; respects robots.txt)"
+
+
+def user_agent(contact: str | None) -> str:
+    """Wikimedia's robot policy (and good manners) require a way to reach the operator: without it, Wikidata
+    answers 403. Robots.txt rules are still matched on the PipelineOS-contact-check token."""
+    return (
+        f"PipelineOS-contact-check/1.0 (+{contact}; published business contacts; respects robots.txt)"
+        if contact
+        else USER_AGENT
+    )
+
+
 PAGES = ["/", "/contact", "/contact-us", "/about", "/about-us", "/privacy-policy", "/terms"]
 MAX_BYTES = 512_000
 MAX_CANDIDATES = 6
@@ -125,14 +137,16 @@ class WebsiteFinder:
         wikidata_transport: httpx.BaseTransport | None = None,
         public_host: Callable[[str], bool] = is_public_host,
         mx: Callable[[str], bool] = has_mx,
+        contact: str | None = None,
     ) -> None:
-        headers = {"User-Agent": USER_AGENT, "Accept": "text/html"}
+        ua = user_agent(contact)
+        headers = {"User-Agent": ua, "Accept": "text/html"}
         self._http = httpx.Client(timeout=httpx.Timeout(10.0, connect=5.0), transport=transport, headers=headers)
         self._wd = httpx.Client(
             base_url=WIKIDATA,
             timeout=httpx.Timeout(15.0, connect=5.0),
             transport=wikidata_transport,
-            headers={"User-Agent": USER_AGENT, "Accept": "application/sparql-results+json"},
+            headers={"User-Agent": ua, "Accept": "application/sparql-results+json"},
         )
         self._public_host, self._mx = public_host, mx
 
