@@ -13,13 +13,13 @@
   },
   "dependencies": {
     "next": "15.5.27",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.13.0",
+    "@axe-core/playwright": "4.14.0",
     "@eslint/eslintrc": "3.3.7",
-    "@playwright/test": "1.64.0",
+    "@playwright/test": "1.64.1",
     "@testing-library/jest-dom": "6.8.0",
     "@testing-library/react": "16.3.3",
     "@types/node": "22.18.6",
