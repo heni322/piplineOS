@@ -38,6 +38,8 @@ app.add_typer(retention_app, name="retention")
 economics_app = typer.Typer(help="Unit economics and funnel simulation (assumptions, not measurements)")
 app.add_typer(economics_app, name="economics")
 llm_app = typer.Typer(help="The free local AI model (Ollama): compare models on this server")
+places_app = typer.Typer(help="Google Places (paid, gated, capped): find new target companies")
+app.add_typer(places_app, name="places")
 app.add_typer(llm_app, name="llm")
 
 
@@ -352,4 +354,90 @@ def llm_benchmark(
         if best
         else "no model was fully safe on these sets: keep the current one and check the details",
     }
+    typer.echo(json.dumps(out, indent=2, default=str))
+
+
+@places_app.command("discover")
+def places_discover(
+    client: str = typer.Option(..., help="the client's slug (its live switch and the dry-run log apply)"),
+    query: str = typer.Option(..., help='activity and area, e.g. "IT support Leeds" or "agence web Lyon"'),
+    country: str = typer.Option("GB", help="GB (company number) or FR (SIREN)"),
+    pages: int = typer.Option(1, min=1, max=3, help="pages of 20 results; each page is one billed request"),
+    add: bool = typer.Option(False, help="add the confirmed companies to the client's watchlist"),
+    operator_email: str = typer.Option("", help="with --add: your operator email (recorded on the new version)"),
+) -> None:
+    """Search Google Places for businesses, keep those whose own website prints a register number that the register
+    confirms, and list them with the business address their site publishes. Before go-live (or with FREE_ONLY=true)
+    nothing is called: the search is written to the dry-run log."""
+    from app.adapters.base import AdapterNotConfigured
+    from app.adapters.companies_house.base import CompaniesRegistry
+    from app.adapters.website_contacts import WebsiteFinder
+    from app.domain.paid.discovery import discover_companies
+    from app.domain.paid.places import PROVIDER, usage
+    from app.domain.paid.providers import places_for
+    from app.domain.tenants.config import load_config
+    from app.domain.tenants.onboarding import set_config
+
+    s = get_settings()
+    country = country.upper()
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        tenant_id = conn.execute(text("SELECT id FROM tenants WHERE slug = :s"), {"s": client}).scalar()
+    if tenant_id is None:
+        raise typer.BadParameter(f"no client {client!r}")
+    registry: CompaniesRegistry
+    if country == "GB":
+        from app.adapters.companies_house.live import CompaniesHouseRegistry
+
+        key = s.companies_house_api_key
+        if key is None or not key.get_secret_value():
+            raise typer.BadParameter("COMPANIES_HOUSE_API_KEY is not set (free)")
+        registry = CompaniesHouseRegistry(key.get_secret_value())
+    elif country == "FR":
+        from app.adapters.registries.france import FranceRegistry
+
+        registry = FranceRegistry()
+    else:
+        raise typer.BadParameter("country must be GB or FR")
+    try:
+        places = places_for(
+            s.model_copy(update={"places_region": country}), engine, PiiCipher(s.key("pii_master_key")), tenant_id
+        )
+    except AdapterNotConfigured as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    finder = WebsiteFinder(contact=s.crawler_contact)
+    report = discover_companies(places, finder, registry, query, country=country, pages=pages)
+    out: dict[str, object] = {
+        "called_google": places.allowed,
+        "note": None
+        if places.allowed
+        else "dry-run: recorded in the dry-run log, nothing called (needs the three "
+        "keys: PLACES_ADAPTER_MODE=live, the client live, global go-live signed off)",
+        "searched": report.searched,
+        "with_website": report.with_website,
+        "no_number_on_site": report.no_number_on_site,
+        "not_confirmed_by_register": report.not_confirmed_by_register,
+        "site_check_failed": report.site_check_failed,
+        "found": [f.__dict__ for f in report.found],
+        "places_calls_this_month": f"{usage(engine, PROVIDER)}/{s.places_monthly_cap}",
+    }
+    if add and report.found:
+        with transaction(DbContext(role="operator"), engine) as conn:
+            op = conn.execute(
+                text("SELECT id FROM users WHERE email_bidx = :b AND role = 'operator'"),
+                {"b": blind_index(s.key("blind_index_key"), operator_email, None)},
+            ).scalar()
+            if op is None:
+                raise typer.BadParameter("--add needs --operator-email of an existing operator")
+            _, cfg = load_config(conn, tenant_id)
+            have = {w.company_number for w in cfg.watchlist if w.company_number}
+            new = [
+                {"name": f.name, "company_number": f.company_number, "domain": f.domain, "country": f.country}
+                for f in report.found
+                if f.company_number not in have
+            ]
+            data = cfg.model_dump()
+            data["watchlist"] = [*data["watchlist"], *new]
+            out["added"] = len(new)
+            out["config_version"] = set_config(conn, tenant_id=tenant_id, operator_id=op, config=data) if new else None
     typer.echo(json.dumps(out, indent=2, default=str))

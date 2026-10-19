@@ -58,4 +58,5 @@ source_modules =
     app.domain.outbound
 forbidden_modules =
     app.adapters.hunter
+    app.adapters.google_places
 allow_indirect_imports = True

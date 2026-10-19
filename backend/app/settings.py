@@ -116,6 +116,20 @@ class Settings(BaseSettings):
     metrics_token: SecretStr | None = None  # bearer token for /metrics (Prometheus); unset = endpoint disabled
 
     anthropic_api_key: SecretStr | None = None
+    # which AI does the live work (only with the three keys; FREE_ONLY=true always means the local model):
+    # local (free, this server) | anthropic | gemini (both paid, behind the switch)
+    llm_provider: Literal["local", "anthropic", "gemini"] = "anthropic"
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.8-flash"
+    # Google Places (paid; docs/GOOGLE-PLACES.md): finds company websites and businesses by activity and area.
+    # Only with the three keys and FREE_ONLY=false; capped per month (1000 = Google's free allowance for these fields)
+    places_adapter_mode: AdapterMode = "mock"
+    google_places_api_key: SecretStr | None = None
+    places_monthly_cap: int = Field(default=1000, ge=0)
+    places_region: str = Field(default="GB", pattern=r"^[A-Z]{2}$")
+    places_language: str = "en"
+    # who finds decision-makers when FREE_ONLY=false: the free register (+ published addresses) or Hunter (paid)
+    enrichment_provider: Literal["companies_house", "hunter"] | None = None
     llm_model_volume: str = "claude-sonnet-5-5"
     llm_model_reasoning: str = "claude-opus-5-5"
     llm_timeout_seconds: float = 60.0

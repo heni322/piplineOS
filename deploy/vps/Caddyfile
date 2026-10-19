@@ -1,0 +1,31 @@
+# Behind the server's existing nginx, which terminates TLS for voyz.fr and forwards plain HTTP on the private
+# `voyz_edge` Docker network. No certificates here, no published port. Same routes as deploy/Caddyfile.
+{
+	auto_https off
+	admin off
+	servers {
+		trusted_proxies static private_ranges
+		client_ip_headers X-Forwarded-For X-Real-IP
+	}
+}
+
+:80 {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		-Server
+	}
+	# Metrics are for Prometheus on the internal network only, never public.
+	respond /metrics 404
+	@api path /api/* /u/* /r/* /webhooks/*
+	handle @api {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+	log {
+		output stdout
+		format json
+	}
+}

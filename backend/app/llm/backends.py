@@ -1,4 +1,5 @@
-"""LLM backends: Mock (scripted), Recorded (golden replay) and Anthropic (real; never used without a key)."""
+"""LLM backends: Mock (scripted), Recorded (golden replay), Anthropic and Gemini (real, paid: only behind the three-key
+switch) and Ollama (free, local)."""
 
 from __future__ import annotations
 
@@ -92,6 +93,127 @@ class AnthropicBackend:
             output_tokens=resp.usage.output_tokens,
             stop_reason=str(resp.stop_reason),
             model=model,
+        )
+
+
+GEMINI_URL = "https://generativelanguage.googleapis.com"
+_GEMINI_DROP = {"title", "default", "additionalProperties", "$schema", "examples", "$defs", "definitions"}
+
+
+def gemini_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Pydantic's JSON schema -> the OpenAPI subset Gemini's `responseSchema` accepts: references inlined, `const`
+    as a one-value enum, `X | None` as nullable, unsupported keywords dropped. The answer is still validated against
+    the full Pydantic model afterwards, so anything lost here only loosens the hint, never the check."""
+    defs = {**schema.get("$defs", {}), **schema.get("definitions", {})}
+
+    def conv(node: Any, depth: int = 0) -> Any:
+        if depth > 20:
+            return {"type": "object"}
+        if isinstance(node, list):
+            return [conv(n, depth + 1) for n in node]
+        if not isinstance(node, dict):
+            return node
+        if "$ref" in node:
+            return conv(defs.get(str(node["$ref"]).rsplit("/", 1)[-1], {"type": "object"}), depth + 1)
+        variants = node.get("anyOf") or node.get("oneOf")
+        if variants:
+            real = [v for v in variants if v.get("type") != "null"]
+            alt: dict[str, Any] = conv(real[0], depth + 1) if len(real) == 1 else {"anyOf": conv(real, depth + 1)}
+            if len(real) < len(variants):
+                alt["nullable"] = True
+            if "description" in node:
+                alt.setdefault("description", node["description"])
+            return alt
+        out: dict[str, Any] = {}
+        for k, v in node.items():
+            if k in _GEMINI_DROP or k in ("anyOf", "oneOf"):
+                continue
+            if k == "const":
+                out["enum"] = [v]
+            elif k == "properties":
+                out[k] = {name: conv(sub, depth + 1) for name, sub in v.items()}
+            elif k in ("items",):
+                out[k] = conv(v, depth + 1)
+            else:
+                out[k] = v
+        if "enum" in out and "type" not in out:
+            out["type"] = "string"
+        return out
+
+    result: dict[str, Any] = conv({k: v for k, v in schema.items() if k not in ("$defs", "definitions")})
+    return result
+
+
+_GEMINI_BLOCKED = {"SAFETY", "RECITATION", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "IMAGE_SAFETY", "OTHER"}
+
+
+def _gemini_stop(data: dict[str, Any], cand: dict[str, Any]) -> str:
+    reason = cand.get("finishReason")
+    if (data.get("promptFeedback") or {}).get("blockReason") or reason in _GEMINI_BLOCKED or not data.get("candidates"):
+        return "refusal"  # escalated to a person, like a refusal from any model
+    return "max_tokens" if reason == "MAX_TOKENS" else "end_turn"
+
+
+class GeminiBackend:
+    """Google's Gemini API (generateContent, JSON output constrained by a schema). Paid: only selected in live mode
+    behind the three-key switch, with LLM_PROVIDER=gemini. Use a key on the PAID tier: on the free tier Google uses
+    prompts to improve its products, which is not acceptable for prospect data. The key goes in a header, never in
+    the URL (so it never reaches access logs)."""
+
+    def __init__(self, api_key: str, model: str, *, transport: Any = None, base_url: str = GEMINI_URL) -> None:
+        import httpx
+
+        if not api_key:
+            raise ValueError("Gemini API key missing")
+        self.model = model
+        self._http = httpx.Client(
+            base_url=base_url, transport=transport, follow_redirects=False, headers={"x-goog-api-key": api_key}
+        )
+
+    def complete(
+        self,
+        *,
+        model: str,
+        system: str,
+        messages: list[dict[str, str]],
+        max_tokens: int,
+        json_schema: dict[str, Any],
+        timeout: float,
+    ) -> BackendResponse:
+        import httpx
+
+        role = {"user": "user", "assistant": "model"}
+        body = {
+            "systemInstruction": {"parts": [{"text": system}]},
+            "contents": [{"role": role.get(m["role"], "user"), "parts": [{"text": m["content"]}]} for m in messages],
+            "generationConfig": {
+                "temperature": 0,
+                "maxOutputTokens": max_tokens,
+                "responseMimeType": "application/json",
+                "responseSchema": gemini_schema(json_schema),
+            },
+        }
+        try:
+            resp = self._http.post(f"/v1beta/models/{self.model}:generateContent", json=body, timeout=timeout)
+        except httpx.TimeoutException as exc:
+            raise TimeoutError("Gemini timed out") from exc
+        if resp.status_code == 429 or resp.status_code >= 500:
+            from app.adapters.base import RetryableProviderError
+
+            raise RetryableProviderError(f"{resp.status_code} from Gemini")
+        resp.raise_for_status()
+        data = resp.json()
+        cand = (data.get("candidates") or [{}])[0]
+        text = "".join(
+            str(p.get("text", "")) for p in (cand.get("content") or {}).get("parts", []) if not p.get("thought")
+        )
+        usage = data.get("usageMetadata") or {}
+        return BackendResponse(
+            text=text,
+            input_tokens=int(usage.get("promptTokenCount") or 0),
+            output_tokens=int(usage.get("candidatesTokenCount") or 0) + int(usage.get("thoughtsTokenCount") or 0),
+            stop_reason=_gemini_stop(data, cand),
+            model=self.model,
         )
 
 

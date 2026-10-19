@@ -21,7 +21,9 @@ x-backend: &backend
   read_only: true
   tmpfs: ["/tmp"]
   volumes: ["./config:/config:ro"]
-  networks: [internal]
+  # internal: database, Valkey, the model. egress: the providers the workers call over HTTPS (mailboxes, registers,
+  # public notices, company websites). The database, Valkey and the model are never on `egress`.
+  networks: [internal, egress]
   depends_on:
     postgres: { condition: service_healthy }
     valkey: { condition: service_healthy }
@@ -159,6 +161,7 @@ services:
 networks:
   internal: { internal: true }
   public: {}
+  egress: {}
   llm-egress: {}
 
 volumes: { pgdata: {}, valkeydata: {}, caddydata: {}, caddyconfig: {}, ollamamodels: {} }

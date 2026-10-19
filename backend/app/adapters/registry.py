@@ -65,7 +65,7 @@ def live_sources(
         from app.adapters.signals.register_filings import RegisterFilingSource
 
         out.append(SourceBinding(RegisterFilingSource(engine, cfg.icp.sic_codes), ""))
-    numbered = [w for w in cfg.watchlist if w.company_number]
+    numbered = [w for w in cfg.watchlist if w.company_number and (w.country or "GB").upper() in ("GB", "UK")]
     key = settings.companies_house_api_key if settings is not None else None
     if numbered and key is not None and key.get_secret_value():
         from app.adapters.companies_house.officers import OfficerAppointmentSource, WatchedCompany
@@ -93,10 +93,11 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
             key = settings.companies_house_api_key
             register = CompaniesHouseRegistry(key.get_secret_value()) if key and key.get_secret_value() else None
             p.insolvency = InsolvencyFilter(GazetteNotices(), register)
-    if settings.free_only:
+    free_people = settings.free_only or settings.enrichment_provider == "companies_house"
+    if free_people:
         if settings.enrichment_adapter_mode != "mock":  # the free register replaces the paid enrichment provider
             if settings.companies_house_api_key is None or not settings.companies_house_api_key.get_secret_value():
-                raise AdapterNotConfigured("FREE_ONLY enrichment needs COMPANIES_HOUSE_API_KEY (free)")
+                raise AdapterNotConfigured("register enrichment needs COMPANIES_HOUSE_API_KEY (free)")
             from app.adapters.companies_house.officers import CompaniesHouseOfficers
 
             officers = CompaniesHouseOfficers(settings.companies_house_api_key.get_secret_value())
@@ -105,8 +106,15 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
                 from app.adapters.website_contacts import WebsiteContacts, WebsiteFinder
                 from app.domain.deliverability.dns_check import dns_lookup
 
+                places = None
+                if not settings.free_only and settings.places_adapter_mode != "mock" and ctx is not None:
+                    from app.domain.paid.providers import places_for  # paid + gated + capped
+
+                    places = places_for(settings, ctx.engine, ctx.cipher, ctx.tenant_id).websites_for
                 p.enrichment = WebsiteContacts(
-                    officers, WebsiteFinder(contact=settings.crawler_contact), dns_lookup(strict=True)
+                    officers,
+                    WebsiteFinder(contact=settings.crawler_contact, place_domains=places),
+                    dns_lookup(strict=True),
                 )
         if settings.verifier_adapter_mode != "mock":
             from app.adapters.verifier.none import NoVerifier

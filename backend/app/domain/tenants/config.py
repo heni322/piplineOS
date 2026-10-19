@@ -46,7 +46,7 @@ class WatchedCompany(_Strict):
     company with its register number, new directors on the Companies House register."""
 
     name: str = Field(min_length=1, max_length=200)
-    company_number: str | None = Field(default=None, pattern=r"^[A-Za-z0-9]{1,8}$")
+    company_number: str | None = Field(default=None, pattern=r"^[A-Za-z0-9]{1,9}$")  # UK: 8; France (SIREN): 9
     domain: str | None = None
     country: str | None = None
     job_board: str | None = Field(default=None, pattern=r"^(greenhouse|lever|lever-eu|ashby):[A-Za-z0-9_.-]{1,100}$")

@@ -266,3 +266,28 @@ def test_user_agent_names_a_contact_because_wikidata_refuses_anonymous_bots() ->
     f.wikidata_domains(NUMBER)
     assert "+https://ops.example/contact" in seen[0].headers["user-agent"]
     assert seen[0].headers["user-agent"].startswith("PipelineOS-contact-check/1.0")  # robots.txt token unchanged
+
+
+def test_places_websites_are_tried_only_when_wikidata_knows_none_and_still_need_proof() -> None:
+    asked: list[tuple[str, str | None]] = []
+
+    def places(number: str, name: str | None) -> list[str]:
+        asked.append((number, name))
+        return ["lakeside-it.example", "impostor.example"]
+
+    pages = {"impostor.example/": "<p>Lakeside Networks</p>", "lakeside-it.example/contact": CONTACT.replace(
+        "lakesidenetworks.co.uk", "lakeside-it.example")}  # fmt: skip
+    f = finder(pages)
+    f._places = places  # the gated, capped Places lookup in production
+    found = f.find(NUMBER, "Lakeside Networks Ltd", None)
+    assert asked == [(NUMBER, "Lakeside Networks Ltd")]
+    assert found is not None and (found.domain, found.address) == ("lakeside-it.example", "sales@lakeside-it.example")
+
+    wikidata = httpx.MockTransport(
+        lambda r: httpx.Response(200, json={"results": {"bindings": [{"w": {"value": "https://lakeside.example"}}]}})
+    )
+    asked.clear()
+    g = finder({}, wikidata=wikidata)
+    g._places = places
+    g.find(NUMBER, "Lakeside Networks Ltd", None)
+    assert asked == []  # free open data first: no paid request when Wikidata already names a site

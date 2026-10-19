@@ -119,6 +119,18 @@ every language, and email drafting) and recommends the best fully safe one. Cand
 `gemma4:12b` (16 GB), `glm-4.7-flash` or `gemma4:26b` (32 GB), `qwen3.6:35b` (48 GB+), `qwen3.6:27b` (GPU). See
 `docs/LOCAL-LLM.md`.
 
+## Google Places, Gemini and the voyz.fr server (2026-10-19)
+- **Google Places** (paid, behind the three keys, capped at 1,000 searches a month = Google's free allowance):
+  suggests a company's website when the free sources know none (the 0-of-40 gap), and finds new companies by
+  activity and area (`pipelineos places discover`). Each site must still prove it is the company's by printing a
+  register number the register confirms; only its generic business address is used. Nothing from Google is
+  stored. See `docs/GOOGLE-PLACES.md`.
+- **Gemini** as an optional AI provider (`LLM_PROVIDER=gemini`): paid, only with the three keys, never with
+  `FREE_ONLY=true`, paid tier only (the free tier lets Google use prompts). The default stays the free local model.
+- **voyz.fr** on the shared Contabo VPS (France): `deploy/vps/` (secrets generated on the server, memory caps,
+  behind the existing nginx) and `docs/DEPLOY-VPS.md`.
+
 ## Code
 - Phases 2–17 are on `main` (GitHub pull requests up to #19).
-- The live-check fixes are on branch `fix/live-source-findings`, ready for a pull request.
+- The live-check fixes, the local AI server, Google Places, Gemini and the VPS deployment are on branch
+  `fix/live-source-findings`, ready for a pull request.

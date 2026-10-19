@@ -1,0 +1,57 @@
+# PipelineOS on a SHARED server whose own nginx already owns ports 80/443 (the Contabo VPS, voyz.fr).
+# Use with the production file:
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml -f deploy/vps/docker-compose.vps.yml \
+#     --profile local-llm up -d --build
+# Differences from docker-compose.prod.yml:
+# - images are built on the server (no registry);
+# - Caddy serves plain HTTP on the shared `voyz_edge` network only (no published port); the existing nginx terminates
+#   TLS for voyz.fr and forwards to it (deploy/vps/nginx-voyz.fr.conf);
+# - every container has a memory cap, so PipelineOS can never take memory from the other apps on this server.
+# Nothing else changes: the database, Valkey, workers and the model stay on the internal network, with no ports.
+
+x-build-backend: &build-backend
+  build: { context: ./backend }
+
+services:
+  migrate: { <<: *build-backend }
+  api:
+    <<: *build-backend
+    deploy: { resources: { limits: { memory: 768m } } }
+  worker-default:
+    <<: *build-backend
+    deploy: { resources: { limits: { memory: 768m } } }
+  worker-send:
+    <<: *build-backend
+    deploy: { resources: { limits: { memory: 512m } } }
+  worker-replies:
+    <<: *build-backend
+    deploy: { resources: { limits: { memory: 768m } } }
+  beat:
+    <<: *build-backend
+    deploy: { resources: { limits: { memory: 256m } } }
+  web:
+    build:
+      context: ./frontend
+      args: { NEXT_PUBLIC_CONTACT_EMAIL: "${NEXT_PUBLIC_CONTACT_EMAIL:-}" }
+    deploy: { resources: { limits: { memory: 512m } } }
+  postgres:
+    deploy: { resources: { limits: { memory: 1536m } } }
+  valkey:
+    deploy: { resources: { limits: { memory: 256m } } }
+  backup:
+    deploy: { resources: { limits: { memory: 256m } } }
+  caddy:
+    ports: !reset []
+    environment: { APP_DOMAIN: "${APP_DOMAIN:?set APP_DOMAIN}", ACME_EMAIL: "${ACME_EMAIL:-unused@example.invalid}" }
+    volumes: !override ["./deploy/vps/Caddyfile:/etc/caddy/Caddyfile:ro", "caddydata:/data", "caddyconfig:/config"]
+    networks: !override
+      internal: {}
+      voyz_edge: { aliases: ["pipelineos-edge"] }  # no internet: no certificates to fetch here
+    deploy: { resources: { limits: { memory: 128m } } }
+  ollama:
+    deploy: { resources: { limits: { memory: "${OLLAMA_MEM_LIMIT:-10g}", cpus: "${OLLAMA_CPUS:-6}" } } }
+
+networks:
+  # Created once by hand and shared with the existing nginx: `docker network create voyz_edge`
+  # then `docker network connect voyz_edge cdnkt_nginx`. Only Caddy (port 80, plain HTTP) is on it.
+  voyz_edge: { external: true }

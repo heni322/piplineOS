@@ -15,6 +15,7 @@ from app.core.crypto import PiiCipher
 from app.db.session import DbContext, transaction
 from app.domain.outbound.modes import resolve_mode
 from app.domain.paid.gate import GatedEnrichment, GatedVerifier, PaidGate
+from app.domain.paid.places import GatedPlaces
 from app.settings import Settings
 
 
@@ -58,3 +59,28 @@ def verifier_for(
 ) -> GatedVerifier:
     gate = _gate(settings, engine, cipher, tenant_id, settings.verifier_adapter_mode)
     return GatedVerifier(HunterVerifier(_key(settings, settings.verifier_adapter_mode), transport=transport), gate)
+
+
+def places_for(
+    settings: Settings,
+    engine: Engine,
+    cipher: PiiCipher,
+    tenant_id: uuid.UUID,
+    transport: httpx.BaseTransport | None = None,
+) -> GatedPlaces:
+    from app.adapters.google_places import GooglePlaces
+
+    if settings.free_only:
+        raise AdapterNotConfigured("Google Places is a paid API: not available with FREE_ONLY=true")
+    key = settings.google_places_api_key
+    if key is None or not key.get_secret_value():
+        raise AdapterNotConfigured("GOOGLE_PLACES_API_KEY is not set")
+    gate = _gate(settings, engine, cipher, tenant_id, settings.places_adapter_mode)
+    return GatedPlaces(
+        GooglePlaces(key.get_secret_value(), transport=transport),
+        gate,
+        engine,
+        cap=settings.places_monthly_cap,
+        region=settings.places_region,
+        language=settings.places_language,
+    )
