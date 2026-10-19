@@ -85,6 +85,14 @@ def test_paging_and_nothing_without_eu_countries_or_keywords() -> None:
 
 def test_ted_is_added_for_clients_targeting_eu_countries() -> None:
     data = DEMO_CONFIG.model_dump()
-    data["icp"]["countries"] = ["GB", "FR"]
+    data["icp"]["countries"] = ["GB", "BE"]
     names = [b.source.name for b in live_sources(TenantConfig.model_validate(data))]
     assert names == ["contracts_finder.live", "find_a_tender.live", "ted.live"]
+    # France has its own bulletin (BOAMP, French titles); TED keeps the other EU countries
+    data["icp"]["countries"] = ["GB", "FR"]
+    names = [b.source.name for b in live_sources(TenantConfig.model_validate(data))]
+    assert names == ["contracts_finder.live", "find_a_tender.live", "boamp.live"]
+    data["icp"]["countries"] = ["FR", "BE"]
+    bindings = live_sources(TenantConfig.model_validate(data))
+    ted = next(b.source for b in bindings if b.source.name == "ted.live")
+    assert "boamp.live" in [b.source.name for b in bindings] and ted._countries == ["BEL"]  # type: ignore[attr-defined]

@@ -128,6 +128,9 @@ every language, and email drafting) and recommends the best fully safe one. Cand
 - **Find companies** page in the console (Clients and money): search by activity and area, see the confirmed
   companies with their published business address, and add the ones you choose to a client's watchlist. Searches
   run in the background; the page says plainly when Google was not called and why.
+- **BOAMP**, France's official procurement bulletin (free open data, no key), as the trigger source for clients
+  targeting France: contract awards with French titles, so French keywords match. It replaces TED for France (TED
+  keeps the other EU countries). Checked live: 30 IT award signals in 14 days. `pipelineos signals check boamp`.
 - **French interface** (console, client portal, landing page): `NEXT_PUBLIC_LOCALE=fr-FR` when building the web
   image (the voyz.fr setup does it), with French dates and amounts. All 964 texts are translated; a test fails if
   a text or a placeholder is ever missing. Legal texts (email footer, privacy notice) are not part of this and stay

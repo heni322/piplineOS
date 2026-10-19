@@ -17,6 +17,7 @@ read-only: nothing was stored, sent or paid for, and only counts and company-lev
 | The Gazette (insolvency filter) | **Blocked from this network** | 403 at its CDN, even with a contact User-Agent. The filter already skips it and counts the failure; the register status is still checked. To re-check from the production server |
 | Website finder (published business addresses) | **Works, but finds almost nothing** | See §3 |
 | Companies House officers and filing stream | **Not checked** | No Companies House key is set on the PC |
+| BOAMP (French awards, added 2026-10-19) | **Works** | Open data (Licence Ouverte), no key. Over 14 days, IT keywords in French: 30 signals from 25 award notices, 30 distinct winners. Replaces TED for France, with French titles |
 
 ## 2. Changes made
 - **Contact in the crawler User-Agent** (`CRAWLER_CONTACT`, default the project page). Robots.txt rules still

@@ -83,7 +83,7 @@ def import_register(country: str, source: Path) -> None:
 
 @signals_app.command("check")
 def check_sources(
-    source: str = typer.Argument(..., help="ted | job-board | gazette | website | officers | stream"),
+    source: str = typer.Argument(..., help="ted | boamp | job-board | gazette | website | officers | stream"),
     target: str = typer.Option("", help="ted: country (FR); job-board: greenhouse:name; others: company number"),
     name: str = typer.Option("", help="website: the company name"),
     query: str = typer.Option("IT; software; service", help="keywords for ted / job-board"),
@@ -101,6 +101,11 @@ def check_sources(
 
         sigs = TedAwardSource([target or "FR"], max_pages=1).fetch(query, since)
         out |= {"signals": len(sigs), "sample": [(s.company_name, s.country_hint, s.title) for s in sigs[:5]]}
+    elif source == "boamp":
+        from app.adapters.signals.boamp import BoampAwardSource
+
+        sigs = BoampAwardSource(max_pages=2).fetch(query, since)
+        out |= {"signals": len(sigs), "sample": [(s.company_name, s.title, s.source_url) for s in sigs[:5]]}
     elif source == "job-board":
         from app.adapters.signals.job_boards import JobBoardSource, WatchedBoard
 
@@ -137,7 +142,7 @@ def check_sources(
             "triggers": [(e.company_number, e.filing_type, str(e.filed_on)) for e in sl.events[:10]],
         }
     else:
-        raise typer.BadParameter("source must be ted, job-board, gazette, website, officers or stream")
+        raise typer.BadParameter("source must be ted, boamp, job-board, gazette, website, officers or stream")
     typer.echo(json.dumps(out, indent=2, default=str))
 
 

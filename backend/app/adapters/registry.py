@@ -2,7 +2,8 @@
 misconfiguration fails loudly (AdapterNotConfigured) instead of silently calling a real service.
 
 - signals: mock -> the synthetic demo dataset; sandbox/live -> Contracts Finder + Find a Tender award notices
-  (free, public, read-only), searched with the client's ICP keywords, plus the client's watchlist: its companies'
+  (free, public, read-only), searched with the client's ICP keywords, plus France's BOAMP and the EU's TED for
+  clients targeting those countries, plus the client's watchlist: its companies'
   public job boards (Greenhouse, Lever, Ashby; free, no key) and new directors on the Companies House register,
   plus, for clients with SIC codes, market-wide funding filings (SH01/MR01) from the Companies House stream ingest
 - FREE_ONLY=true: no paid provider is ever built. Enrichment -> the Companies House officers list (free; no email
@@ -57,10 +58,15 @@ def live_sources(
     ]
     if boards:
         out.append(SourceBinding(JobBoardSource(boards), hiring_query(cfg)))
-    if any(c != "GB" for c in cfg.icp.countries):  # EU awards (TED: free, no key) for the client's EU countries
+    if "FR" in cfg.icp.countries:  # France: its own bulletin (BOAMP: free, no key), with the titles in French
+        from app.adapters.signals.boamp import BoampAwardSource
+
+        out.append(SourceBinding(BoampAwardSource(), q))
+    eu = [c for c in cfg.icp.countries if c not in ("GB", "FR")]
+    if eu:  # other EU countries: EU awards (TED: free, no key)
         from app.adapters.signals.ted import TedAwardSource
 
-        out.append(SourceBinding(TedAwardSource(cfg.icp.countries), q))
+        out.append(SourceBinding(TedAwardSource(eu), q))
     if cfg.icp.sic_codes and engine is not None:  # market-wide, from the filing-stream ingest (no key needed here)
         from app.adapters.signals.register_filings import RegisterFilingSource
 
