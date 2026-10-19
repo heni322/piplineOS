@@ -88,7 +88,8 @@ export type Decision = { id: string; lead_id: string; stage: string; outcome: st
 export type Inbox = { id: string; tenant_id: string; tenant_name: string; address: string; status: string; provider: string; daily_cap: number;
   warmup_day: number; sent_today: number; window_days: number; live_sent: number; hard_bounces: number; complaints: number;
   hard_bounce_rate: number | null; complaint_rate: number | null; max_hard_bounce_rate: number; max_complaint_rate: number; min_sent: number;
-  last_paused_at: string | null; last_pause_reason: string[] };
+  last_paused_at: string | null; last_pause_reason: string[]; placement_checked_at: string | null; placement_passed: boolean | null;
+  placement_current: boolean; placement_reasons: string[] };
 export type Campaign = { id: string; tenant_id: string; tenant_name: string; name: string; status: string; daily_cap: number; target_countries: string[];
   paused_reason: string | null; pilot_max_contacts: number | null; pilot_contacts_used: number };
 export type CrmStatus = "booked" | "confirmed" | "attended" | "no_show" | "cancelled";

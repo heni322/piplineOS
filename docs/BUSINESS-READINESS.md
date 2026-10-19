@@ -76,7 +76,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 14 | Public landing page | P1 | me | **DONE (this phase)**; needs a domain and contact email |
 | 15 | Onboarding a client in the console (it needed JSON and SQL) | P1 | me | **DONE (6.8)**: guided by the operator; a client self-serve wizard is still open |
 | 16 | External penetration test | P1 | **Pen tester** | open |
-| 17 | Inbox-placement (seed) test before each campaign | P1 | me + owner (seed mailboxes) | open |
+| 17 | Inbox-placement (seed) test before each campaign | P1 | me + owner (seed mailboxes) | **recorded and tracked (2026-10-19)**: results on the Inboxes page, readiness item; the test itself stays manual (owner's mailboxes) |
 | 18 | Customer proof capture (consent to quote results) | P2 | me | **DONE (6.10)** |
 | 19 | PipelineOS selling itself (operator's own tenant) | P2 | me, then owner + solicitor | **built (6.14)**; needs our own LIA, notice and domain |
 | 20 | Automatic data-retention schedule | P1 | me, then solicitor sets the periods | **built (6.7); off until the periods are set** |

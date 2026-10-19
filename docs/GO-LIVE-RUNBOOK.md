@@ -87,7 +87,11 @@ It takes 10 minutes.
    - Send the same email to two or three of your own mailboxes on different providers (Gmail, Outlook.com, one
      Microsoft 365 or Google Workspace business account).
    - **Pass:** it lands in the inbox, not spam or promotions, on every one.
-3. **Fail?** Don't start the campaign. Fix the cause first:
+3. **Record it** on the Inboxes page ("Record placement check"): the checker's score, SPF/DKIM/DMARC, blacklist,
+   where it landed on each mailbox, and the report link. PipelineOS decides pass or fail by the rule above, keeps
+   every result (append-only), and the Go-live readiness list shows any sending inbox without a pass in the last
+   30 days.
+4. **Fail?** Don't start the campaign. Fix the cause first:
    - DNS: Inboxes page → Check DNS;
    - content: remove links and images, shorten the email;
    - a young domain: keep warming up.
