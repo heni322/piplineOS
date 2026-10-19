@@ -125,6 +125,9 @@ every language, and email drafting) and recommends the best fully safe one. Cand
   activity and area (`pipelineos places discover`). Each site must still prove it is the company's by printing a
   register number the register confirms; only its generic business address is used. Nothing from Google is
   stored. See `docs/GOOGLE-PLACES.md`.
+- **Find companies** page in the console (Clients and money): search by activity and area, see the confirmed
+  companies with their published business address, and add the ones you choose to a client's watchlist. Searches
+  run in the background; the page says plainly when Google was not called and why.
 - **Gemini** as an optional AI provider (`LLM_PROVIDER=gemini`): paid, only with the three keys, never with
   `FREE_ONLY=true`, paid tier only (the free tier lets Google use prompts). The default stays the free local model.
 - **voyz.fr** on the shared Contabo VPS (France): `deploy/vps/` (secrets generated on the server, memory caps,

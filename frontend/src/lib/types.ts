@@ -100,6 +100,17 @@ export type SendingDomain = { id: string; tenant_id: string; tenant_name: string
   spf_ok: boolean; dkim_ok: boolean; dmarc_ok: boolean; dmarc_policy: string | null; issues: string[];
   checked_at: string | null; providers: string[] };
 export type ReadinessItem = { key: string; title: string; state: "done" | "todo" | "info"; who: "you" | "system"; detail: string };
+export type FoundCompany = { name: string; company_number: string; domain: string; address: string | null; country: string };
+export type CompanySearch = {
+  id: string; query: string; country: "GB" | "FR"; pages: number;
+  status: "queued" | "running" | "done" | "dry_run" | "failed" | "stuck";
+  called_google: boolean | null; error: string | null; created_at: string; finished_at: string | null;
+  counts: Record<string, number>; stopped_early: boolean; found: FoundCompany[];
+};
+export type CompanySearches = {
+  setup: { free_only: boolean; key_set: boolean; adapter_mode: string; global_go_live: boolean; calls_this_month: number; monthly_cap: number };
+  searches: CompanySearch[];
+};
 export type Watched = { name: string; company_number: string | null; domain: string | null; country: string | null; job_board: string | null };
 export type Targeting = {
   industry_keywords: string[]; exclude_keywords: string[]; hiring_keywords: string[]; sic_codes: string[];

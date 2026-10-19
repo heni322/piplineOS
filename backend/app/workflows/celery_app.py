@@ -94,6 +94,16 @@ def hunt_task() -> dict[str, int]:
     return hunt_active_campaigns(get_engine(), settings, PiiCipher(settings.key("pii_master_key")))
 
 
+@celery_app.task(name="pipelineos.places.company_search", time_limit=900, soft_time_limit=840)
+def company_search_task(search_id: str, tenant_id: str) -> str:
+    """A "Find companies" search from the console (app.domain.paid.searches): paid, gated and capped."""
+    from app.core.crypto import PiiCipher
+    from app.domain.paid.searches import run
+
+    cipher = PiiCipher(settings.key("pii_master_key"))
+    return run(get_engine(), settings, cipher, uuid.UUID(search_id), uuid.UUID(tenant_id))
+
+
 @celery_app.task(name="pipelineos.signals.ingest_filings")
 def ingest_filings_task() -> dict[str, object]:
     """Market-wide funding triggers from the Companies House filing stream (app.workflows.register_ingest)."""

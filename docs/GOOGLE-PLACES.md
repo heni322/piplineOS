@@ -17,6 +17,13 @@ uses it in two ways:
    the register confirms it (active, same name), and the site passes the website check. `--add` puts the confirmed
    companies on the client's watchlist as a new configuration version.
 
+**From the console:** Clients and money → **Find companies**. Choose the client, type the activity and area,
+the country and how many results (20 per billed search), then **Search**. The search runs in the background (up to
+10 minutes of website checks; what was confirmed by then is kept) and the page refreshes by itself. Tick the
+companies you want and **Add selected to the watchlist**: this saves a new configuration version, exactly like the
+targeting form. Above the form, the page says whether searches can reach Google right now (FREE_ONLY, missing key,
+dry-run before go-live, or live) and how many searches were used this month.
+
 Google Places does not give email addresses. The addresses come from the companies' own websites, as before.
 
 ## Rules that are enforced

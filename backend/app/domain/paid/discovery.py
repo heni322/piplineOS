@@ -12,6 +12,8 @@ Nothing Places returned is stored (Google's terms), and personal addresses are n
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from app.adapters.companies_house.base import CompaniesRegistry
@@ -36,6 +38,7 @@ class DiscoveryReport:
     no_number_on_site: int = 0
     not_confirmed_by_register: int = 0
     site_check_failed: int = 0
+    stopped_early: bool = False  # the time limit was reached: the remaining businesses were not checked
     found: list[Discovered] = field(default_factory=list)
 
 
@@ -52,10 +55,18 @@ def discover_companies(
     *,
     country: str,
     pages: int = 1,
+    time_limit: float | None = None,
+    clock: Callable[[], float] = time.monotonic,
 ) -> DiscoveryReport:
+    """`time_limit` (seconds): stop checking websites after it, keeping what was confirmed so far. The search itself
+    is billed once per page whatever happens next."""
     report = DiscoveryReport()
     seen: set[str] = set()
+    deadline = None if time_limit is None else clock() + time_limit
     for hit in places.discover(query, pages):
+        if deadline is not None and clock() > deadline:
+            report.stopped_early = True
+            break
         report.searched += 1
         if not hit.website or hit.website in seen:
             continue

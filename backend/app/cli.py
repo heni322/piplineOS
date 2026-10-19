@@ -370,11 +370,11 @@ def places_discover(
     confirms, and list them with the business address their site publishes. Before go-live (or with FREE_ONLY=true)
     nothing is called: the search is written to the dry-run log."""
     from app.adapters.base import AdapterNotConfigured
-    from app.adapters.companies_house.base import CompaniesRegistry
     from app.adapters.website_contacts import WebsiteFinder
     from app.domain.paid.discovery import discover_companies
     from app.domain.paid.places import PROVIDER, usage
     from app.domain.paid.providers import places_for
+    from app.domain.paid.searches import COUNTRIES, registry_for
     from app.domain.tenants.config import load_config
     from app.domain.tenants.onboarding import set_config
 
@@ -385,21 +385,10 @@ def places_discover(
         tenant_id = conn.execute(text("SELECT id FROM tenants WHERE slug = :s"), {"s": client}).scalar()
     if tenant_id is None:
         raise typer.BadParameter(f"no client {client!r}")
-    registry: CompaniesRegistry
-    if country == "GB":
-        from app.adapters.companies_house.live import CompaniesHouseRegistry
-
-        key = s.companies_house_api_key
-        if key is None or not key.get_secret_value():
-            raise typer.BadParameter("COMPANIES_HOUSE_API_KEY is not set (free)")
-        registry = CompaniesHouseRegistry(key.get_secret_value())
-    elif country == "FR":
-        from app.adapters.registries.france import FranceRegistry
-
-        registry = FranceRegistry()
-    else:
+    if country not in COUNTRIES:
         raise typer.BadParameter("country must be GB or FR")
     try:
+        registry = registry_for(s, country)
         places = places_for(
             s.model_copy(update={"places_region": country}), engine, PiiCipher(s.key("pii_master_key")), tenant_id
         )
