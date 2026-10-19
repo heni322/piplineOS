@@ -76,6 +76,49 @@ def _per100(n: int, base: int) -> float | None:
     return round(100 * n / base, 1) if base else None
 
 
+def by_source(conn: Connection, p: dict[str, Any]) -> list[dict[str, Any]]:
+    """Data quality per signal source, for the leads found in the period (referrals excluded): how many the register
+    confirmed, how many had a proven website and an email address, how many the compliance gate blocked or turned
+    into contact tasks, and, of those emailed, how many were reached, bounced and replied. Lead states are the
+    current ones. This is the measurement a pilot needs: which source is worth its noise."""
+    rows = conn.execute(
+        text("""
+        WITH l AS (
+          SELECT l.id, l.state, l.prospect_id, s.source_adapter AS source, c.company_number, c.domain
+          FROM leads l JOIN signals s ON s.id = l.signal_id JOIN companies c ON c.id = l.company_id
+          WHERE l.tenant_id = :t AND l.created_at >= :s AND l.created_at < :e AND l.referred_from_lead_id IS NULL),
+        m AS (
+          SELECT lead_id, bool_or(status <> 'bounced') AS reached, bool_or(status = 'bounced') AS bounced
+          FROM messages WHERE tenant_id = :t AND kind = 'outreach' AND sequence_step = 0
+          AND status IN ('sent', 'dry_run_sent', 'bounced', 'complained') GROUP BY lead_id),
+        r AS (
+          SELECT lead_id, bool_or(classification = 'interested') AS positive
+          FROM replies WHERE tenant_id = :t AND lead_id IS NOT NULL GROUP BY lead_id)
+        SELECT l.source, count(*) AS leads,
+          count(*) FILTER (WHERE l.company_number IS NOT NULL) AS register_confirmed,
+          count(*) FILTER (WHERE l.domain IS NOT NULL) AS with_website,
+          count(*) FILTER (WHERE p.email_enc IS NOT NULL) AS with_email,
+          count(*) FILTER (WHERE l.state = 'rejected_by_compliance') AS blocked,
+          count(*) FILTER (WHERE l.state = 'alternative_channel') AS contact_tasks,
+          count(*) FILTER (WHERE m.reached) AS reached,
+          count(*) FILTER (WHERE m.bounced AND NOT m.reached) AS bounced,
+          count(r.lead_id) AS replied,
+          count(*) FILTER (WHERE r.positive) AS positive
+        FROM l LEFT JOIN prospects p ON p.id = l.prospect_id LEFT JOIN m ON m.lead_id = l.id
+        LEFT JOIN r ON r.lead_id = l.id
+        GROUP BY l.source ORDER BY count(*) DESC, l.source"""),
+        p,
+    ).mappings()
+    out = []
+    for row in rows:
+        d = {k: (int(v) if k != "source" else v) for k, v in row.items()}
+        d["email_rate"] = _ratio(d["with_email"], d["leads"])
+        d["bounce_rate"] = _ratio(d["bounced"], d["reached"] + d["bounced"])
+        d["reply_rate"] = _ratio(d["replied"], d["reached"])
+        out.append(d)
+    return out
+
+
 def metrics(conn: Connection, tenant_id: uuid.UUID, start: date, end: date) -> dict[str, Any]:
     """Counts for leads/messages/replies/meetings created in [start, end] (inclusive dates, UTC).
 
@@ -187,6 +230,7 @@ def metrics(conn: Connection, tenant_id: uuid.UUID, start: date, end: date) -> d
         "ai_cost_status": "ok" if cost_known else "prices_not_configured",
         "compliance_blocks": {r: int(n) for r, n in blocks},
         "escalations": {r: int(n) for r, n in esc},
+        "by_source": by_source(conn, p),
     }
 
 

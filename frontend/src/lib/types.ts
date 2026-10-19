@@ -61,10 +61,14 @@ export type Metrics = {
   per_100_reached: { replies: number | null; positive_replies: number | null; meetings_booked: number | null;
     meetings_attended: number | null; qualified_meetings: number | null };
   roi?: Roi;
+  by_source?: SourceQuality[];
   subject_test: null | { variants: { variant: number; reached: number; replied: number; positive: number;
     replies_per_100: number | null; positive_per_100: number | null }[]; leader: number | null; p_value: number | null;
     verdict: "significant" | "not_significant" | "not_enough_data"; min_reached_per_variant: number };
 };
+export type SourceQuality = { source: string; leads: number; register_confirmed: number; with_website: number;
+  with_email: number; blocked: number; contact_tasks: number; reached: number; bounced: number; replied: number;
+  positive: number; email_rate: number | null; bounce_rate: number | null; reply_rate: number | null };
 export type Roi = { status: "not_configured" } | { status: "estimate"; currency: string; average_deal_value_minor: number;
   close_rate_pct: number; pipeline_value_minor: number; expected_revenue_minor: number; invoiced_minor: number; roi_multiple: number | null };
 export type Terms = { kind: "qualification_criteria" | "pricing"; content: Record<string, unknown> | null; signed: boolean; signed_at: string | null };
