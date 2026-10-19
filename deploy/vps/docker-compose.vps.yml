@@ -32,7 +32,10 @@ services:
   web:
     build:
       context: ./frontend
-      args: { NEXT_PUBLIC_CONTACT_EMAIL: "${NEXT_PUBLIC_CONTACT_EMAIL:-}" }
+      args:
+        NEXT_PUBLIC_CONTACT_EMAIL: "${NEXT_PUBLIC_CONTACT_EMAIL:-}"
+        NEXT_PUBLIC_LOCALE: "${NEXT_PUBLIC_LOCALE:-fr-FR}"  # voyz.fr: French interface
+        NEXT_PUBLIC_TIME_ZONE: "${NEXT_PUBLIC_TIME_ZONE:-}"
     deploy: { resources: { limits: { memory: 512m } } }
   postgres:
     deploy: { resources: { limits: { memory: 1536m } } }

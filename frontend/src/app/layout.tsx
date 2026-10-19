@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 
 const t = getMessages();
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-GB">
+    <html lang={LOCALE}>
       <body>
         <a className="skip" href="#main">{t.app.skipToContent}</a>
         {children}

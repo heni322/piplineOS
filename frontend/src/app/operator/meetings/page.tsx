@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, type Problem } from "@/lib/api";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE, TIME_ZONE } from "@/lib/i18n";
 import type { Meeting } from "@/lib/types";
 
 const t = getMessages().meetings;
 const fmt = (iso: string) =>
-  new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+  new Date(iso).toLocaleString(LOCALE, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: TIME_ZONE });
 
 export default function MeetingsPage() {
   const [rows, setRows] = useState<Meeting[] | null>(null);

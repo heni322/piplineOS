@@ -2,12 +2,12 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { api, type Problem } from "@/lib/api";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 import type { Decision, Lead, LeadPage, Summary, Unmasked } from "@/lib/types";
 
 const t = getMessages().leads;
 const human = (s: string) => s.replaceAll("_", " ");
-const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const when = (iso: string) => new Date(iso).toLocaleString(LOCALE, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 type Open = { id: string; view: "reason" | "details" | "decisions" };
 

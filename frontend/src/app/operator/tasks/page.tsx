@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Problem } from "@/lib/api";
 import { webUrl } from "@/lib/format";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 import type { ContactTask, Unmasked } from "@/lib/types";
 
 const t = getMessages().tasks;
@@ -107,7 +107,7 @@ export default function TasksPage() {
                     {webUrl(r.signal_url) && <div className="muted"><a href={webUrl(r.signal_url) ?? undefined} target="_blank" rel="noopener noreferrer">{t.source}</a></div>}
                   </td>
                   <td title={r.instructions}>{channelLabel(r.channel)}</td>
-                  <td>{new Date(r.created_at).toLocaleString("en-GB")}</td>
+                  <td>{new Date(r.created_at).toLocaleString(LOCALE)}</td>
                   <td>
                     {r.status === "open" ? (
                       <button type="button" className="secondary" onClick={() => { setClosing(r.id); setNote(""); setOutcome("done"); setError(null); }}>{t.close}</button>

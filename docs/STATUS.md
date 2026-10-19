@@ -128,6 +128,10 @@ every language, and email drafting) and recommends the best fully safe one. Cand
 - **Find companies** page in the console (Clients and money): search by activity and area, see the confirmed
   companies with their published business address, and add the ones you choose to a client's watchlist. Searches
   run in the background; the page says plainly when Google was not called and why.
+- **French interface** (console, client portal, landing page): `NEXT_PUBLIC_LOCALE=fr-FR` when building the web
+  image (the voyz.fr setup does it), with French dates and amounts. All 964 texts are translated; a test fails if
+  a text or a placeholder is ever missing. Legal texts (email footer, privacy notice) are not part of this and stay
+  with the solicitor's review. The landing page still describes the UK offer: adapt it before using it in France.
 - **Gemini** as an optional AI provider (`LLM_PROVIDER=gemini`): paid, only with the three keys, never with
   `FREE_ONLY=true`, paid tier only (the free tier lets Google use prompts). The default stays the free local model.
 - **voyz.fr** on the shared Contabo VPS (France): `deploy/vps/` (secrets generated on the server, memory caps,

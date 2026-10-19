@@ -95,6 +95,8 @@ set_kv METRICS_TOKEN "$METRICS"
 set_kv BACKUP_HOST_DIR "$ROOT/backups"
 set_kv SYSTEM_MAIL_FROM "no-reply@$DOMAIN"
 set_kv SYSTEM_MAIL_NAME "Voyz"
+set_kv NEXT_PUBLIC_LOCALE fr-FR  # French interface on voyz.fr
+set_kv NEXT_PUBLIC_TIME_ZONE Europe/Paris
 set_kv GLOBAL_GO_LIVE false
 # Providers: the free register finds decision-makers; the free local model does the AI work; Google Places (paid)
 # is switched on but stays behind the three live keys and a monthly cap at Google's free allowance.

@@ -5,7 +5,7 @@ import { InvoiceDocument } from "@/components/InvoiceDocument";
 import { PaymentsPanel } from "@/components/PaymentsPanel";
 import { api, type Problem } from "@/lib/api";
 import { money, monthStart } from "@/lib/format";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 import type { Dispute, Invoice, Tenant } from "@/lib/types";
 
 const t = getMessages().billing;
@@ -117,7 +117,7 @@ export default function BillingPage() {
               {invoices.map((i) => (
                 <li key={i.id}>
                   <button type="button" aria-current={open?.id === i.id} onClick={() => show(i.id)}>
-                    <span className="co">{i.period_start ? new Date(i.period_start).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : i.number}</span>
+                    <span className="co">{i.period_start ? new Date(i.period_start).toLocaleDateString(LOCALE, { month: "long", year: "numeric" }) : i.number}</span>
                     <span className="meta">{i.status}, {money(i.total_minor, i.currency)}{i.status !== "draft" ? `, ${i.number}` : ""}</span>
                   </button>
                 </li>

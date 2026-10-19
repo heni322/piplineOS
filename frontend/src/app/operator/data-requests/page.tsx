@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, type Problem } from "@/lib/api";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 import { Countdown, closed } from "@/components/Countdown";
 import type { DataRequest } from "@/lib/types";
 
@@ -66,10 +66,10 @@ export default function DataRequestsPage() {
             <tbody>
               {rows.map((d) => (
                 <tr key={d.id}>
-                  <td><Countdown d={d} /><br /><span className="muted">{new Date(d.deadline_at).toLocaleDateString("en-GB")}</span></td>
+                  <td><Countdown d={d} /><br /><span className="muted">{new Date(d.deadline_at).toLocaleDateString(LOCALE)}</span></td>
                   <td><strong>{typeLabel(d.request_type)}</strong></td>
                   <td>{d.company ?? "–"}</td>
-                  <td>{new Date(d.received_at).toLocaleDateString("en-GB")}</td>
+                  <td>{new Date(d.received_at).toLocaleDateString(LOCALE)}</td>
                   <td>{d.regime.replace("_", " ").toUpperCase()}</td>
                   <td>{d.status.replaceAll("_", " ")}</td>
                   <td>
