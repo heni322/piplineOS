@@ -96,6 +96,20 @@ class AnthropicBackend:
 
 
 LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]", "host.docker.internal", "ollama"})
+LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
+
+
+def _private_only(host: str, resolve: Any = None) -> bool:
+    """True only when every address the host resolves to is private or loopback (a container network)."""
+    import ipaddress
+    import socket
+
+    try:
+        infos = (resolve or socket.getaddrinfo)(host, 11434, proto=socket.IPPROTO_TCP)
+    except OSError:
+        return False
+    addrs = {ipaddress.ip_address(i[4][0]) for i in infos}
+    return bool(addrs) and all(a.is_private or a.is_loopback for a in addrs)
 
 
 class OllamaBackend:
@@ -113,13 +127,21 @@ class OllamaBackend:
         transport: Any = None,
         min_timeout: float = 600.0,
         num_ctx: int = 8192,
+        think: str | None = "false",
+        keep_alive: str | None = "24h",
+        resolve: Any = None,
     ) -> None:
         import httpx
 
         host = httpx.URL(base_url).host
         if host not in LOCAL_HOSTS:
             raise ValueError(f"local model URL must point at this machine (got host {host!r})")
+        if host not in LOOPBACK and not _private_only(host, resolve):
+            # "ollama" (the compose service) must resolve to the private Docker network, never the internet:
+            # in production the prompts carry real prospect data
+            raise ValueError(f"local model host {host!r} does not resolve to a private address only")
         self.model, self.min_timeout, self.num_ctx = model, min_timeout, num_ctx
+        self.think, self.keep_alive = think, keep_alive
         self._http = httpx.Client(base_url=base_url, transport=transport, follow_redirects=False)
 
     def complete(
@@ -141,6 +163,10 @@ class OllamaBackend:
             "stream": False,
             "options": {"temperature": 0, "num_predict": max_tokens, "num_ctx": self.num_ctx},
         }
+        if self.think is not None:  # reasoning models (Qwen3.x, GLM-4.7) answer far faster without a thinking pass
+            body["think"] = {"false": False, "true": True}.get(self.think, self.think)
+        if self.keep_alive:  # keep the model in memory: reloading 20 GB on every call would be slow
+            body["keep_alive"] = self.keep_alive
         try:
             resp = self._http.post("/api/chat", json=body, timeout=max(timeout, self.min_timeout))
         except httpx.TimeoutException as exc:

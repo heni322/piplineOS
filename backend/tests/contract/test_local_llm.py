@@ -90,3 +90,48 @@ def test_local_calls_cost_nothing_and_sandbox_selects_the_local_model(settings) 
     assert isinstance(select_backend(settings, tenant_live=True, golive_complete=True), SimulatedBackend)
     live_no_keys = settings.model_copy(update={"llm_adapter_mode": "live"})
     assert isinstance(select_backend(live_no_keys, tenant_live=False, golive_complete=False), SimulatedBackend)
+
+
+def _fake_dns(*addrs: str):  # type: ignore[no-untyped-def]
+    return lambda host, port, proto=0: [(2, 1, 6, "", (a, port)) for a in addrs]
+
+
+def test_the_compose_service_name_must_resolve_to_a_private_network_only() -> None:
+    OllamaBackend("http://ollama:11434", "m", resolve=_fake_dns("172.18.0.4"))  # Docker network: fine
+    with pytest.raises(ValueError, match="private address"):  # a public answer for "ollama": refused
+        OllamaBackend("http://ollama:11434", "m", resolve=_fake_dns("172.18.0.4", "93.184.216.34"))
+
+    def no_dns(*_a, **_k):  # type: ignore[no-untyped-def]
+        raise OSError("no such host")
+
+    with pytest.raises(ValueError, match="private address"):  # unresolvable: fail closed
+        OllamaBackend("http://host.docker.internal:11434", "m", resolve=no_dns)
+
+
+def test_thinking_off_and_keep_alive_are_sent() -> None:
+    seen: list[dict] = []  # type: ignore[type-arg]
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(req.content))
+        return httpx.Response(200, json={"message": {"content": '{"ok": true}'}, "done_reason": "stop"})
+
+    def call(**kw):  # type: ignore[no-untyped-def]
+        OllamaBackend("http://127.0.0.1:11434", "m", transport=httpx.MockTransport(handler), **kw).complete(
+            model="x", system="", messages=[], max_tokens=5, json_schema=SCHEMA, timeout=1
+        )
+        return seen[-1]
+
+    body = call()
+    assert body["think"] is False and body["keep_alive"] == "24h" and body["options"]["num_ctx"] == 8192
+    assert call(think="high", keep_alive="1h", num_ctx=16384)["think"] == "high"
+    assert seen[-1]["keep_alive"] == "1h" and seen[-1]["options"]["num_ctx"] == 16384
+    unset = call(think=None, keep_alive=None)
+    assert "think" not in unset and "keep_alive" not in unset
+
+
+def test_settings_reach_the_backend(settings) -> None:  # type: ignore[no-untyped-def]
+    from app.llm.factory import local_backend
+
+    s = settings.model_copy(update={"local_llm_think": "low", "local_llm_num_ctx": 4096, "local_llm_model": "a"})
+    b = local_backend(s, "glm-4.7-flash")
+    assert (b.model, b.think, b.num_ctx, b.keep_alive) == ("glm-4.7-flash", "low", 4096, "24h")

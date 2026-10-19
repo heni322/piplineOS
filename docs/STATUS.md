@@ -93,7 +93,8 @@ mailboxes, a first pilot client, and payment. See `docs/BUSINESS-READINESS.md`, 
    - Microsoft 365 or Google Workspace mailboxes, warmed up. This is the one service that can't be free.
    - With `FREE_ONLY=true`, nothing else to buy. Without it: enrichment and verification providers, and a paid
      AI key with a spend cap.
-   - A server able to run the local model (enough CPU and RAM).
+   - A server able to run the local model: 32 GB RAM for the recommended `glm-4.7-flash` (about $168 a month
+     on DigitalOcean), 16 GB for a smaller one. Setup, model choice and the benchmark: `docs/LOCAL-LLM.md`.
    - Spain, Italy, Portugal and the Netherlands stay off: they have no free register.
 6. **Free registers.**
    - The Companies House key.
@@ -110,6 +111,13 @@ Run from your PC: TED, Find a Tender, the job boards and the France, Norway and 
 needed a contact in our User-Agent (fixed). Contracts Finder returns nothing; the Gazette blocks the PC's network.
 **Measured contactable rate with free sources only: 0 of 40 real award winners.** The client's own target accounts
 are now the main route; see `docs/LIVE-SOURCE-CHECK.md`.
+
+## Free local AI on the server (2026-10-19)
+The production stack now includes the model server (Ollama) as an optional service with no internet access and
+no published port. `pipelineos llm benchmark` compares candidate models on the server (reply safety and accuracy in
+every language, and email drafting) and recommends the best fully safe one. Candidates by server memory:
+`gemma4:12b` (16 GB), `glm-4.7-flash` or `gemma4:26b` (32 GB), `qwen3.6:35b` (48 GB+), `qwen3.6:27b` (GPU). See
+`docs/LOCAL-LLM.md`.
 
 ## Code
 - Phases 2–17 are on `main` (GitHub pull requests up to #19).

@@ -44,7 +44,10 @@ Neither provider's pricing page shows London-specific instance prices; the figur
    docker compose -f docker-compose.prod.yml up -d
    ```
 7. Check `https://APP_DOMAIN/api/v1/ready`. It should return `{"ready": true, ...}`.
-8. Create your operator account (MFA is mandatory):
+8. **The free local AI model** (`FREE_ONLY=true`): it needs more memory than the 8 GiB server above, about
+   16–64 GB depending on the model. Choose the model and server size, download it and benchmark it as in
+   `docs/LOCAL-LLM.md`, then start the stack with `--profile local-llm`.
+9. Create your operator account (MFA is mandatory):
    ```sh
    docker compose -f docker-compose.prod.yml run --rm api pipelineos users create-operator you@yourcompany.co.uk
    ```

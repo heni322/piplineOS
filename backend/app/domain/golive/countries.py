@@ -26,7 +26,7 @@ REGISTERS: dict[str, tuple[RegisterKind, str]] = {
     "BE": ("import", "KBO/BCE open data (free file, after registration)"),
     "IE": ("import", "CRO open data (free file, CC BY 4.0)"),
 }
-# reply-safety test sets, by language prefix (tests/evals/datasets)
+# reply-safety test sets, by language prefix (app/evals/datasets)
 SAFETY_SETS = {
     "en": "English",
     "fr": "French",

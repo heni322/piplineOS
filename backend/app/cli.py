@@ -37,6 +37,8 @@ retention_app = typer.Typer(help="Data retention (config/retention.yaml; off unt
 app.add_typer(retention_app, name="retention")
 economics_app = typer.Typer(help="Unit economics and funnel simulation (assumptions, not measurements)")
 app.add_typer(economics_app, name="economics")
+llm_app = typer.Typer(help="The free local AI model (Ollama): compare models on this server")
+app.add_typer(llm_app, name="llm")
 
 
 @app.callback()
@@ -321,3 +323,33 @@ def retention_run(apply: bool = typer.Option(False, help="Erase for real (defaul
                 r = run_retention(conn, t.id, policy, now, apply=apply)
             out["clients"][t.slug] = {"due": r.due, "erased": r.erased}  # type: ignore[index]
     typer.echo(json.dumps(out, indent=2))
+
+
+@llm_app.command("benchmark")
+def llm_benchmark(
+    models: str = typer.Option(..., help="comma-separated Ollama tags, e.g. qwen3.6:35b,glm-4.7-flash,gpt-oss:20b"),
+    sets: str = typer.Option("en,fr,nordic,stage4", help="reply sets: en, fr, nordic, stage4"),
+    drafts: bool = typer.Option(True, help="also test email drafting (six synthetic leads)"),
+    url: str = typer.Option("", help="Ollama URL (default: LOCAL_LLM_URL)"),
+) -> None:
+    """Run the reply and drafting evaluations on each model (synthetic data only) and recommend the best safe one.
+    Nothing is sent or stored. Pull the models first (docs/LOCAL-LLM.md); each one takes minutes on a CPU."""
+    from app.evals import benchmark
+    from app.llm.factory import local_backend
+
+    settings = get_settings()
+    if url:
+        settings = settings.model_copy(update={"local_llm_url": url})
+    chosen = [s.strip() for s in sets.split(",") if s.strip()]
+    if bad := [s for s in chosen if s not in benchmark.SETS]:
+        raise typer.BadParameter(f"unknown set(s) {bad}; choose from {sorted(benchmark.SETS)}")
+    names = [m.strip() for m in models.split(",") if m.strip()]
+    results, best = benchmark.run(names, lambda m: local_backend(settings, m), chosen, drafts)
+    out = {
+        "results": [{k: v for k, v in r.__dict__.items() if k != "detail"} | {"detail": r.detail} for r in results],
+        "recommended": best,
+        "how_to_use": f"set LOCAL_LLM_MODEL={best} and restart the api and workers"
+        if best
+        else "no model was fully safe on these sets: keep the current one and check the details",
+    }
+    typer.echo(json.dumps(out, indent=2, default=str))

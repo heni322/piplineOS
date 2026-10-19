@@ -121,7 +121,10 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 60.0
     # LLM_ADAPTER_MODE=sandbox: a free local model through Ollama (this machine only), for testing
     local_llm_url: str = "http://127.0.0.1:11434"
-    local_llm_model: str = "qwen2.5:7b"
+    local_llm_model: str = "qwen2.5:7b"  # on a server: see docs/LOCAL-LLM.md (e.g. qwen3.6:35b, glm-4.7-flash)
+    local_llm_think: str | None = "false"  # false | true | low | medium | high (gpt-oss), or unset
+    local_llm_keep_alive: str = "24h"
+    local_llm_num_ctx: int = 8192
     llm_log_bodies: bool = True
 
     session_idle_hours_tenant: int = 12

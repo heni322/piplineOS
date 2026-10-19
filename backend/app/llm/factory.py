@@ -21,6 +21,16 @@ from app.settings import Settings
 PRICES = Path(__file__).resolve().parents[3] / "config" / "llm_prices.yaml"
 
 
+def local_backend(settings: Settings, model: str | None = None) -> OllamaBackend:
+    return OllamaBackend(
+        settings.local_llm_url,
+        model or settings.local_llm_model,
+        think=settings.local_llm_think,
+        keep_alive=settings.local_llm_keep_alive or None,
+        num_ctx=settings.local_llm_num_ctx,
+    )
+
+
 def select_backend(settings: Settings, *, tenant_live: bool, golive_complete: bool) -> LLMBackend:
     mode = resolve_mode(
         adapter_mode=settings.llm_adapter_mode,
@@ -29,11 +39,11 @@ def select_backend(settings: Settings, *, tenant_live: bool, golive_complete: bo
         golive_complete=golive_complete,
     )
     if mode == "live" and settings.free_only:  # never the paid API: the free local model does the live work
-        return OllamaBackend(settings.local_llm_url, settings.local_llm_model)
+        return local_backend(settings)
     if mode == "live" and settings.anthropic_api_key is not None:
         return AnthropicBackend(settings.anthropic_api_key.get_secret_value())
     if mode == "sandbox":
-        return OllamaBackend(settings.local_llm_url, settings.local_llm_model)
+        return local_backend(settings)
     return SimulatedBackend()
 
 
