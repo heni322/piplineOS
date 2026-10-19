@@ -39,7 +39,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 |---|---|---|---|---|---|---|
 | Product (core pipeline) | 5 agents, compliance gate, approvals, replies, booking; all dry-run | Proven on real prospects | No real run | High | P0 (external) | 7 |
 | Onboarding | **Guided next step per client**; offer, criteria and pricing form from a niche template; sending domain, inbox and campaign from the console; client accepts terms in the portal | Client self-onboards in under 1 hour | Operator-driven, not self-serve | Medium | P2 | 7 |
-| Lead acquisition | Free sources: UK/EU contract awards, Companies House filings and officers, job boards, websites, insolvency filter | Measured leads/week per ICP | **Not tested live from this environment** (network policy); free registers rarely give an email | **High** | P0 | 4 |
+| Lead acquisition | Free sources: UK/EU contract awards, Companies House filings and officers, job boards, websites, insolvency filter | Measured leads/week per ICP | **Tested live 2026-10-19** (`LIVE-SOURCE-CHECK.md`): triggers flow (Find a Tender 269 in 14 days), but free email reach is **0 of 40**; client-supplied accounts are the route | **High** | P0 | 4 |
 | Data quality | Register-verified companies; website proven by company number; data minimisation | Measured accuracy and bounce rate | No measurement | High | P1 | 5 |
 | Outreach | Writer with sourced claims, critique, rewrites, quality score 0–10, human approval of every email | Reply rate measured and improved | Evals are synthetic | High | P1 | 6 |
 | Deliverability | DNS check (SPF/DKIM/DMARC), warm-up, inbox ≤50/day, campaign caps, automatic kill switch (bounce 3%, complaint 0.3%), business hours, one-click unsubscribe | Seed-tested placement on warmed domains | No domain, no mailbox, no placement test | **High** | P0 (external) | 4 |
@@ -70,7 +70,7 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 8 | Pilot Mode: hard cap on new people per campaign | P0 | me | **DONE (this phase)** |
 | 9 | KPIs per 100 people reached; demo numbers labelled as demo | P0 | me | **DONE (this phase)** |
 | 10 | Contactable rate: free registers rarely give an email | P0 (business) | **Owner decision** | see GO-TO-MARKET §7 |
-| 11 | Live check of every free source | P1 | **Owner's PC** (blocked here) | command exists |
+| 11 | Live check of every free source | P1 | **Owner's PC** | **DONE 2026-10-19** except Companies House (no key) and the Gazette (blocked from the PC) |
 | 12 | Payment collection and accountant check of tax rules | P1 | me (recording) + **accountant, payment provider** | **recording built (6.9)**; accountant check and provider still open |
 | 13 | Unit-economics model to set prices and pilot size | P1 | me | **DONE (this phase)** |
 | 14 | Public landing page | P1 | me | **DONE (this phase)**; needs a domain and contact email |

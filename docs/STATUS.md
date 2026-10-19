@@ -105,6 +105,12 @@ mailboxes, a first pilot client, and payment. See `docs/BUSINESS-READINESS.md`, 
 9. **Go-live.** Sign each checklist item, enable each country, then set `GLOBAL_GO_LIVE=true` yourself
    (`docs/GO-LIVE-RUNBOOK.md`).
 
+## Live check of the free sources (2026-10-19)
+Run from your PC: TED, Find a Tender, the job boards and the France, Norway and Finland registers work. Wikidata
+needed a contact in our User-Agent (fixed). Contracts Finder returns nothing; the Gazette blocks the PC's network.
+**Measured contactable rate with free sources only: 0 of 40 real award winners.** The client's own target accounts
+are now the main route; see `docs/LIVE-SOURCE-CHECK.md`.
+
 ## Code
-- Phases 2–10.1 are on `main`; Phases 11–16 are on branch `phase/11-free-sources`.
-- Merging into `main` (by pull request, no history rewritten) is your call, whenever you are happy with the review.
+- Phases 2–17 are on `main` (GitHub pull requests up to #19).
+- The live-check fixes are on branch `fix/live-source-findings`, ready for a pull request.

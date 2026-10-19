@@ -128,7 +128,9 @@ With free sources only:
 - register officers have **no email address**, and none is ever guessed;
 - addresses come only from the company's own published website or the prospect's reply.
 
-The model assumes 25% of compliant leads are emailable (base). **It is the single biggest lever:** going from 25%
+The model assumes 25% of compliant leads are emailable (base). **Measured on 2026-10-19, free sources alone reached
+0 of 40 real award winners** (`LIVE-SOURCE-CHECK.md` §3), so for the free route treat the pessimistic case as the
+realistic one, and plan on route 1 below. **It is the single biggest lever:** going from 25%
 to 40% roughly doubles meetings. The options, all **owner decisions**:
 1. **The client supplies its own target accounts and contacts** (from its CRM, as controller). Fastest; their
    lawful basis.

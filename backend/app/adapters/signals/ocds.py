@@ -184,7 +184,7 @@ class OcdsAwardSource:
             out.append(
                 RawSignal(
                     company_name=name,
-                    domain=None,  # notices don't give one; resolved later by the enrichment provider
+                    domain=party_domain(party),  # the supplier's own website when the notice lists one
                     country_hint=str(country) if country else None,
                     signal_type="tender",
                     title=f"Awarded: {title}"[:200],
@@ -196,6 +196,23 @@ class OcdsAwardSource:
                 )
             )
         return out
+
+
+_HOST = re.compile(r"^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$")
+
+
+def party_domain(party: dict[str, Any]) -> str | None:
+    """The supplier's website domain, when the notice gives one (`details.url`, sometimes `contactPoint.url`).
+    Seen live on Find a Tender (2026-10-19): about 1 supplier in 15 lists a website. It is only a starting point:
+    the website finder still accepts the site only if a page states the company's number."""
+    for raw in ((party.get("details") or {}).get("url"), (party.get("contactPoint") or {}).get("url")):
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+        u = raw.strip()
+        host = (urlsplit(u if "://" in u else f"https://{u}").hostname or "").lower().removeprefix("www.")
+        if _HOST.match(host):
+            return host
+    return None
 
 
 def _cf_notice(rel: dict[str, Any]) -> str:
