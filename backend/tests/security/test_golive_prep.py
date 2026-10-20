@@ -145,6 +145,7 @@ def test_readiness_lists_what_is_missing_and_signs_nothing(clean_db, settings) -
         "tax_rules",
         "sending_domains",
         "inboxes_warmed",
+        "placement",
         "providers",
         "pilot_client",
         "checklist",

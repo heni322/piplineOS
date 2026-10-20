@@ -37,6 +37,10 @@ retention_app = typer.Typer(help="Data retention (config/retention.yaml; off unt
 app.add_typer(retention_app, name="retention")
 economics_app = typer.Typer(help="Unit economics and funnel simulation (assumptions, not measurements)")
 app.add_typer(economics_app, name="economics")
+llm_app = typer.Typer(help="The free local AI model (Ollama): compare models on this server")
+places_app = typer.Typer(help="Google Places (paid, gated, capped): find new target companies")
+app.add_typer(places_app, name="places")
+app.add_typer(llm_app, name="llm")
 
 
 @app.callback()
@@ -79,7 +83,7 @@ def import_register(country: str, source: Path) -> None:
 
 @signals_app.command("check")
 def check_sources(
-    source: str = typer.Argument(..., help="ted | job-board | gazette | website | officers | stream"),
+    source: str = typer.Argument(..., help="ted | boamp | job-board | gazette | website | officers | stream"),
     target: str = typer.Option("", help="ted: country (FR); job-board: greenhouse:name; others: company number"),
     name: str = typer.Option("", help="website: the company name"),
     query: str = typer.Option("IT; software; service", help="keywords for ted / job-board"),
@@ -97,6 +101,11 @@ def check_sources(
 
         sigs = TedAwardSource([target or "FR"], max_pages=1).fetch(query, since)
         out |= {"signals": len(sigs), "sample": [(s.company_name, s.country_hint, s.title) for s in sigs[:5]]}
+    elif source == "boamp":
+        from app.adapters.signals.boamp import BoampAwardSource
+
+        sigs = BoampAwardSource(max_pages=2).fetch(query, since)
+        out |= {"signals": len(sigs), "sample": [(s.company_name, s.title, s.source_url) for s in sigs[:5]]}
     elif source == "job-board":
         from app.adapters.signals.job_boards import JobBoardSource, WatchedBoard
 
@@ -110,7 +119,7 @@ def check_sources(
     elif source == "website":
         from app.adapters.website_contacts import WebsiteFinder
 
-        site = WebsiteFinder().find(target, name or None, None)
+        site = WebsiteFinder(contact=settings.crawler_contact).find(target, name or None, None)
         out |= {"site": site.__dict__ if site else None}
     elif source == "officers":
         from app.adapters.companies_house.officers import CompaniesHouseOfficers
@@ -133,7 +142,7 @@ def check_sources(
             "triggers": [(e.company_number, e.filing_type, str(e.filed_on)) for e in sl.events[:10]],
         }
     else:
-        raise typer.BadParameter("source must be ted, job-board, gazette, website, officers or stream")
+        raise typer.BadParameter("source must be ted, boamp, job-board, gazette, website, officers or stream")
     typer.echo(json.dumps(out, indent=2, default=str))
 
 
@@ -321,3 +330,108 @@ def retention_run(apply: bool = typer.Option(False, help="Erase for real (defaul
                 r = run_retention(conn, t.id, policy, now, apply=apply)
             out["clients"][t.slug] = {"due": r.due, "erased": r.erased}  # type: ignore[index]
     typer.echo(json.dumps(out, indent=2))
+
+
+@llm_app.command("benchmark")
+def llm_benchmark(
+    models: str = typer.Option(..., help="comma-separated Ollama tags, e.g. qwen3.6:35b,glm-4.7-flash,gpt-oss:20b"),
+    sets: str = typer.Option("en,fr,nordic,stage4", help="reply sets: en, fr, nordic, stage4"),
+    drafts: bool = typer.Option(True, help="also test email drafting (six synthetic leads)"),
+    url: str = typer.Option("", help="Ollama URL (default: LOCAL_LLM_URL)"),
+) -> None:
+    """Run the reply and drafting evaluations on each model (synthetic data only) and recommend the best safe one.
+    Nothing is sent or stored. Pull the models first (docs/LOCAL-LLM.md); each one takes minutes on a CPU."""
+    from app.evals import benchmark
+    from app.llm.factory import local_backend
+
+    settings = get_settings()
+    if url:
+        settings = settings.model_copy(update={"local_llm_url": url})
+    chosen = [s.strip() for s in sets.split(",") if s.strip()]
+    if bad := [s for s in chosen if s not in benchmark.SETS]:
+        raise typer.BadParameter(f"unknown set(s) {bad}; choose from {sorted(benchmark.SETS)}")
+    names = [m.strip() for m in models.split(",") if m.strip()]
+    results, best = benchmark.run(names, lambda m: local_backend(settings, m), chosen, drafts)
+    out = {
+        "results": [{k: v for k, v in r.__dict__.items() if k != "detail"} | {"detail": r.detail} for r in results],
+        "recommended": best,
+        "how_to_use": f"set LOCAL_LLM_MODEL={best} and restart the api and workers"
+        if best
+        else "no model was fully safe on these sets: keep the current one and check the details",
+    }
+    typer.echo(json.dumps(out, indent=2, default=str))
+
+
+@places_app.command("discover")
+def places_discover(
+    client: str = typer.Option(..., help="the client's slug (its live switch and the dry-run log apply)"),
+    query: str = typer.Option(..., help='activity and area, e.g. "IT support Leeds" or "agence web Lyon"'),
+    country: str = typer.Option("GB", help="GB (company number) or FR (SIREN)"),
+    pages: int = typer.Option(1, min=1, max=3, help="pages of 20 results; each page is one billed request"),
+    add: bool = typer.Option(False, help="add the confirmed companies to the client's watchlist"),
+    operator_email: str = typer.Option("", help="with --add: your operator email (recorded on the new version)"),
+) -> None:
+    """Search Google Places for businesses, keep those whose own website prints a register number that the register
+    confirms, and list them with the business address their site publishes. Before go-live (or with FREE_ONLY=true)
+    nothing is called: the search is written to the dry-run log."""
+    from app.adapters.base import AdapterNotConfigured
+    from app.adapters.website_contacts import WebsiteFinder
+    from app.domain.paid.discovery import discover_companies
+    from app.domain.paid.places import PROVIDER, usage
+    from app.domain.paid.providers import places_for
+    from app.domain.paid.searches import COUNTRIES, registry_for
+    from app.domain.tenants.config import load_config
+    from app.domain.tenants.onboarding import set_config
+
+    s = get_settings()
+    country = country.upper()
+    engine = get_engine()
+    with transaction(DbContext.system(), engine) as conn:
+        tenant_id = conn.execute(text("SELECT id FROM tenants WHERE slug = :s"), {"s": client}).scalar()
+    if tenant_id is None:
+        raise typer.BadParameter(f"no client {client!r}")
+    if country not in COUNTRIES:
+        raise typer.BadParameter("country must be GB or FR")
+    try:
+        registry = registry_for(s, country)
+        places = places_for(
+            s.model_copy(update={"places_region": country}), engine, PiiCipher(s.key("pii_master_key")), tenant_id
+        )
+    except AdapterNotConfigured as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    finder = WebsiteFinder(contact=s.crawler_contact)
+    report = discover_companies(places, finder, registry, query, country=country, pages=pages)
+    out: dict[str, object] = {
+        "called_google": places.allowed,
+        "note": None
+        if places.allowed
+        else "dry-run: recorded in the dry-run log, nothing called (needs the three "
+        "keys: PLACES_ADAPTER_MODE=live, the client live, global go-live signed off)",
+        "searched": report.searched,
+        "with_website": report.with_website,
+        "no_number_on_site": report.no_number_on_site,
+        "not_confirmed_by_register": report.not_confirmed_by_register,
+        "site_check_failed": report.site_check_failed,
+        "found": [f.__dict__ for f in report.found],
+        "places_calls_this_month": f"{usage(engine, PROVIDER)}/{s.places_monthly_cap}",
+    }
+    if add and report.found:
+        with transaction(DbContext(role="operator"), engine) as conn:
+            op = conn.execute(
+                text("SELECT id FROM users WHERE email_bidx = :b AND role = 'operator'"),
+                {"b": blind_index(s.key("blind_index_key"), operator_email, None)},
+            ).scalar()
+            if op is None:
+                raise typer.BadParameter("--add needs --operator-email of an existing operator")
+            _, cfg = load_config(conn, tenant_id)
+            have = {w.company_number for w in cfg.watchlist if w.company_number}
+            new = [
+                {"name": f.name, "company_number": f.company_number, "domain": f.domain, "country": f.country}
+                for f in report.found
+                if f.company_number not in have
+            ]
+            data = cfg.model_dump()
+            data["watchlist"] = [*data["watchlist"], *new]
+            out["added"] = len(new)
+            out["config_version"] = set_config(conn, tenant_id=tenant_id, operator_id=op, config=data) if new else None
+    typer.echo(json.dumps(out, indent=2, default=str))

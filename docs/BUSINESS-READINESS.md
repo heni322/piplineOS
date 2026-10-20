@@ -39,8 +39,8 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 |---|---|---|---|---|---|---|
 | Product (core pipeline) | 5 agents, compliance gate, approvals, replies, booking; all dry-run | Proven on real prospects | No real run | High | P0 (external) | 7 |
 | Onboarding | **Guided next step per client**; offer, criteria and pricing form from a niche template; sending domain, inbox and campaign from the console; client accepts terms in the portal | Client self-onboards in under 1 hour | Operator-driven, not self-serve | Medium | P2 | 7 |
-| Lead acquisition | Free sources: UK/EU contract awards, Companies House filings and officers, job boards, websites, insolvency filter | Measured leads/week per ICP | **Not tested live from this environment** (network policy); free registers rarely give an email | **High** | P0 | 4 |
-| Data quality | Register-verified companies; website proven by company number; data minimisation | Measured accuracy and bounce rate | No measurement | High | P1 | 5 |
+| Lead acquisition | Free sources: UK/EU contract awards, **France's BOAMP (30 IT awards in 14 days, live-checked)**, Companies House filings and officers, job boards, websites, insolvency filter; **Google Places** for websites and new companies (paid, capped at the free allowance, after go-live), with a **Find companies** page | Measured leads/week per ICP | **Tested live 2026-10-19** (`LIVE-SOURCE-CHECK.md`): triggers flow (Find a Tender 269 in 14 days), but free email reach is **0 of 40**. Places targets that gap but cannot be measured before go-live; client-supplied accounts remain the route. French leads have no decision-maker source (owner and lawyer decision) | **High** | P0 | 4.5 |
+| Data quality | Register-verified companies; website proven by company number; data minimisation; **per-source quality report** (register-confirmed, website, email found, blocked, reached, bounced, replied) on the Reports page | Measured accuracy and bounce rate | Measurement built, but no real sends yet to measure | High | P1 | 5.5 |
 | Outreach | Writer with sourced claims, critique, rewrites, quality score 0–10, human approval of every email | Reply rate measured and improved | Evals are synthetic | High | P1 | 6 |
 | Deliverability | DNS check (SPF/DKIM/DMARC), warm-up, inbox ≤50/day, campaign caps, automatic kill switch (bounce 3%, complaint 0.3%), business hours, one-click unsubscribe | Seed-tested placement on warmed domains | No domain, no mailbox, no placement test | **High** | P0 (external) | 4 |
 | Compliance: technically implemented | Engine at queue and send time, global suppression, per-country rules, DPR handling, audit log, AI disclosure | n/a | n/a | n/a | n/a | 8 |
@@ -70,13 +70,13 @@ Scores are 0–10 and evidence-based. "Built" means implemented and tested on sy
 | 8 | Pilot Mode: hard cap on new people per campaign | P0 | me | **DONE (this phase)** |
 | 9 | KPIs per 100 people reached; demo numbers labelled as demo | P0 | me | **DONE (this phase)** |
 | 10 | Contactable rate: free registers rarely give an email | P0 (business) | **Owner decision** | see GO-TO-MARKET §7 |
-| 11 | Live check of every free source | P1 | **Owner's PC** (blocked here) | command exists |
+| 11 | Live check of every free source | P1 | **Owner's PC** | **DONE 2026-10-19** except Companies House (no key) and the Gazette (blocked from the PC) |
 | 12 | Payment collection and accountant check of tax rules | P1 | me (recording) + **accountant, payment provider** | **recording built (6.9)**; accountant check and provider still open |
 | 13 | Unit-economics model to set prices and pilot size | P1 | me | **DONE (this phase)** |
 | 14 | Public landing page | P1 | me | **DONE (this phase)**; needs a domain and contact email |
 | 15 | Onboarding a client in the console (it needed JSON and SQL) | P1 | me | **DONE (6.8)**: guided by the operator; a client self-serve wizard is still open |
 | 16 | External penetration test | P1 | **Pen tester** | open |
-| 17 | Inbox-placement (seed) test before each campaign | P1 | me + owner (seed mailboxes) | open |
+| 17 | Inbox-placement (seed) test before each campaign | P1 | me + owner (seed mailboxes) | **recorded and tracked (2026-10-19)**: results on the Inboxes page, readiness item; the test itself stays manual (owner's mailboxes) |
 | 18 | Customer proof capture (consent to quote results) | P2 | me | **DONE (6.10)** |
 | 19 | PipelineOS selling itself (operator's own tenant) | P2 | me, then owner + solicitor | **built (6.14)**; needs our own LIA, notice and domain |
 | 20 | Automatic data-retention schedule | P1 | me, then solicitor sets the periods | **built (6.7); off until the periods are set** |

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 
 const t = getMessages().logs;
 type Row = { created_at: string; effect_type: string; adapter: string; recipient: string | null; subject: string | null };
@@ -24,7 +24,7 @@ export default function DryRunLog() {
               <th scope="col">{t.subject}</th></tr></thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={i}><td>{new Date(r.created_at).toLocaleString("en-GB")}</td><td>{r.effect_type.replaceAll("_", " ")}</td>
+                <tr key={i}><td>{new Date(r.created_at).toLocaleString(LOCALE)}</td><td>{r.effect_type.replaceAll("_", " ")}</td>
                   <td>{r.recipient}</td><td>{r.subject}</td></tr>
               ))}
             </tbody>

@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Problem } from "@/lib/api";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 import type { AdequacyRow, ChecklistItem, CountryRow, GovernanceStatus, ReadinessItem, SourceHealth, TaxRule } from "@/lib/types";
 
 const t = getMessages().governance;
 const fill = (s: string, v: Record<string, string | number>) => Object.entries(v).reduce((a, [k, x]) => a.replaceAll(`{${k}}`, String(x)), s);
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const day = (iso: string) => new Date(iso).toLocaleDateString(LOCALE, { day: "numeric", month: "short", year: "numeric" });
 const today = () => new Date().toISOString().slice(0, 10);
 const label = (map: Record<string, string>, k: string) => map[k] ?? k.replaceAll("_", " ");
 
@@ -217,8 +217,8 @@ export default function GovernancePage() {
                     <td className="num">{h.runs_24h}</td>
                     <td className="num">{h.failures_24h}</td>
                     <td className="num">{h.fetched_24h}</td>
-                    <td>{new Date(h.last_run_at).toLocaleString("en-GB")}</td>
-                    <td>{h.last_success_at ? new Date(h.last_success_at).toLocaleString("en-GB") : t.healthNever}</td>
+                    <td>{new Date(h.last_run_at).toLocaleString(LOCALE)}</td>
+                    <td>{h.last_success_at ? new Date(h.last_success_at).toLocaleString(LOCALE) : t.healthNever}</td>
                     <td className="muted">{h.last_error ?? "–"}</td>
                   </tr>
                 ))}

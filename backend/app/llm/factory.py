@@ -9,9 +9,10 @@ from pathlib import Path
 
 from sqlalchemy.engine import Engine
 
+from app.adapters.base import AdapterNotConfigured
 from app.core.crypto import PiiCipher
 from app.domain.outbound.modes import resolve_mode
-from app.llm.backends import AnthropicBackend, OllamaBackend
+from app.llm.backends import AnthropicBackend, GeminiBackend, OllamaBackend
 from app.llm.client import LLMBackend, LLMClient
 from app.llm.pricing import load_pricer
 from app.llm.recorder import db_recorder
@@ -21,6 +22,16 @@ from app.settings import Settings
 PRICES = Path(__file__).resolve().parents[3] / "config" / "llm_prices.yaml"
 
 
+def local_backend(settings: Settings, model: str | None = None) -> OllamaBackend:
+    return OllamaBackend(
+        settings.local_llm_url,
+        model or settings.local_llm_model,
+        think=settings.local_llm_think,
+        keep_alive=settings.local_llm_keep_alive or None,
+        num_ctx=settings.local_llm_num_ctx,
+    )
+
+
 def select_backend(settings: Settings, *, tenant_live: bool, golive_complete: bool) -> LLMBackend:
     mode = resolve_mode(
         adapter_mode=settings.llm_adapter_mode,
@@ -28,12 +39,16 @@ def select_backend(settings: Settings, *, tenant_live: bool, golive_complete: bo
         global_go_live=settings.global_go_live,
         golive_complete=golive_complete,
     )
-    if mode == "live" and settings.free_only:  # never the paid API: the free local model does the live work
-        return OllamaBackend(settings.local_llm_url, settings.local_llm_model)
+    if mode == "live" and (settings.free_only or settings.llm_provider == "local"):
+        return local_backend(settings)  # never a paid API: the free local model does the live work
+    if mode == "live" and settings.llm_provider == "gemini":
+        if settings.gemini_api_key is None or not settings.gemini_api_key.get_secret_value():
+            raise AdapterNotConfigured("LLM_PROVIDER=gemini needs GEMINI_API_KEY")
+        return GeminiBackend(settings.gemini_api_key.get_secret_value(), settings.gemini_model)
     if mode == "live" and settings.anthropic_api_key is not None:
         return AnthropicBackend(settings.anthropic_api_key.get_secret_value())
     if mode == "sandbox":
-        return OllamaBackend(settings.local_llm_url, settings.local_llm_model)
+        return local_backend(settings)
     return SimulatedBackend()
 
 

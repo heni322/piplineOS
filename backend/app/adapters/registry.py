@@ -2,7 +2,8 @@
 misconfiguration fails loudly (AdapterNotConfigured) instead of silently calling a real service.
 
 - signals: mock -> the synthetic demo dataset; sandbox/live -> Contracts Finder + Find a Tender award notices
-  (free, public, read-only), searched with the client's ICP keywords, plus the client's watchlist: its companies'
+  (free, public, read-only), searched with the client's ICP keywords, plus France's BOAMP and the EU's TED for
+  clients targeting those countries, plus the client's watchlist: its companies'
   public job boards (Greenhouse, Lever, Ashby; free, no key) and new directors on the Companies House register,
   plus, for clients with SIC codes, market-wide funding filings (SH01/MR01) from the Companies House stream ingest
 - FREE_ONLY=true: no paid provider is ever built. Enrichment -> the Companies House officers list (free; no email
@@ -57,15 +58,20 @@ def live_sources(
     ]
     if boards:
         out.append(SourceBinding(JobBoardSource(boards), hiring_query(cfg)))
-    if any(c != "GB" for c in cfg.icp.countries):  # EU awards (TED: free, no key) for the client's EU countries
+    if "FR" in cfg.icp.countries:  # France: its own bulletin (BOAMP: free, no key), with the titles in French
+        from app.adapters.signals.boamp import BoampAwardSource
+
+        out.append(SourceBinding(BoampAwardSource(), q))
+    eu = [c for c in cfg.icp.countries if c not in ("GB", "FR")]
+    if eu:  # other EU countries: EU awards (TED: free, no key)
         from app.adapters.signals.ted import TedAwardSource
 
-        out.append(SourceBinding(TedAwardSource(cfg.icp.countries), q))
+        out.append(SourceBinding(TedAwardSource(eu), q))
     if cfg.icp.sic_codes and engine is not None:  # market-wide, from the filing-stream ingest (no key needed here)
         from app.adapters.signals.register_filings import RegisterFilingSource
 
         out.append(SourceBinding(RegisterFilingSource(engine, cfg.icp.sic_codes), ""))
-    numbered = [w for w in cfg.watchlist if w.company_number]
+    numbered = [w for w in cfg.watchlist if w.company_number and (w.country or "GB").upper() in ("GB", "UK")]
     key = settings.companies_house_api_key if settings is not None else None
     if numbered and key is not None and key.get_secret_value():
         from app.adapters.companies_house.officers import OfficerAppointmentSource, WatchedCompany
@@ -93,10 +99,11 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
             key = settings.companies_house_api_key
             register = CompaniesHouseRegistry(key.get_secret_value()) if key and key.get_secret_value() else None
             p.insolvency = InsolvencyFilter(GazetteNotices(), register)
-    if settings.free_only:
+    free_people = settings.free_only or settings.enrichment_provider == "companies_house"
+    if free_people:
         if settings.enrichment_adapter_mode != "mock":  # the free register replaces the paid enrichment provider
             if settings.companies_house_api_key is None or not settings.companies_house_api_key.get_secret_value():
-                raise AdapterNotConfigured("FREE_ONLY enrichment needs COMPANIES_HOUSE_API_KEY (free)")
+                raise AdapterNotConfigured("register enrichment needs COMPANIES_HOUSE_API_KEY (free)")
             from app.adapters.companies_house.officers import CompaniesHouseOfficers
 
             officers = CompaniesHouseOfficers(settings.companies_house_api_key.get_secret_value())
@@ -105,7 +112,16 @@ def providers_for(settings: Settings, ctx: AgentContext | None = None) -> Provid
                 from app.adapters.website_contacts import WebsiteContacts, WebsiteFinder
                 from app.domain.deliverability.dns_check import dns_lookup
 
-                p.enrichment = WebsiteContacts(officers, WebsiteFinder(), dns_lookup(strict=True))
+                places = None
+                if not settings.free_only and settings.places_adapter_mode != "mock" and ctx is not None:
+                    from app.domain.paid.providers import places_for  # paid + gated + capped
+
+                    places = places_for(settings, ctx.engine, ctx.cipher, ctx.tenant_id).websites_for
+                p.enrichment = WebsiteContacts(
+                    officers,
+                    WebsiteFinder(contact=settings.crawler_contact, place_domains=places),
+                    dns_lookup(strict=True),
+                )
         if settings.verifier_adapter_mode != "mock":
             from app.adapters.verifier.none import NoVerifier
             from app.adapters.website_contacts import WebsiteContacts

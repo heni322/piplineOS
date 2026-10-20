@@ -14,6 +14,7 @@ from app.api.v1 import (
     clients,
     conversations,
     crm,
+    discovery,
     governance,
     inbound,
     leads,
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(conversations.router, prefix="/api/v1")
     app.include_router(billing.router, prefix="/api/v1")
     app.include_router(clients.router, prefix="/api/v1")
+    app.include_router(discovery.router, prefix="/api/v1")
     app.include_router(crm.router, prefix="/api/v1")
     app.include_router(tasks.router, prefix="/api/v1")
     app.include_router(sources.router, prefix="/api/v1")

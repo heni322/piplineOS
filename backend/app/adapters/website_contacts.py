@@ -5,7 +5,8 @@ generic business address the company itself publishes for enquiries (sales@, enq
 message is then addressed to the named director at that published address.
 
 1. **The website.** The domain we already hold; else Wikidata's "official website" for the Companies House number
-   (CC0 open data); else a few names derived from the company name (name.co.uk, name.com...).
+   (CC0 open data); else, when switched on (paid, gated), the website Google Places lists for the company name; else
+   a few names derived from the company name (name.co.uk, name.com...).
 2. **Proof it is theirs.** UK companies must show their registered number on their website (Companies (Trading
    Disclosures) Regulations 2008). A site is accepted only when one of its pages states the company's number.
    A name match alone is never enough.
@@ -39,11 +40,26 @@ from app.core.logging import get_logger
 
 log = get_logger(__name__)
 USER_AGENT = "PipelineOS-contact-check/1.0 (published business contacts; respects robots.txt)"
+
+
+def user_agent(contact: str | None) -> str:
+    """Wikimedia's robot policy (and good manners) require a way to reach the operator: without it, Wikidata
+    answers 403. Robots.txt rules are still matched on the PipelineOS-contact-check token."""
+    return (
+        f"PipelineOS-contact-check/1.0 (+{contact}; published business contacts; respects robots.txt)"
+        if contact
+        else USER_AGENT
+    )
+
+
 PAGES = ["/", "/contact", "/contact-us", "/about", "/about-us", "/privacy-policy", "/terms"]
 MAX_BYTES = 512_000
 MAX_CANDIDATES = 6
 # preferred first; anything else is ignored
-GENERIC = ["sales", "enquiries", "enquiry", "hello", "contact", "info", "office", "newbusiness", "business", "team"]
+GENERIC = [
+    "sales", "enquiries", "enquiry", "hello", "contact", "info", "office", "newbusiness", "business", "team",
+    "commercial", "bonjour", "accueil",  # French sites
+]  # fmt: skip
 # bounded (RFC 5321 limits): an unbounded local part makes a long run of letters quadratic to scan (ReDoS)
 _EMAIL = re.compile(r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}")
 _TAGS = re.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", re.IGNORECASE | re.DOTALL)
@@ -97,9 +113,32 @@ def generic_addresses(html: str, domain: str) -> list[str]:
 
 
 def states_number(text: str, number: str) -> bool:
-    """The page states this company number (as printed: 01234567, or without leading zeros: 1234567)."""
+    """The page states this company number (as printed: 01234567, or without leading zeros: 1234567; a French SIREN
+    also as "123 456 789")."""
     forms = {number, number.lstrip("0")} if number.isdigit() else {number}
-    return any(re.search(rf"(?<![A-Za-z0-9]){re.escape(f)}(?![A-Za-z0-9])", text) for f in forms if len(f) >= 5)
+    pats = [re.escape(f) for f in forms if len(f) >= 5]
+    if number.isdigit() and len(number) == 9:
+        pats.append(r"\s?".join(re.escape(number[i : i + 3]) for i in (0, 3, 6)))
+    return any(re.search(rf"(?<![A-Za-z0-9]){p}(?![A-Za-z0-9])", text) for p in pats)
+
+
+# A company number printed after the words that introduce it ("Company No. 01234567", "Registered in England and
+# Wales number SC123456", "RCS Lyon 123 456 789", "SIREN : 123456789", "SIRET 123 456 789 00012").
+_UK_NUMBER = re.compile(
+    r"(?:company|registration|registered)[^0-9A-Za-z]{0,3}(?:[A-Za-z]+[^0-9A-Za-z]{1,3}){0,6}?"
+    r"(?:no|number|num|n°)?[^0-9A-Za-z]{0,4}((?:SC|NI|OC|SO|NC|R0)\d{6}|\d{7,8})(?![0-9])",
+    re.IGNORECASE,
+)
+_FR_NUMBER = re.compile(r"(?:SIREN|SIRET|RCS)[^0-9]{0,40}?(\d{3}\s?\d{3}\s?\d{3})(?:\s?\d{5})?(?![0-9])", re.IGNORECASE)
+
+
+def printed_number(text: str, country: str) -> str | None:
+    """The company's register number as its own page prints it, or None."""
+    if country == "FR":
+        m = _FR_NUMBER.search(text)
+        return re.sub(r"\s", "", m.group(1)) if m else None
+    m = _UK_NUMBER.search(text)
+    return normalise_company_number(m.group(1)) if m else None
 
 
 @dataclass(frozen=True)
@@ -125,14 +164,18 @@ class WebsiteFinder:
         wikidata_transport: httpx.BaseTransport | None = None,
         public_host: Callable[[str], bool] = is_public_host,
         mx: Callable[[str], bool] = has_mx,
+        contact: str | None = None,
+        place_domains: Callable[[str, str | None], list[str]] | None = None,
     ) -> None:
-        headers = {"User-Agent": USER_AGENT, "Accept": "text/html"}
+        ua = user_agent(contact)
+        self._places = place_domains  # Google Places websites (paid, gated); None = free sources only
+        headers = {"User-Agent": ua, "Accept": "text/html"}
         self._http = httpx.Client(timeout=httpx.Timeout(10.0, connect=5.0), transport=transport, headers=headers)
         self._wd = httpx.Client(
             base_url=WIKIDATA,
             timeout=httpx.Timeout(15.0, connect=5.0),
             transport=wikidata_transport,
-            headers={"User-Agent": USER_AGENT, "Accept": "application/sparql-results+json"},
+            headers={"User-Agent": ua, "Accept": "application/sparql-results+json"},
         )
         self._public_host, self._mx = public_host, mx
 
@@ -209,11 +252,34 @@ class WebsiteFinder:
             best = None
         return SiteContact(domain, best, addresses.get(best, verified_at) if best else verified_at)
 
+    def identify(self, domain: str, country: str) -> str | None:
+        """The register number a site prints about itself (legal notice, footer), for a site found by a search.
+        It is only a claim: the caller checks it against the register before trusting it."""
+        domain = domain.lower().removeprefix("www.")
+        if not _DOMAIN.match(domain):
+            return None
+        base = f"https://{domain}"
+        robots = self._robots(base, domain)
+        for path in [*PAGES, "/mentions-legales", "/legal", "/legal-notice"]:
+            url = base + path
+            if not robots.can_fetch(USER_AGENT, url):
+                continue
+            resp = self._get(url, domain)
+            if resp is None or resp.status_code != 200:
+                continue
+            number = printed_number(page_text(resp.text), country)
+            if number:
+                return number
+        return None
+
     def find(self, number: str, company_name: str | None, known_domain: str | None) -> SiteContact | None:
         if known_domain:
             candidates = [known_domain.lower().removeprefix("www.")]
         else:
-            candidates = self.wikidata_domains(number) + candidate_domains(company_name or "")
+            candidates = self.wikidata_domains(number)
+            if self._places is not None and not candidates:  # paid: only when the free open data knew nothing
+                candidates += self._places(number, company_name)
+            candidates += candidate_domains(company_name or "")
         for d in list(dict.fromkeys(candidates))[: MAX_CANDIDATES + 3]:
             site = self.check_site(d, number)
             if site is not None:

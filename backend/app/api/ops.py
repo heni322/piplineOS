@@ -208,6 +208,12 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
         )
         _gauge(
             lines,
+            "pipelineos_source_silent",
+            "1 when a signal source answered successfully but found nothing at all for 7 days (retired or changed?)",
+            [({"source": h.source}, 1.0 if h.status == "silent" else 0.0) for h in health],
+        )
+        _gauge(
+            lines,
             "pipelineos_source_failures_24h",
             "failed runs of each signal source in the last 24 hours",
             [({"source": h.source}, float(h.failures_24h)) for h in health],
@@ -340,6 +346,10 @@ class InboxOut(BaseModel):
     min_sent: int
     last_paused_at: datetime | None
     last_pause_reason: list[str]
+    placement_checked_at: datetime | None = None
+    placement_passed: bool | None = None
+    placement_current: bool = False  # a pass recorded within the last 30 days
+    placement_reasons: list[str] = []
 
 
 @router.get("/api/v1/inboxes", response_model=list[InboxOut])
@@ -347,10 +357,12 @@ def inboxes(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_ALL_TEN
     """Read-only health view: the kill switch itself runs in the deliverability task, not here."""
     from app.config_paths import config_root
     from app.domain.deliverability.killswitch import Thresholds
+    from app.domain.deliverability.placement import latest_by_inbox
 
     th = Thresholds.load(config_root())
     now = datetime.now(UTC)
     with transaction(user.db_context(), get_engine()) as conn:
+        placement = latest_by_inbox(conn)
         rows = (
             conn.execute(
                 text("""SELECT i.*, t.legal_name,
@@ -401,9 +413,52 @@ def inboxes(user: Annotated[CurrentUser, Depends(require(Permission.VIEW_ALL_TEN
                 min_sent=th.min_sent,
                 last_paused_at=r["paused_at"] if r["status"] == "paused" else None,
                 last_pause_reason=[str(x) for x in reasons] if r["status"] == "paused" else [],
+                placement_checked_at=(pc := placement.get(r["id"])) and pc.checked_at,
+                placement_passed=pc.passed if pc else None,
+                placement_current=bool(pc and pc.current(now)),
+                placement_reasons=pc.reasons if pc else [],
             )
         )
     return out
+
+
+class PlacementIn(BaseModel):
+    score: float | None = Field(default=None, ge=0, le=10)
+    spf_pass: bool
+    dkim_pass: bool
+    dmarc_pass: bool
+    blacklisted: bool
+    provider_results: dict[
+        Annotated[str, Field(min_length=2, max_length=40)], Literal["inbox", "spam", "promotions", "missing"]
+    ] = Field(max_length=10)
+    evidence_url: str | None = Field(default=None, max_length=500, pattern=r"^https://")
+
+
+class PlacementOut(BaseModel):
+    passed: bool
+    reasons: list[str]
+
+
+@router.post("/api/v1/inboxes/{inbox_id}/placement-checks", response_model=PlacementOut, status_code=201)
+def placement_check(
+    inbox_id: uuid.UUID,
+    body: PlacementIn,
+    user: Annotated[CurrentUser, Depends(require(Permission.MANAGE_COMPLIANCE))],
+) -> PlacementOut:
+    """Record the result of the go-live runbook's placement check (C2) for one inbox. Pass/fail is decided here by
+    the runbook's rule, not by the person recording it. Nothing is sent."""
+    from app.domain.deliverability.placement import PlacementCheck, record
+
+    if user.role != "operator":
+        raise ProblemError(403, "Forbidden")
+    with transaction(user.db_context(), get_engine()) as conn:
+        tenant = conn.execute(text("SELECT tenant_id FROM inboxes WHERE id = :i"), {"i": inbox_id}).scalar()
+        if tenant is None:
+            raise ProblemError(404, "Inbox not found")
+        passed, reasons = record(
+            conn, tenant_id=tenant, inbox_id=inbox_id, check=PlacementCheck(**body.model_dump()), operator_id=user.id
+        )
+    return PlacementOut(passed=passed, reasons=reasons)
 
 
 class PauseIn(BaseModel):

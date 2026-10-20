@@ -71,6 +71,11 @@ groups:
         for: 30m
         labels: { severity: warn }
         annotations: { summary: "Signal source {{ $labels.source }} keeps failing, so it finds nothing. Check the Go-live page (Source health) and run `pipelineos signals check` for it." }
+      - alert: SignalSourceSilent
+        expr: max by (source) (pipelineos_source_silent) == 1
+        for: 1h
+        labels: { severity: warn }
+        annotations: { summary: "Signal source {{ $labels.source }} has answered but found nothing for 7 days. A quiet market is possible; a retired endpoint or a changed format is likelier. Run `pipelineos signals check` for it." }
       - alert: OutboxStuck
         expr: pipelineos_outbox_oldest_seconds > 300
         for: 5m

@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     public_base_url: str = "http://localhost:3000"
     api_base_url: str = "http://localhost:8000"
+    # Contact named in the User-Agent of our polite crawlers (company websites, Wikidata). Wikimedia refuses
+    # requests without one (HTTP 403, robot policy). A page or mailbox where site owners can reach you.
+    crawler_contact: str = "https://github.com/heni322/piplineOS"
 
     database_url: str = "postgresql+psycopg://pipelineos_app:app_dev_only@localhost:5433/pipelineos"
     database_owner_url: str = "postgresql+psycopg://pipelineos_owner:owner_dev_only@localhost:5433/pipelineos"
@@ -113,12 +116,33 @@ class Settings(BaseSettings):
     metrics_token: SecretStr | None = None  # bearer token for /metrics (Prometheus); unset = endpoint disabled
 
     anthropic_api_key: SecretStr | None = None
+    # which AI does the live work (only with the three keys; FREE_ONLY=true always means the local model):
+    # local (free, this server) | anthropic | gemini (both paid, behind the switch)
+    llm_provider: Literal["local", "anthropic", "gemini"] = "anthropic"
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.8-flash"
+    # Web research panel (Gemini + Google Search; docs/GOOGLE-PLACES.md): paid, only with the three keys and
+    # FREE_ONLY=false; at most this many requests a month (Google gives 5,000 free search queries a month)
+    gemini_search_mode: AdapterMode = "mock"
+    gemini_search_monthly_cap: int = Field(default=1000, ge=0)
+    # Google Places (paid; docs/GOOGLE-PLACES.md): finds company websites and businesses by activity and area.
+    # Only with the three keys and FREE_ONLY=false; capped per month (1000 = Google's free allowance for these fields)
+    places_adapter_mode: AdapterMode = "mock"
+    google_places_api_key: SecretStr | None = None
+    places_monthly_cap: int = Field(default=1000, ge=0)
+    places_region: str = Field(default="GB", pattern=r"^[A-Z]{2}$")
+    places_language: str = "en"
+    # who finds decision-makers when FREE_ONLY=false: the free register (+ published addresses) or Hunter (paid)
+    enrichment_provider: Literal["companies_house", "hunter"] | None = None
     llm_model_volume: str = "claude-sonnet-5-5"
     llm_model_reasoning: str = "claude-opus-5-5"
     llm_timeout_seconds: float = 60.0
     # LLM_ADAPTER_MODE=sandbox: a free local model through Ollama (this machine only), for testing
     local_llm_url: str = "http://127.0.0.1:11434"
-    local_llm_model: str = "qwen2.5:7b"
+    local_llm_model: str = "qwen2.5:7b"  # on a server: see docs/LOCAL-LLM.md (e.g. qwen3.6:35b, glm-4.7-flash)
+    local_llm_think: str | None = "false"  # false | true | low | medium | high (gpt-oss), or unset
+    local_llm_keep_alive: str = "24h"
+    local_llm_num_ctx: int = 8192
     llm_log_bodies: bool = True
 
     session_idle_hours_tenant: int = 12

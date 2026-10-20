@@ -93,7 +93,8 @@ mailboxes, a first pilot client, and payment. See `docs/BUSINESS-READINESS.md`, 
    - Microsoft 365 or Google Workspace mailboxes, warmed up. This is the one service that can't be free.
    - With `FREE_ONLY=true`, nothing else to buy. Without it: enrichment and verification providers, and a paid
      AI key with a spend cap.
-   - A server able to run the local model (enough CPU and RAM).
+   - A server able to run the local model: 32 GB RAM for the recommended `glm-4.7-flash` (about $168 a month
+     on DigitalOcean), 16 GB for a smaller one. Setup, model choice and the benchmark: `docs/LOCAL-LLM.md`.
    - Spain, Italy, Portugal and the Netherlands stay off: they have no free register.
 6. **Free registers.**
    - The Companies House key.
@@ -105,6 +106,46 @@ mailboxes, a first pilot client, and payment. See `docs/BUSINESS-READINESS.md`, 
 9. **Go-live.** Sign each checklist item, enable each country, then set `GLOBAL_GO_LIVE=true` yourself
    (`docs/GO-LIVE-RUNBOOK.md`).
 
+## Live check of the free sources (2026-10-19)
+Run from your PC: TED, Find a Tender, the job boards and the France, Norway and Finland registers work. Wikidata
+needed a contact in our User-Agent (fixed). Contracts Finder returns nothing; the Gazette blocks the PC's network.
+**Measured contactable rate with free sources only: 0 of 40 real award winners.** The client's own target accounts
+are now the main route; see `docs/LIVE-SOURCE-CHECK.md`.
+
+## Free local AI on the server (2026-10-19)
+The production stack now includes the model server (Ollama) as an optional service with no internet access and
+no published port. `pipelineos llm benchmark` compares candidate models on the server (reply safety and accuracy in
+every language, and email drafting) and recommends the best fully safe one. Candidates by server memory:
+`gemma4:12b` (16 GB), `glm-4.7-flash` or `gemma4:26b` (32 GB), `qwen3.6:35b` (48 GB+), `qwen3.6:27b` (GPU). See
+`docs/LOCAL-LLM.md`.
+
+## Google Places, Gemini and the voyz.fr server (2026-10-19)
+- **Google Places** (paid, behind the three keys, capped at 1,000 searches a month = Google's free allowance):
+  suggests a company's website when the free sources know none (the 0-of-40 gap), and finds new companies by
+  activity and area (`pipelineos places discover`). Each site must still prove it is the company's by printing a
+  register number the register confirms; only its generic business address is used. Nothing from Google is
+  stored. See `docs/GOOGLE-PLACES.md`.
+- **Find companies** page in the console (Clients and money): search by activity and area, see the confirmed
+  companies with their published business address, and add the ones you choose to a client's watchlist. Searches
+  run in the background; the page says plainly when Google was not called and why.
+- **Web research with Gemini** on the Find companies page: a question about one company, answered from Google
+  Search with sources, shown to you and never stored (Google's terms). Paid, behind the three keys, capped.
+- **More public job boards:** Recruitee, Workable and SmartRecruiters, alongside Greenhouse, Lever and Ashby.
+  **LinkedIn** is a manual contact channel only: contact tasks link to a LinkedIn search you open yourself;
+  nothing is collected from LinkedIn or Instagram (the brief and their terms forbid scraping them).
+- **BOAMP**, France's official procurement bulletin (free open data, no key), as the trigger source for clients
+  targeting France: contract awards with French titles, so French keywords match. It replaces TED for France (TED
+  keeps the other EU countries). Checked live: 30 IT award signals in 14 days. `pipelineos signals check boamp`.
+- **French interface** (console, client portal, landing page): `NEXT_PUBLIC_LOCALE=fr-FR` when building the web
+  image (the voyz.fr setup does it), with French dates and amounts. All 964 texts are translated; a test fails if
+  a text or a placeholder is ever missing. Legal texts (email footer, privacy notice) are not part of this and stay
+  with the solicitor's review. The landing page still describes the UK offer: adapt it before using it in France.
+- **Gemini** as an optional AI provider (`LLM_PROVIDER=gemini`): paid, only with the three keys, never with
+  `FREE_ONLY=true`, paid tier only (the free tier lets Google use prompts). The default stays the free local model.
+- **voyz.fr** on the shared Contabo VPS (France): `deploy/vps/` (secrets generated on the server, memory caps,
+  behind the existing nginx) and `docs/DEPLOY-VPS.md`.
+
 ## Code
-- Phases 2–10.1 are on `main`; Phases 11–16 are on branch `phase/11-free-sources`.
-- Merging into `main` (by pull request, no history rewritten) is your call, whenever you are happy with the review.
+- Phases 2–17 are on `main` (GitHub pull requests up to #19).
+- The live-check fixes, the local AI server, Google Places, Gemini and the VPS deployment are on branch
+  `fix/live-source-findings`, ready for a pull request.

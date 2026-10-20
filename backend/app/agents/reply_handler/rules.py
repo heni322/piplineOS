@@ -72,7 +72,7 @@ UNSUBSCRIBE = _rx(
     r"ønsker ikke (?:at )?(?:modtage|få) (?:flere|mere)",
     r"\bfjern (?:mig|os) fra\b",
     r"stop med at sende",
-    # Spanish, Italian, Portuguese, Dutch (Stage 4), measured on tests/evals/datasets/reply_eval_stage4.jsonl
+    # Spanish, Italian, Portuguese, Dutch (Stage 4), measured on app/evals/datasets/reply_eval_stage4.jsonl
     r"no (?:deseo|quiero) (?:recibir|seguir recibiendo) más",
     r"dejen? de (?:enviarme|mandarme|escribirme)",
     r"elimínenme|eliminarme de (?:su|sus|la|vuestra)",

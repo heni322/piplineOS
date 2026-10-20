@@ -67,6 +67,34 @@ export function MetricsLedger({ m, detailed = false }: { m: Metrics; detailed?: 
           </dl>
         </>
       )}
+      {detailed && m.by_source && m.by_source.length > 0 && (
+        <>
+          <h2 style={{ marginTop: 24 }} id="quality-h">{t.qualityTitle}</h2>
+          <p className="muted" style={{ maxWidth: "70ch" }}>{t.qualityHint}</p>
+          <div className="table-wrap" tabIndex={0} role="region" aria-labelledby="quality-h">
+            <table>
+              <thead><tr>
+                <th scope="col">{t.qSource}</th><th scope="col">{t.qLeads}</th><th scope="col">{t.qRegister}</th>
+                <th scope="col">{t.qWebsite}</th><th scope="col">{t.qEmail}</th><th scope="col">{t.qBlocked}</th>
+                <th scope="col">{t.qTasks}</th><th scope="col">{t.qReached}</th><th scope="col">{t.qBounced}</th>
+                <th scope="col">{t.qReplied}</th>
+              </tr></thead>
+              <tbody>
+                {m.by_source.map((s) => (
+                  <tr key={s.source}>
+                    <th scope="row">{(t.sourceNames as Record<string, string>)[s.source] ?? s.source}</th>
+                    <td>{s.leads}</td><td>{s.register_confirmed}</td><td>{s.with_website}</td>
+                    <td>{s.with_email} <small className="muted">{pct(s.email_rate)}</small></td>
+                    <td>{s.blocked}</td><td>{s.contact_tasks}</td><td>{s.reached}</td>
+                    <td className={over(s.bounce_rate, 0.03)}>{s.bounced} <small className="muted">{pct(s.bounce_rate)}</small></td>
+                    <td>{s.replied} <small className="muted">{pct(s.reply_rate)}</small></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
       {detailed && (
         <>
           <p className="muted">{t.aiCost}: {m.ai_cost_per_meeting_gbp !== null ? money(Math.round(m.ai_cost_per_meeting_gbp * 100)) : t.costUnknown}</p>

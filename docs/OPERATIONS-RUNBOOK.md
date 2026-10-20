@@ -14,6 +14,7 @@
 | `SendsNeedReconciliation` | A send started but its outcome is unknown (crash mid-send) | Check the provider's sent items for that message. Mark it sent or failed. **Never resend blindly** |
 | `ReplySlaBreached` | Replies unclassified after 5 minutes | Check the `worker-replies` container and Valkey; `docker compose logs worker-replies` |
 | `RepliesRecoveredBySweep` | The 15-minute sweep found replies that never arrived by push. They were handled normally (unsubscribes honoured), but the push path is broken somewhere | Check the webhook endpoint is reachable (`/webhooks/msgraph`, `/webhooks/google`), that the subscriptions or watches are renewing (`renew_*` tasks in `docker compose logs beat`), and the provider's status page. The sweep looks back 72 hours, so fix it within that window |
+| `SignalSourceSilent` | A signal source answered every run but found nothing for 7 days | Run `pipelineos signals check <source>` on the server. Zero results with no error usually means a retired endpoint or a changed format (seen live with Contracts Finder, whose OCDS search returns nothing since notices moved to Find a Tender); otherwise the client's keywords are too narrow |
 | `OutboxStuck` | Events not dispatched | Check `beat` and `worker-default` |
 | `AiFailures` | Many failed AI calls | Check the Anthropic status page and the API key / spend cap. Drafts escalate to humans meanwhile |
 | `VatThresholdApproaching` | Turnover ≥ 80% of the VAT threshold | Talk to your accountant |

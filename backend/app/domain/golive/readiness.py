@@ -118,6 +118,35 @@ def readiness(conn: Connection, settings: Settings) -> list[dict[str, str]]:
         )
     )
 
+    from datetime import UTC, datetime
+
+    from app.domain.deliverability.placement import latest_by_inbox
+
+    sending = (
+        conn.execute(
+            text("""SELECT i.id FROM inboxes i JOIN tenants t ON t.id = i.tenant_id
+                WHERE t.status = 'active' AND i.status IN ('active', 'warming')""")
+        )
+        .scalars()
+        .all()
+    )
+    placement, now = latest_by_inbox(conn), datetime.now(UTC)
+    without = [i for i in sending if not (placement.get(i) and placement[i].current(now))]
+    out.append(
+        Item(
+            "placement",
+            "Inbox placement checked (lands in the inbox, not spam)",
+            "info" if not sending else ("todo" if without else "done"),
+            "you",
+            "No sending inbox yet"
+            if not sending
+            else f"{len(without)} of {len(sending)} sending inbox(es) without a passing check in the last 30 days "
+            "(go-live runbook C2; record it on the Inboxes page)"
+            if without
+            else f"All {len(sending)} sending inbox(es) passed within the last 30 days",
+        )
+    )
+
     needed = []
     if settings.email_adapter_mode == "live" and not (
         _secret(settings, "msgraph_client_secret") or _secret(settings, "google_service_account_json")

@@ -301,3 +301,13 @@ def test_companies_house_lookup_by_number_is_exact() -> None:
     assert found is not None and found.legal_form == "ltd" and found.registered_country == "GB"
     assert [c.url.path for c in calls] == ["/company/01234567"]  # no fuzzy name search when the number is known
     assert reg.lookup("Gone Ltd", None, "09999999") is None
+
+
+def test_supplier_website_from_the_notice_becomes_the_domain_hint() -> None:
+    from app.adapters.signals.ocds import party_domain
+
+    assert party_domain({"details": {"url": "https://www.wtl.uk/"}}) == "wtl.uk"
+    assert party_domain({"contactPoint": {"url": "lakeside-net.example"}}) == "lakeside-net.example"
+    assert party_domain({"details": {"url": "not a url"}}) is None
+    assert party_domain({"details": {"url": "javascript:alert(1)"}}) is None
+    assert party_domain({"name": "No Website Ltd"}) is None

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 
 const t = getMessages().logs;
 type Row = { decided_at: string; lead_id: string; company: string; prospect: string | null; stage: string; outcome: string;
@@ -25,7 +25,7 @@ export default function ComplianceLog() {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={`${r.lead_id}-${i}`}>
-                  <td>{new Date(r.decided_at).toLocaleString("en-GB")}</td><td>{r.company}</td><td>{r.prospect ?? "–"}</td>
+                  <td>{new Date(r.decided_at).toLocaleString(LOCALE)}</td><td>{r.company}</td><td>{r.prospect ?? "–"}</td>
                   <td>{r.stage}</td><td className={`outcome-${r.outcome}`}>{r.outcome.replaceAll("_", " ")}</td>
                   <td>{r.reason_codes.join(", ")}</td>
                 </tr>

@@ -42,4 +42,4 @@ for _ in $(seq 1 60); do curl -sf http://localhost:3100/login >/dev/null && brea
 cd "$ROOT/frontend" && E2E_STAGE=pipeline pnpm exec playwright test --reporter=line smoke.spec.ts approval.spec.ts
 
 fresh_stack conversations billing
-cd "$ROOT/frontend" && E2E_STAGE=conversations pnpm exec playwright test --reporter=line conversations.spec.ts billing.spec.ts governance.spec.ts
+cd "$ROOT/frontend" && E2E_STAGE=conversations pnpm exec playwright test --reporter=line conversations.spec.ts billing.spec.ts governance.spec.ts discover.spec.ts

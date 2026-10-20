@@ -61,10 +61,14 @@ export type Metrics = {
   per_100_reached: { replies: number | null; positive_replies: number | null; meetings_booked: number | null;
     meetings_attended: number | null; qualified_meetings: number | null };
   roi?: Roi;
+  by_source?: SourceQuality[];
   subject_test: null | { variants: { variant: number; reached: number; replied: number; positive: number;
     replies_per_100: number | null; positive_per_100: number | null }[]; leader: number | null; p_value: number | null;
     verdict: "significant" | "not_significant" | "not_enough_data"; min_reached_per_variant: number };
 };
+export type SourceQuality = { source: string; leads: number; register_confirmed: number; with_website: number;
+  with_email: number; blocked: number; contact_tasks: number; reached: number; bounced: number; replied: number;
+  positive: number; email_rate: number | null; bounce_rate: number | null; reply_rate: number | null };
 export type Roi = { status: "not_configured" } | { status: "estimate"; currency: string; average_deal_value_minor: number;
   close_rate_pct: number; pipeline_value_minor: number; expected_revenue_minor: number; invoiced_minor: number; roi_multiple: number | null };
 export type Terms = { kind: "qualification_criteria" | "pricing"; content: Record<string, unknown> | null; signed: boolean; signed_at: string | null };
@@ -88,7 +92,8 @@ export type Decision = { id: string; lead_id: string; stage: string; outcome: st
 export type Inbox = { id: string; tenant_id: string; tenant_name: string; address: string; status: string; provider: string; daily_cap: number;
   warmup_day: number; sent_today: number; window_days: number; live_sent: number; hard_bounces: number; complaints: number;
   hard_bounce_rate: number | null; complaint_rate: number | null; max_hard_bounce_rate: number; max_complaint_rate: number; min_sent: number;
-  last_paused_at: string | null; last_pause_reason: string[] };
+  last_paused_at: string | null; last_pause_reason: string[]; placement_checked_at: string | null; placement_passed: boolean | null;
+  placement_current: boolean; placement_reasons: string[] };
 export type Campaign = { id: string; tenant_id: string; tenant_name: string; name: string; status: string; daily_cap: number; target_countries: string[];
   paused_reason: string | null; pilot_max_contacts: number | null; pilot_contacts_used: number };
 export type CrmStatus = "booked" | "confirmed" | "attended" | "no_show" | "cancelled";
@@ -99,13 +104,27 @@ export type SendingDomain = { id: string; tenant_id: string; tenant_name: string
   spf_ok: boolean; dkim_ok: boolean; dmarc_ok: boolean; dmarc_policy: string | null; issues: string[];
   checked_at: string | null; providers: string[] };
 export type ReadinessItem = { key: string; title: string; state: "done" | "todo" | "info"; who: "you" | "system"; detail: string };
+export type FoundCompany = { name: string; company_number: string; domain: string; address: string | null; country: string };
+export type CompanySearch = {
+  id: string; query: string; country: "GB" | "FR"; pages: number;
+  status: "queued" | "running" | "done" | "dry_run" | "failed" | "stuck";
+  called_google: boolean | null; error: string | null; created_at: string; finished_at: string | null;
+  counts: Record<string, number>; stopped_early: boolean; found: FoundCompany[];
+};
+export type CompanySearches = {
+  setup: { free_only: boolean; key_set: boolean; adapter_mode: string; global_go_live: boolean; calls_this_month: number; monthly_cap: number;
+    research_key_set: boolean; research_mode: string; research_calls_this_month: number; research_monthly_cap: number };
+  searches: CompanySearch[];
+};
+export type WebResearch = { called: boolean; reason: string | null; answer: string | null;
+  sources: { title: string; url: string }[]; queries: string[]; suggestions_html: string };
 export type Watched = { name: string; company_number: string | null; domain: string | null; country: string | null; job_board: string | null };
 export type Targeting = {
   industry_keywords: string[]; exclude_keywords: string[]; hiring_keywords: string[]; sic_codes: string[];
   countries: string[]; watchlist: Watched[]; config_version: number; available_countries: string[];
 };
 export type SourceHealth = {
-  source: string; status: "healthy" | "degraded" | "failing"; runs_24h: number; failures_24h: number; fetched_24h: number;
+  source: string; status: "healthy" | "degraded" | "failing" | "silent"; runs_24h: number; failures_24h: number; fetched_24h: number;
   last_run_at: string; last_outcome: string; last_error: string | null; last_success_at: string | null;
 };
 export type Account = { status: string; paused_reason: string | null; paused_at: string | null };

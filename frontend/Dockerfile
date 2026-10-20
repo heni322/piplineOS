@@ -7,6 +7,11 @@ COPY . .
 # The landing page's pilot-enquiry address, baked in at build time (docker build --build-arg ...). Empty: no button.
 ARG NEXT_PUBLIC_CONTACT_EMAIL=""
 ENV NEXT_PUBLIC_CONTACT_EMAIL=$NEXT_PUBLIC_CONTACT_EMAIL
+# Interface language (en-GB or fr-FR) and the time zone times are shown in; also baked in at build time.
+ARG NEXT_PUBLIC_LOCALE="en-GB"
+ENV NEXT_PUBLIC_LOCALE=$NEXT_PUBLIC_LOCALE
+ARG NEXT_PUBLIC_TIME_ZONE=""
+ENV NEXT_PUBLIC_TIME_ZONE=$NEXT_PUBLIC_TIME_ZONE
 RUN pnpm build
 
 FROM node:22-alpine

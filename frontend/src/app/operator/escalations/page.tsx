@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Problem } from "@/lib/api";
-import { getMessages } from "@/lib/i18n";
+import { getMessages, LOCALE } from "@/lib/i18n";
 import type { Escalation } from "@/lib/types";
 
 const t = getMessages().escalations;
@@ -68,7 +68,7 @@ export default function EscalationsPage() {
                 <tr key={r.id}>
                   <td><strong>{reasonLabel(r.reason)}</strong></td>
                   <td>{r.company}</td>
-                  <td>{new Date(r.created_at).toLocaleString("en-GB")}</td>
+                  <td>{new Date(r.created_at).toLocaleString(LOCALE)}</td>
                   <td>{r.lead_state.replaceAll("_", " ")}</td>
                   <td className="muted">{describe(r.detail) || "–"}</td>
                   <td>
