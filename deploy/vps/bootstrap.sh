@@ -52,7 +52,10 @@ printf '%s' "$PG_OWNER" > secrets/pipelineos_owner
 printf '%s' "$PG_APP" > secrets/pipelineos_app
 printf '%s' "$PG_BACKUP" > secrets/pipelineos_backup
 printf '%s' "$BACKUP_PASSPHRASE" > secrets/backup_passphrase
-chmod 600 secrets/*
+# Docker mounts these files as they are on disk. The postgres and backup images read them as the postgres user
+# (uid 999), so they belong to that uid and nobody else can read them.
+chown 999:999 secrets/*
+chmod 400 secrets/*
 
 cp .env.prod.example .env.prod
 chmod 600 .env.prod

@@ -34,6 +34,9 @@ Neither provider's pricing page shows London-specific instance prices; the figur
    - `pipelineos_app`
    - `pipelineos_backup`
    - `backup_passphrase` (≥ 20 characters)
+
+   Then `chown 999:999 secrets/* && chmod 400 secrets/*`: the postgres and backup containers read them as the
+   postgres user (uid 999).
 4. Copy `.env.prod.example` to `.env.prod` (`chmod 600`) and fill it.
    - Generate the four application keys with `pipelineos keys generate`.
    - **Store the keys and the backup passphrase offline, in two places, separate from the backups.** Without `PII_MASTER_KEY` a backup can't be read. `SUPPRESSION_HASH_KEY` must never change.

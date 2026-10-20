@@ -50,6 +50,9 @@ services:
   valkey:
     <<: *hardening
     image: valkey/valkey:8-alpine
+    # its entrypoint starts as root, takes ownership of /data, then drops to the valkey user (setpriv): those three
+    # capabilities only (first start on a real server, 2026-10-20: "setresuid failed: Operation not permitted")
+    cap_add: ["CHOWN", "SETUID", "SETGID"]
     command: ["valkey-server", "--appendonly", "yes", "--requirepass", "${VALKEY_PASSWORD:?set VALKEY_PASSWORD}"]
     volumes: ["valkeydata:/data"]
     networks: [internal]
