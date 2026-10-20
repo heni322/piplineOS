@@ -1,0 +1,40 @@
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 34%]
+........................................................................ [ 43%]
+F....................................................................... [ 52%]
+........................................................................ [ 60%]
+........................................................................ [ 69%]
+........................................................................ [ 78%]
+........................................................................ [ 86%]
+........................................................................ [ 95%]
+......................................                                   [100%]
+================================== FAILURES ===================================
+___________________ test_readiness_reports_each_dependency ____________________
+
+world = (<starlette.testclient.TestClient object at 0x00000213F35F2350>, DemoIds(tenant_id=UUID('3c29d019-632f-4018-8d98-b004e...rms_days=14, dispute_window_days=14), roi=None, watchlist=[]), config_id=UUID('759c721b-7997-4aad-bbb5-ae854d4edf94')))
+
+    def test_readiness_reports_each_dependency(world) -> None:  # type: ignore[no-untyped-def]
+        c, _, _ = world
+        r = TestClient(c.app).get("/api/v1/ready")
+        body = r.json()
+        from alembic.config import Config
+        from alembic.script import ScriptDirectory
+    
+        from tests.conftest import BACKEND
+    
+        head = ScriptDirectory.from_config(Config(str(BACKEND / "alembic.ini"))).get_current_head()
+>       assert body["database"] == "ok" and body["schema"] == head
+E       AssertionError: assert ('ok' == 'ok'
+E         
+E           ok and '0026' == '0027'
+E         
+E         - 0027
+E         ?    ^
+E         + 0026
+E         ?    ^)
+
+tests\security\test_ops.py:63: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/security/test_ops.py::test_readiness_reports_each_dependency - A...

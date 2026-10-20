@@ -1,0 +1,7 @@
+VPS: nginx paths as found on the server (single default.conf, certificates under /etc/nginx/ssl)
+
+cdnkt_nginx mounts one configuration file, not a conf.d folder, and sees certbot's /etc/letsencrypt volume at
+/etc/nginx/ssl. The voyz.fr blocks are appended to that file after a backup; the guide now clones main.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

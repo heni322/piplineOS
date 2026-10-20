@@ -1,0 +1,9 @@
+Merge branch 'fix/live-source-findings' into main
+
+Live source check, contactable-rate measurement, inbox placement checks, the free local AI model on the server,
+Google Places (gated, capped) with a Find companies page, Gemini as an optional paid AI and a web research panel,
+BOAMP for France, three more public job boards, LinkedIn as a manual contact channel, the data quality report by
+source, the French interface, and the voyz.fr deployment on the shared VPS.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

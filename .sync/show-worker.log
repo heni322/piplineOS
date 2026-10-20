@@ -1,0 +1,44 @@
+ 
+ -------------- celery@DESKTOP-TK6HO92 v5.6.3 (recovery)
+--- ***** ----- 
+-- ******* ---- Windows-11-10.0.26200-SP0 2026-10-19 22:49:05
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         pipelineos:0x1691bf07e00
+- ** ---------- .> transport:   redis://localhost:6380/0
+- ** ---------- .> results:     disabled://
+- *** --- * --- .> concurrency: 12 (solo)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> default          exchange=default(direct) key=default
+                
+
+[tasks]
+  . pipelineos.pipeline.draft_referral
+  . pipelineos.pipeline.hunt
+  . pipelineos.pipeline.process_lead
+  . pipelineos.places.company_search
+  . pipelineos.replies.fetch_inbound
+  . pipelineos.replies.gmail_history
+  . pipelineos.replies.graph_message
+  . pipelineos.replies.renew_gmail_watches
+  . pipelineos.replies.renew_graph_subscriptions
+  . pipelineos.replies.sweep_inbound
+  . pipelineos.send.send_due
+  . pipelineos.signals.ingest_filings
+  . pipelineos.system.crm_sync
+  . pipelineos.system.daily_deliverability
+  . pipelineos.system.deliverability
+  . pipelineos.system.reconcile_sends
+  . pipelineos.system.relay_outbox
+  . pipelineos.system.reply_sla
+  . pipelineos.system.retention
+  . pipelineos.system.weekly_report
+
+[2026-10-19 22:49:05,854: INFO/MainProcess] Connected to redis://localhost:6380/0
+[2026-10-19 22:49:05,861: INFO/MainProcess] mingle: searching for neighbors
+[2026-10-19 22:49:06,932: INFO/MainProcess] mingle: all alone
+[2026-10-19 22:49:06,984: INFO/MainProcess] celery@DESKTOP-TK6HO92 ready.
+[2026-10-19 22:49:06,987: INFO/MainProcess] Task pipelineos.places.company_search[c55d541e-542c-4894-ac6f-066035171b92] received
+[2026-10-19 22:49:07,323: INFO/MainProcess] Task pipelineos.places.company_search[c55d541e-542c-4894-ac6f-066035171b92] succeeded in 0.33593200000177603s: 'failed'

@@ -1,0 +1,10 @@
+Production stack: first start on a real server (secrets readable by uid 999, valkey capabilities)
+
+- The postgres and backup images read the Docker secrets as the postgres user (uid 999), but bootstrap.sh made
+  them root-only: the role setup failed ("Permission denied") and the database was never created. Secrets now
+  belong to uid 999, mode 400 (bootstrap.sh and DEPLOYMENT.md).
+- valkey's entrypoint takes ownership of /data and drops to its own user, which cap_drop ALL forbade
+  ("setresuid failed"): it gets CHOWN, SETUID and SETGID only.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

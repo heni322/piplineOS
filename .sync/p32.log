@@ -1,0 +1,16 @@
+E501 Line too long (121 > 120)
+  --> app\domain\paid\research.py:74:121
+   |
+72 |     gate = _gate(settings, engine, cipher, tenant_id, settings.gemini_search_mode)
+73 |     return GatedResearch(
+74 |         GeminiSearch(key.get_secret_value(), settings.gemini_model), gate, engine, cap=settings.gemini_search_monthly_cap
+   |                                                                                                                         ^
+75 |     )
+   |
+
+Found 1 error.
+2 files reformatted, 348 files left unchanged
+All checks passed!
+Success: no issues found in 214 source files
+Contracts: 3 kept, 0 broken.
+.ssssssssss                                                              [100%]

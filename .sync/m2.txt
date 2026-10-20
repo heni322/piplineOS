@@ -1,0 +1,10 @@
+French interface: fr-FR catalogue and per-deployment language
+
+- messages/fr-FR.json: all 964 interface texts in French (console, client portal, landing page)
+- NEXT_PUBLIC_LOCALE (build argument, en-GB by default) picks the catalogue; dates, amounts and percentages follow
+  it, and times use NEXT_PUBLIC_TIME_ZONE (Europe/Paris by default for fr-FR); <html lang> follows it
+- voyz.fr setup builds the French interface (bootstrap.sh, docker-compose.vps.yml)
+- test: every catalogue has exactly the English keys and placeholders, and no empty text
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

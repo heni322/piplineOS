@@ -1,0 +1,11 @@
+BOAMP: French public contract awards as a free signal source
+
+- app/adapters/signals/boamp.py: France's official procurement bulletin (DILA open data, Licence Ouverte, no key).
+  Award notices that name their winners, since the date; French titles matched without regard to accents; one
+  signal per winner, linked to BOAMP's own notice page. No contact points requested.
+- For clients targeting France it replaces TED (same EU-level notices plus national MAPA ones, with French
+  titles); TED keeps the other EU countries
+- `pipelineos signals check boamp`; live check 2026-10-19: 30 IT award signals from 25 notices in 14 days
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

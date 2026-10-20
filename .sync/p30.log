@@ -1,0 +1,26 @@
+All checks passed!
+2 files reformatted, 345 files left unchanged
+Success: no issues found in 212 source files
+...............                                                          [100%]
+---live--- 
+{
+  "source": "job-board",
+  "failed": [],
+  "signals": [
+    "checked company published 5 new role(s) on its careers page: Senior Open-Source Python Engineer, ML Developer Tools - EMEA Remote (Product), France; Senior Open-Source Python Engineer, ML Developer Tools - US Remote (Product), United States; Senior Machine Learning Engineer, Voice Agents - EMEA Remote (Science), Paris, France; Open-Source Machine Learning Engineer - EMEA Remote (Open Source), Paris, France; Open-Source Machine Learning Engineer - US Remote (Open Source), New York, United States."
+  ]
+}
+{
+  "source": "job-board",
+  "failed": [],
+  "signals": [
+    "checked company published 23 new role(s) on its careers page: Cards Experience Guide (Support & Operations), Amsterdam, Noord-Holland, Netherlands; Head of Product (Product), Amsterdam, Noord-Holland, Netherlands; (Senior) Product Owner (Product), Amsterdam, Noord-Holland, Netherlands; Transaction Review Lead (Growth), Amsterdam, Noord-Holland, Netherlands; Technical Website Intern, Amsterdam, Noord-Holland, Netherlands; Deputy AML Manager - Belgium, Brussels, Brussels, Belgium; Website Lead (Growth), Amsterdam, Noord-Holland, Netherlands; Internal Auditor - Data Security & AI, Amsterdam, Noord-Holland, Netherlands and 15 more."
+  ]
+}
+{
+  "source": "job-board",
+  "failed": [],
+  "signals": [
+    "checked company published 3 new role(s) on its careers page: Paid Internship \u2013 IT Help Desk Support (Fleet & LAN) (f/m) (Information Technology), Mirk\u00f3w, Wojew\u00f3dztwo dolno\u015bl\u0105skie, Poland; T\u00fcrkischsprachiger Mitarbeiter IT-Service Desk (w/m/div.)  (Customer Service), Berlin, BE, Germany; Pflichtpraktikum im IT-Transformationsprojekt - PLM Crosstopics (Information Technology), Stuttgart, BW, Germany."
+  ]
+}

@@ -1,0 +1,195 @@
+Resolved 113 packages in 1ms
+Audited 111 packages in 9ms
+==== WEBSITE WTL 04553105 
+HTTP Request: GET https://query.wikidata.org/sparql?query=SELECT+%3Fw+WHERE+%7B+%3Fc+wdt%3AP2622+%2204553105%22%3B+wdt%3AP856+%3Fw+.+%7D+LIMIT+3&format=json "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.com/robots.txt "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.com/ "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.com/contact "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.com/contact-us "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.com/about "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.com/about-us "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.com/privacy-policy "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.com/terms "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.uk/robots.txt "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.uk/ "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://www.wtl.uk/ "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.uk/contact "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://www.wtl.uk/contact "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.uk/contact-us "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://www.wtl.uk/contact-us "HTTP/1.1 404 Not Found"
+HTTP Request: GET https://wtl.uk/about "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://www.wtl.uk/about "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.uk/about-us "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://www.wtl.uk/about-us "HTTP/1.1 404 Not Found"
+HTTP Request: GET https://wtl.uk/privacy-policy "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://www.wtl.uk/privacy-policy "HTTP/1.1 200 OK"
+HTTP Request: GET https://wtl.uk/terms "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://www.wtl.uk/terms "HTTP/1.1 404 Not Found"
+{
+  "source": "website",
+  "site": null
+}
+==== WEBSITE Meditati 00663323 
+HTTP Request: GET https://query.wikidata.org/sparql?query=SELECT+%3Fw+WHERE+%7B+%3Fc+wdt%3AP2622+%2200663323%22%3B+wdt%3AP856+%3Fw+.+%7D+LIMIT+3&format=json "HTTP/1.1 200 OK"
+HTTP Request: GET https://meditati.com/robots.txt "HTTP/1.1 200 OK"
+HTTP Request: GET https://meditati.com/ "HTTP/1.1 200 OK"
+HTTP Request: GET https://meditati.com/contact "HTTP/1.1 200 OK"
+HTTP Request: GET https://meditati.com/contact-us "HTTP/1.1 200 OK"
+HTTP Request: GET https://meditati.com/about "HTTP/1.1 200 OK"
+HTTP Request: GET https://meditati.com/about-us "HTTP/1.1 200 OK"
+HTTP Request: GET https://meditati.com/privacy-policy "HTTP/1.1 200 OK"
+HTTP Request: GET https://meditati.com/terms "HTTP/1.1 200 OK"
+{
+  "source": "website",
+  "site": null
+}
+==== MIGRATE 
+Traceback (most recent call last):
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 149, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 3287, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 445, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 1303, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 709, in checkout
+    rec = pool._do_get()
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\impl.py", line 176, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 166, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\impl.py", line 174, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 386, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 671, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 906, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 166, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 902, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\create.py", line 645, in connect
+    return dialect.connect(*cargs_tup, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 869, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\psycopg\connection.py", line 134, in connect
+    raise new_ex.with_traceback(None)
+psycopg.OperationalError: connection failed: connection to server at "127.0.0.1", port 5433 failed: FATAL:  the database system is starting up
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: 5433, hostaddr: '::1': connection failed: connection to server at "::1", port 5433 failed: FATAL:  the database system is starting up
+- host: 'localhost', port: 5433, hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5433 failed: FATAL:  the database system is starting up
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Scripts\alembic.exe\__main__.py", line 10, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\alembic\config.py", line 1039, in main
+    CommandLine(prog=prog).main(argv=argv)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\alembic\config.py", line 1029, in main
+    self.run_cmd(cfg, options)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\alembic\config.py", line 963, in run_cmd
+    fn(
+    ~~^
+        config,
+        ^^^^^^^
+        *[getattr(options, k, None) for k in positional],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        **{k: getattr(options, k, None) for k in kwarg},
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\alembic\command.py", line 487, in upgrade
+    script.run_env()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\alembic\script\base.py", line 550, in run_env
+    util.load_python_file(self.dir, "env.py")
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\alembic\util\pyfiles.py", line 114, in load_python_file
+    module = load_module_py(module_id, path)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\alembic\util\pyfiles.py", line 132, in load_module_py
+    spec.loader.exec_module(module)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\heniz\Desktop\piplineOS\backend\migrations\env.py", line 17, in <module>
+    with engine.connect() as connection:
+         ~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 3263, in connect
+    return self._connection_cls(self)
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 151, in __init__
+    Connection._handle_dbapi_exception_noconnection(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        err, dialect, engine
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2420, in _handle_dbapi_exception_noconnection
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 149, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 3287, in raw_connection
+    return self.pool.connect()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 445, in connect
+    return _ConnectionFairy._checkout(self)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 1303, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 709, in checkout
+    rec = pool._do_get()
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\impl.py", line 176, in _do_get
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 166, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\impl.py", line 174, in _do_get
+    return self._create_connection()
+           ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 386, in _create_connection
+    return _ConnectionRecord(self)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 671, in __init__
+    self.__connect()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 906, in __connect
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 166, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\pool\base.py", line 902, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\create.py", line 645, in connect
+    return dialect.connect(*cargs_tup, **cparams)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 869, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\psycopg\connection.py", line 134, in connect
+    raise new_ex.with_traceback(None)
+sqlalchemy.exc.OperationalError: (psycopg.OperationalError) connection failed: connection to server at "127.0.0.1", port 5433 failed: FATAL:  the database system is starting up
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: 5433, hostaddr: '::1': connection failed: connection to server at "::1", port 5433 failed: FATAL:  the database system is starting up
+- host: 'localhost', port: 5433, hostaddr: '127.0.0.1': connection failed: connection to server at "127.0.0.1", port 5433 failed: FATAL:  the database system is starting up
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+MIGRATED 

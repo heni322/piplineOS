@@ -1,0 +1,26 @@
+All checks passed!
+Success: no issues found in 211 source files
+
+╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐
+╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │
+ ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗
+ ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝
+╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║
+╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝
+  └──▶║║                    ▲ 
+      ╚╝────────────────────┘
+
+
+---------
+Contracts
+---------
+
+Analyzed 271 files, 1625 dependencies.
+--------------------------------------
+
+Side-effecting adapters (email, calendar, crm) may only be imported by the 
+outbound gateway KEPT
+The compliance engine is pure (no database, network or adapters) KEPT
+Paid data providers (Hunter) may only be built by the paid-call gate KEPT
+
+Contracts: 3 kept, 0 broken.

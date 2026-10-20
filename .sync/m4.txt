@@ -1,0 +1,11 @@
+Data quality by source on the Reports page, and a browser test for Find companies
+
+- metrics.by_source: for the leads of the period, per signal source: register-confirmed, website proven, email
+  found, blocked by compliance, contact tasks, reached, bounced, replied (counts and rates; referrals excluded)
+- Reports page: "Data quality by source" table (operator view), English and French; source names labelled
+- Go-live page names BOAMP and TED among the signal sources
+- e2e: Find companies page (setup note, accessibility, a search is recorded and never silently lost)
+- Business readiness: lead acquisition 4.5, data quality 5.5
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

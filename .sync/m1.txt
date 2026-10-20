@@ -1,0 +1,13 @@
+Find companies in the operator console: Google Places searches run in the background
+
+- company_searches (migration 0027, tenant RLS): operators ask, only the worker writes the result; never deleted
+- app.domain.paid.searches: request, dispatch, run once (a redelivered task is skipped), time limit with partial
+  results, failures recorded with their reason (FREE_ONLY, no key, queue down); nothing Google returned is stored
+- API: GET/POST /api/v1/clients/{id}/company-searches (operator only), with the setup that explains whether
+  Google can be called; Celery task pipelineos.places.company_search
+- Console page /operator/discover: search, auto-refresh, tick confirmed companies, add them to the watchlist
+  through the targeting save (version check applies)
+- i18n test walks keys as paths (the "outlook.com" key broke it)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

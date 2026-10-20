@@ -1,0 +1,14 @@
+Web research panel: Gemini grounded on Google Search, shown to the operator, never stored
+
+- app/adapters/gemini_search.py: generateContent with the google_search tool, key in a header; answer, sources
+  (http(s) only, deduplicated), search queries and Google's Search Suggestions
+- app/domain/paid/research.py: paid gate (three keys, never FREE_ONLY), monthly cap counted in provider_usage
+  before each request; before go-live the question goes to the dry-run log and nothing is called. Only the fact
+  that a question was asked is audited, never the question or the answer
+- POST /api/v1/clients/{id}/web-research (operator only); Find companies page panel with the answer, its sources
+  and Google's suggestions in a sandboxed frame without scripts (English and French)
+- Google's terms for grounded results: shown to the person who asked, unchanged, not cached or used for automated
+  processing; so nothing feeds the pipeline automatically
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

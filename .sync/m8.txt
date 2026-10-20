@@ -1,0 +1,7 @@
+e2e: the Find companies page now has two setup notes (Places and web research)
+
+The Gemini web research panel added a second role="note" on the page, so the single-note assertion failed in CI
+(strict mode). The test now checks both notes, in order.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

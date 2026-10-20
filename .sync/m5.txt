@@ -1,0 +1,11 @@
+Three more public job boards (Recruitee, Workable, SmartRecruiters) and LinkedIn as a manual contact channel
+
+- job_boards: Recruitee (the employer's own sub-domain; board names restricted to host-safe characters), Workable
+  and SmartRecruiters, through the public endpoints they publish for careers pages (no key). Drafts and private
+  postings are left out. Checked live on 2026-10-19 (Hugging Face, bunq, Bosch).
+- Watchlist accepts recruitee:, workable: and smartrecruiters: boards
+- Contact tasks: a LinkedIn company search link that opens in the operator's own browser, for contact by hand.
+  Nothing is read or collected from LinkedIn (the brief forbids scraping it, and so do its terms).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012fNwModRXHAyMYawh1TWe6

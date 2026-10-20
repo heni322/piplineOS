@@ -1,0 +1,27 @@
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 35%]
+........................................................................ [ 44%]
+........................................................................ [ 53%]
+........................................................................ [ 61%]
+........................................................................ [ 70%]
+........................................................................ [ 79%]
+........................................................................ [ 88%]
+........................................................................ [ 97%]
+.......................                                                  [100%]
+============================== warnings summary ===============================
+tests/integration/test_replies.py::test_reseeding_upgrades_an_outdated_demo_config
+tests/security/test_crm_sync.py::test_client_connects_their_own_crm_and_the_token_is_never_returned
+tests/security/test_crm_sync.py::test_client_connects_their_own_crm_and_the_token_is_never_returned
+tests/security/test_crm_sync.py::test_client_connects_their_own_crm_and_the_token_is_never_returned
+tests/security/test_crm_sync.py::test_client_connects_their_own_crm_and_the_token_is_never_returned
+  C:\Users\heniz\Desktop\piplineOS\backend\app\domain\outbound\crm.py:75: SADeprecationWarning: The Result.tuples() method is deprecated, Row now behaves like a tuple and can unpack types directly. (deprecated since: 2.1.0)
+    .tuples()
+
+tests/security/test_ops.py::test_readiness_reports_each_dependency
+  C:\Users\heniz\Desktop\piplineOS\backend\.venv\Lib\site-packages\alembic\config.py:604: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+DONE 

@@ -1,0 +1,27 @@
+...........                                                              [100%]
+
+> pipelineos-web@0.2.0 typecheck C:\Users\heniz\Desktop\piplineOS\frontend
+> tsc --noEmit
+
+
+> pipelineos-web@0.2.0 lint C:\Users\heniz\Desktop\piplineOS\frontend
+> eslint .
+
+
+> pipelineos-web@0.2.0 test C:\Users\heniz\Desktop\piplineOS\frontend
+> vitest run
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90mC:/Users/heniz/Desktop/piplineOS/frontend[39m
+
+ [32m✓[39m tests/i18n.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 215[2mms[22m[39m
+ [32m✓[39m tests/Countdown.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m tests/CitedLetter.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 185[2mms[22m[39m
+ [32m✓[39m tests/InvoiceDocument.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 245[2mms[22m[39m
+ [32m✓[39m tests/LoginForm.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 286[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m5 passed[39m[22m[90m (5)[39m
+[2m      Tests [22m [1m[32m15 passed[39m[22m[90m (15)[39m
+[2m   Start at [22m 12:39:52
+[2m   Duration [22m 2.80s[2m (transform 521ms, setup 1.24s, import 2.14s, tests 995ms, environment 6.90s)[22m
+

@@ -1,0 +1,225 @@
+Resolved 113 packages in 1ms
+Audited 111 packages in 1.68s
+==== TED FR 
+HTTP Request: POST https://api.ted.europa.eu/v3/notices/search "HTTP/1.1 200 OK"
+{
+  "source": "ted",
+  "signals": 10,
+  "sample": [
+    [
+      "SETICS",
+      "France",
+      "Awarded: France \u2013 Engineering services \u2013 Accord-cadre \u00e0 bons de commande de Fourniture de Service : prestations intellectuelles - Assistance \u00e0 Ma\u00eetrise d'Ouvrage technique, strat\u00e9gique, financi\u00e8re et "
+    ],
+    [
+      "EWILL",
+      "France",
+      "Awarded: France \u2013 IT services: consulting, software development, Internet and support \u2013 Reprise, exploitation technique et optimisation du site internet et de la progressive web app de la Ville d'Asni"
+    ],
+    [
+      "COGNIX SYSTEMS",
+      "France",
+      "Awarded: France \u2013 IT services: consulting, software development, Internet and support \u2013 Reprise, exploitation technique et optimisation du site internet et de la progressive web app de la Ville d'Asni"
+    ],
+    [
+      "ABILITY",
+      "France",
+      "Awarded: France \u2013 IT services: consulting, software development, Internet and support \u2013 Prestations de services dans le domaine num\u00e9rique et digital pour la communication num\u00e9rique de la pr\u00e9sidence de"
+    ],
+    [
+      "SENSIOLABS",
+      "France",
+      "Awarded: France \u2013 IT services: consulting, software development, Internet and support \u2013 Prestations de services dans le domaine num\u00e9rique et digital pour la communication num\u00e9rique de la pr\u00e9sidence de"
+    ]
+  ]
+}
+==== TED DE 
+HTTP Request: POST https://api.ted.europa.eu/v3/notices/search "HTTP/1.1 200 OK"
+{
+  "source": "ted",
+  "signals": 10,
+  "sample": [
+    [
+      "Scompler Technologies GmbH",
+      "Germany",
+      "Awarded: Germany \u2013 Software package and information systems \u2013 EU-Vergabe \"Contentplanungstool\""
+    ],
+    [
+      "Terrera",
+      "Germany",
+      "Awarded: Germany \u2013 Internet service providers ISP \u2013 Anschluss an eine Breitbandanbindung mit 10 Gbits symmetrisch"
+    ],
+    [
+      "CGI Deutschland B.V. & Co. KG",
+      "Germany",
+      "Awarded: Germany \u2013 Software-related services \u2013 Nachhaltige IT-DL f\u00fcr die Softwareentwicklung im Bereich Anforderungsmanagement (hier: Anforderungs-/Systemanalyse sowie Erstellung von Lasten-/ Pflichte"
+    ],
+    [
+      "BearingPoint GmbH",
+      "Germany",
+      "Awarded: Germany \u2013 Software-related services \u2013 Nachhaltige IT-DL f\u00fcr die Softwareentwicklung im Bereich Anforderungsmanagement (hier: Anforderungs-/Systemanalyse sowie Erstellung von Lasten-/ Pflichte"
+    ],
+    [
+      "CoreMedia GmbH",
+      "Germany",
+      "Awarded: Germany \u2013 Software package suites \u2013 Softwaremiete CoreMedia Content Cloud - Self Managed v12"
+    ]
+  ]
+}
+==== GREENHOUSE gitlab 
+HTTP Request: GET https://boards-api.greenhouse.io/v1/boards/gitlab/jobs "HTTP/1.1 200 OK"
+{
+  "source": "job-board",
+  "failed": [],
+  "signals": [
+    "checked company published 64 new role(s) on its careers page: Backend Engineer (Ruby), Create: Change Record, Remote, Poland; Remote, United Kingdom; Strategic Account Executive, Northeast, Remote, United States; Manager, Customer Success , Remote, United States; Public Sector Strategic Account Executive - Brazil, Remote, Brazil; Strategic Account Executive, Financial Services - Brazil, Remote, Brazil; Sr. Manager, Solutions Architect SME, Remote, United States; Strategic Account Executive - Brazil, Remote, Brazil; Senior People Business Partner, Engineering, Remote, Canada; Remote, United States and 56 more."
+  ]
+}
+==== LEVER spotify 
+HTTP Request: GET https://api.lever.co/v0/postings/spotify?mode=json "HTTP/1.1 200 OK"
+{
+  "source": "job-board",
+  "failed": [],
+  "signals": [
+    "checked company published 19 new role(s) on its careers page: Audiobook Licensing & Partnerships Manager - Japan (Business Team), Tokyo; Client Partner ANZ (Advertising), Sydney; Senior Machine Learning Engineer, Personalization (Engineering), New York, NY; Security Engineer - Enterprise Security (Engineering), London; Senior Product Manager, Consumer - Audiobooks (Product), New York, NY; Senior Product Manager, Consumer - Audiobooks (Product), London; Global Creative Lead, Reverb (Marketing), New York, NY; Art Director - Mexico (Markets and Subscriber Growth), Mexico City and 11 more."
+  ]
+}
+==== ASHBY ramp 
+HTTP Request: GET https://api.ashbyhq.com/posting-api/job-board/ramp "HTTP/1.1 200 OK"
+{
+  "source": "job-board",
+  "failed": [],
+  "signals": [
+    "checked company published 23 new role(s) on its careers page: Chief Compliance Officer, Ramp Advisory LLC (Compliance), New York, NY (HQ); Lead, Employment Counsel (Legal), New York, NY (HQ); Compliance Innovation Senior Strategist (Compliance), New York, NY (HQ); Senior Technical Program Manager (Engineering), New York, NY (HQ);  Senior Manager, Account Manager, Enterprise (Sales), New York, NY (HQ); People Programs Lead (People & Talent), New York, NY (HQ); Brand Partnerships Manager (Marketing), New York, NY (HQ); Analyst, Deal Operations (Deal Desk), San Francisco, CA and 15 more."
+  ]
+}
+==== GAZETTE 00445790 
+HTTP Request: GET https://www.thegazette.co.uk/all-notices/notice/data.feed?text=%2200445790%22&categorycode=G205000000&results-page-size=20 "HTTP/1.1 403 Forbidden"
+┌───────────────────── Traceback (most recent call last) ─────────────────────┐
+│ C:\Users\heniz\Desktop\piplineOS\backend\app\cli.py:109 in check_sources    │
+│                                                                             │
+│   106 │   elif source == "gazette":                                         │
+│   107 │   │   from app.adapters.insolvency import GazetteNotices            │
+│   108 │   │                                                                 │
+│ > 109 │   │   out |= {"insolvency_notices":                                 │
+│       GazetteNotices().recent(target)}                                      │
+│   110 │   elif source == "website":                                         │
+│   111 │   │   from app.adapters.website_contacts import WebsiteFinder       │
+│   112                                                                       │
+│                                                                             │
+│ C:\Users\heniz\Desktop\piplineOS\backend\app\adapters\insolvency.py:57 in   │
+│ recent                                                                      │
+│                                                                             │
+│    54 │   │   │   "/all-notices/notice/data.feed",                          │
+│    55 │   │   │   params={"text": f'"{company_number}"', "categorycode":    │
+│       CORPORATE_INSOLVENCY, "results-page-size": 20},                       │
+│    56 │   │   )                                                             │
+│ >  57 │   │   root = safe_fromstring(check(resp).content)  # no entities,   │
+│       no external references                                                │
+│    58 │   │   cutoff = (now or datetime.now(UTC)) - self._lookback          │
+│    59 │   │   out = []                                                      │
+│    60 │   │   for e in root.iter(f"{ATOM}entry"):                           │
+│                                                                             │
+│ C:\Users\heniz\Desktop\piplineOS\backend\app\adapters\http.py:33 in check   │
+│                                                                             │
+│   30 │   if resp.status_code >= 500:                                        │
+│   31 │   │   raise RetryableProviderError(f"{resp.status_code} from         │
+│      provider")                                                             │
+│   32 │   if resp.status_code >= 400:                                        │
+│ > 33 │   │   raise ProviderError(resp.status_code, resp.text)               │
+│   34 │   return resp                                                        │
+│   35                                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+ProviderError: 403: <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 
+Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML><HEAD><META HTTP-EQUIV="Content-Type" CONTENT="text/html; 
+charset=iso-8859-1">
+<TITLE>ERROR: The request could not be satisfied</TITLE>
+</HEAD><BODY>
+<H1>403 ERROR</H1>
+<H2>The request could 
+==== WEBSITE 00445790 
+HTTP Request: GET https://query.wikidata.org/sparql?query=SELECT+%3Fw+WHERE+%7B+%3Fc+wdt%3AP2622+%2200445790%22%3B+wdt%3AP856+%3Fw+.+%7D+LIMIT+3&format=json "HTTP/1.1 403 Forbidden"
+HTTP Request: GET https://tesco.co.uk/robots.txt "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://tesco.co.uk/ "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://tesco.co.uk/contact "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://tesco.co.uk/contact-us "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://tesco.co.uk/about "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://tesco.co.uk/about-us "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://tesco.co.uk/privacy-policy "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://tesco.co.uk/terms "HTTP/1.1 301 Moved Permanently"
+HTTP Request: GET https://tesco.com/robots.txt "HTTP/1.1 403 Forbidden"
+{
+  "source": "website",
+  "site": null
+}
+==== OCDS AND REGISTERS 
+{
+ "contracts_finder": {
+  "signals": 0,
+  "sample": []
+ },
+ "find_a_tender": {
+  "signals": 80,
+  "sample": [
+   [
+    "Kyndryl",
+    "13141201",
+    "Awarded: AI Sandbox"
+   ],
+   [
+    "WTL Limited",
+    "04553105",
+    "Awarded: Managed Service for the Provision, Management and S"
+   ],
+   [
+    "Meditati Limited",
+    "00663323",
+    "Awarded: Document Bundling Legal Case Management System"
+   ]
+  ]
+ },
+ "fr_register_number": {
+  "company_number": "552032534",
+  "name": "DANONE",
+  "legal_form": "plc",
+  "status": "active",
+  "registered_country": "FR"
+ },
+ "fr_register_name": {
+  "company_number": "552032534",
+  "name": "DANONE",
+  "legal_form": "plc",
+  "status": "active",
+  "registered_country": "FR"
+ },
+ "no_register_number": {
+  "company_number": "923609016",
+  "name": "EQUINOR ASA",
+  "legal_form": "plc",
+  "status": "active",
+  "registered_country": "NO"
+ },
+ "no_register_name": {
+  "company_number": "923609016",
+  "name": "EQUINOR ASA",
+  "legal_form": "plc",
+  "status": "active",
+  "registered_country": "NO"
+ },
+ "fi_register_number": {
+  "company_number": "0112038-9",
+  "name": "Nokia Oyj",
+  "legal_form": "plc",
+  "status": "active",
+  "registered_country": "FI"
+ },
+ "fi_register_name": {
+  "company_number": "2336509-6",
+  "name": "Supercell Oy",
+  "legal_form": "ltd",
+  "status": "active",
+  "registered_country": "FI"
+ }
+}
+LIVE-DONE 

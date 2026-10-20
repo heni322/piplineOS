@@ -1,0 +1,75 @@
+All checks passed!
+345 files left unchanged
+Success: no issues found in 212 source files
+
+╔══╗─────────▶╔╗ ╔╗      ╔╗◀───┐
+╚╣╠╝◀─────┐  ╔╝╚╗║║────▶╔╝╚╗   │
+ ║║   ╔══╦══╦╩╗╔╝║║  ╔╦═╩╗╔╝╔═╦══╗
+ ║║╔══╣╔╗║╔╗║╔╣║ ║║ ╔╬╣╔╗║║ ║│║╔═╝
+╔╣╠╣║║║╚╝║╚╝║║║╚╗║╚═╝║║║║║╚╗║═╣║
+╚══╩╩╩╣╔═╩══╩╝╚═╝╚═══╩╩╝╚╩═╩╩═╩╝
+  └──▶║║                    ▲ 
+      ╚╝────────────────────┘
+
+
+---------
+Contracts
+---------
+
+Analyzed 272 files, 1635 dependencies.
+--------------------------------------
+
+Side-effecting adapters (email, calendar, crm) may only be imported by the 
+outbound gateway KEPT
+The compliance engine is pure (no database, network or adapters) KEPT
+Paid data providers (Hunter) may only be built by the paid-call gate KEPT
+
+Contracts: 3 kept, 0 broken.
+..F....                                                                  [100%]
+================================== FAILURES ===================================
+_____ test_paging_stops_at_the_last_page_and_no_keywords_means_no_request _____
+
+    def test_paging_stops_at_the_last_page_and_no_keywords_means_no_request() -> None:
+        seen: list[httpx.Request] = []
+        sigs = source(RECORDS, seen, page_size=3).fetch("informatique", SINCE)
+>       assert [r.url.params["offset"] for r in seen] == ["0", "3"] and len(sigs) == 3
+E       AssertionError: assert (['0', '3'] == ['0', '3']
+E         
+E         Use -v to get more diff and 2 == 3)
+E        +  where 2 = len([RawSignal(company_name='IMPRIM FICTIF', domain=None, country_hint='France', signal_type='tender', title='Awarded: Mai...datetime(2026, 10, 19, 0, 0, tzinfo=datetime.timezone.utc), source_record_id='boamp:26-100004:0', company_number=None)])
+
+tests\contract\test_boamp.py:74: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/contract/test_boamp.py::test_paging_stops_at_the_last_page_and_no_keywords_means_no_request
+---live--- 
+{
+  "source": "boamp",
+  "signals": 6,
+  "sample": [
+    [
+      "CANON FAC SIMILE",
+      "Awarded: LOCATION DE COPIEURS, ACHAT D'IMPRIMANTES, MAINTENANCE ET LOGICIEL DE GESTION CENTRALISEE ASSOCIE POUR LES SITES DU PARC DES EXPOSITIONS ET LA CITE DES CONGRES",
+      "https://www.boamp.fr/pages/avis/?q=idweb:26-100887"
+    ],
+    [
+      "LIXXBAIL",
+      "Awarded: LOCATION DE COPIEURS, ACHAT D'IMPRIMANTES, MAINTENANCE ET LOGICIEL DE GESTION CENTRALISEE ASSOCIE POUR LES SITES DU PARC DES EXPOSITIONS ET LA CITE DES CONGRES",
+      "https://www.boamp.fr/pages/avis/?q=idweb:26-100887"
+    ],
+    [
+      "SAS POLE SUD",
+      "Awarded: 26GPT01 AC BC DE MISE EN OEUVRE ET LE FONCTIONNEMENT RECURRENT D'UN CENTRE DE SUPPORT INFORMATIQUE AINSI QUE LE MAINTIEN EN CONDITION OPERATIONNELLE DU PATRIMOINE APPLICATIF EN GROUPEMENT DE ",
+      "https://www.boamp.fr/pages/avis/?q=idweb:26-100841"
+    ],
+    [
+      "ATOS FRANCE",
+      "Awarded: 26GPT01 AC BC DE MISE EN OEUVRE ET LE FONCTIONNEMENT RECURRENT D'UN CENTRE DE SUPPORT INFORMATIQUE AINSI QUE LE MAINTIEN EN CONDITION OPERATIONNELLE DU PATRIMOINE APPLICATIF EN GROUPEMENT DE ",
+      "https://www.boamp.fr/pages/avis/?q=idweb:26-100841"
+    ],
+    [
+      "BEELDI",
+      "Awarded: Fourniture d\u2019un logiciel, en mode Saas, d\u2019inventaire et de gestion des engins flottants, du parc roulant, du mat\u00e9riel d\u2019exploitation-maintenance sup\u00e9rieur \u00e0 500 \u20ac HT et leurs prestations asso",
+      "https://www.boamp.fr/pages/avis/?q=idweb:26-99734"
+    ]
+  ]
+}

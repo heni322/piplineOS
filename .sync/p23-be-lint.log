@@ -1,0 +1,40 @@
+E501 Line too long (122 > 120)
+  --> tests\security\test_company_searches.py:48:121
+   |
+46 | def _row(engine, search_id: uuid.UUID) -> dict:  # type: ignore[no-untyped-def, type-arg]
+47 |     with transaction(DbContext(role="operator"), engine) as conn:
+48 |         return dict(conn.execute(text("SELECT * FROM company_searches WHERE id = :i"), {"i": search_id}).mappings().one())
+   |                                                                                                                         ^^
+
+E501 Line too long (129 > 120)
+  --> tests\security\test_company_searches.py:62:121
+   |
+60 |     (found,) = row["report"]["found"]
+61 |     assert found == {"name": "LAKESIDE NETWORKS LIMITED", "company_number": "01234567",
+62 |                      "domain": "lakesidenetworks.co.uk", "address": "sales@lakesidenetworks.co.uk", "country": "GB"}  # fmt: skip
+   |                                                                                                                         ^^^^^^^^^
+63 |     stored = json.dumps(row["report"])
+64 |     assert "1 High St" not in stored and "p1" not in stored  # nothing Google returned (address, place ID) is kept
+   |
+
+Found 3 errors (1 fixed, 2 remaining).
+2 files reformatted, 341 files left unchanged
+Success: no issues found in 211 source files
+=============
+Import Linter
+=============
+
+
+---------
+Contracts
+---------
+
+Analyzed 271 files, 1625 dependencies.
+--------------------------------------
+
+Side-effecting adapters (email, calendar, crm) may only be imported by the 
+outbound gateway KEPT
+The compliance engine is pure (no database, network or adapters) KEPT
+Paid data providers (Hunter) may only be built by the paid-call gate KEPT
+
+Contracts: 3 kept, 0 broken.

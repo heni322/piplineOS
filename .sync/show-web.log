@@ -7,4 +7,13 @@
    - Network:      http://192.168.25.1:3000
 
  ✓ Starting...
- ✓ Ready in 23.9s
+ ✓ Ready in 10.1s
+ ○ Compiling /operator/discover ...
+ ✓ Compiled /operator/discover in 1658ms (624 modules)
+ GET /operator/discover 200 in 3004ms
+ ⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ○ Compiling /login ...
+ ✓ Compiled /login in 551ms (634 modules)
+ GET /login 200 in 869ms
+^C ELIFECYCLE  Command failed with exit code 3221225786.
