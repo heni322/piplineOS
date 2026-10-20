@@ -44,7 +44,7 @@ sysctl vm.swappiness=10 && echo 'vm.swappiness=10' > /etc/sysctl.d/99-swappiness
 ```bash
 mkdir -p /srv && cd /srv
 git clone https://github.com/heni322/piplineOS.git pipelineos
-cd pipelineos && git checkout fix/live-source-findings   # after you pushed it; or main once merged
+cd pipelineos
 bash deploy/vps/bootstrap.sh
 ```
 
@@ -82,18 +82,21 @@ docker inspect cdnkt_nginx --format '{{range .Mounts}}{{.Source}} -> {{.Destinat
 docker inspect cdnkt_certbot --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
 ```
 
-You need three host folders from that output: nginx's `conf.d` (→ `/etc/nginx/conf.d`), the Let's Encrypt folder
-(→ `/etc/letsencrypt`) and the webroot (→ `/var/www/certbot`). If the paths differ from those in
-`deploy/vps/nginx-voyz.fr.conf`, adjust the file.
+On this server (checked 2026-10-20) their nginx mounts a **single file**,
+`/opt/cdnktapi-testing/docker/nginx/default.conf` (→ `/etc/nginx/conf.d/default.conf`); certbot's Let's Encrypt
+volume is mounted in nginx at `/etc/nginx/ssl`, and both share the webroot `/var/www/certbot`.
+`deploy/vps/nginx-voyz.fr.conf` uses those paths. The voyz.fr blocks are therefore **appended** to that file:
 
-1. Copy **only the first server block** (port 80) of `deploy/vps/nginx-voyz.fr.conf` into their `conf.d` as
-   `voyz.fr.conf`, then `docker exec cdnkt_nginx nginx -t && docker exec cdnkt_nginx nginx -s reload`.
+1. Back up the file (`cp …/default.conf …/default.conf.bak-$(date +%F)`), append **only the first server block**
+   (port 80) of `deploy/vps/nginx-voyz.fr.conf`, then `docker exec cdnkt_nginx nginx -t && docker exec cdnkt_nginx
+   nginx -s reload`.
 2. Get the certificate (their certbot container renews it automatically afterwards):
    ```bash
    docker exec cdnkt_certbot certbot certonly --webroot -w /var/www/certbot \
      -d voyz.fr -d www.voyz.fr --email YOUR_EMAIL --agree-tos --no-eff-email
    ```
-3. Replace `voyz.fr.conf` with the **whole** file (both blocks), then test and reload as in 1.
+3. Append the second block (port 443), then test and reload as in 1. If their nginx is recreated from their own
+   repository, check that the voyz.fr blocks are still in `default.conf`.
 
 ## 6. Start PipelineOS
 
