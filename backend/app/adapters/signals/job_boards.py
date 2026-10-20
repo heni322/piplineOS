@@ -1,16 +1,19 @@
 """Hiring signals from the public job boards of the companies on a client's watchlist.
 
-Greenhouse, Lever and Ashby publish each employer's open roles through free, public, read-only JSON APIs (no key,
-no account), built for companies to show their own vacancies on their careers page. A company opening roles in the
-area the client sells into is a timing trigger: new team, new budget, new needs.
+Greenhouse, Lever, Ashby, Recruitee, Workable and SmartRecruiters publish each employer's open roles through free,
+public, read-only JSON APIs (no key, no account), built for companies to show their own vacancies on their careers
+page; the last three are common with French and other European employers. A company opening roles in the area the
+client sells into is a timing trigger: new team, new budget, new needs.
 
 What we take from a posting, and nothing more (data minimisation): the role title, team and location, its
 publication date and its public URL. Postings name no individual; recruiter names, salaries and the job description
 are never read.
 
 A board is written "<ats>:<board name>", e.g. "greenhouse:contoso", "lever:contoso", "lever-eu:contoso" (Lever's EU
-instance) or "ashby:contoso". The query is the client's hiring keywords separated by ";" (a keyword starting with "-"
-excludes a role); an empty query counts every new role.
+instance), "ashby:contoso", "recruitee:contoso" (contoso.recruitee.com), "workable:contoso"
+(apply.workable.com/contoso) or "smartrecruiters:Contoso" (the company identifier in its SmartRecruiters links).
+The query is the client's hiring keywords separated by ";" (a keyword starting with "-" excludes a role); an empty
+query counts every new role.
 """
 
 from __future__ import annotations
@@ -114,7 +117,72 @@ def _ashby(data: Any) -> list[Posting]:
     return out
 
 
-# ats -> (API base URL, path for a board, parser, public board page)
+def _dt(value: Any) -> datetime | None:
+    """ISO dates, plus Recruitee's "2026-10-15 09:31:36 UTC"."""
+    return _parse_dt(value.replace(" UTC", "+00:00")) if isinstance(value, str) else None
+
+
+def _recruitee(data: Any) -> list[Posting]:
+    out = []
+    for j in (data or {}).get("offers") or []:
+        when = _dt(j.get("published_at"))
+        if not when or not j.get("title") or j.get("status", "published") != "published":
+            continue
+        out.append(
+            Posting(
+                title=str(j["title"]),
+                team=str(j.get("department") or ""),
+                location=str(j.get("location") or j.get("city") or ""),
+                published=when,
+                url=str(j.get("careers_url") or ""),
+                ref=str(j.get("id")),
+            )
+        )
+    return out
+
+
+def _workable(data: Any) -> list[Posting]:
+    out = []
+    for j in (data or {}).get("jobs") or []:
+        when = _dt(j.get("published_on")) or _dt(j.get("created_at"))
+        if not when or not j.get("title"):
+            continue
+        place = ", ".join(str(x) for x in (j.get("city"), j.get("country")) if x)
+        out.append(
+            Posting(
+                title=str(j["title"]),
+                team=str(j.get("department") or ""),
+                location=place,
+                published=when,
+                url=str(j.get("url") or ""),
+                ref=str(j.get("shortcode")),
+            )
+        )
+    return out
+
+
+def _smartrecruiters(data: Any) -> list[Posting]:
+    out = []
+    for j in (data or {}).get("content") or []:
+        when = _dt(j.get("releasedDate"))
+        if not when or not j.get("name") or j.get("visibility", "PUBLIC") != "PUBLIC":
+            continue
+        company = str((j.get("company") or {}).get("identifier") or "")
+        out.append(
+            Posting(
+                title=str(j["name"]),
+                team=str((j.get("department") or {}).get("label") or (j.get("function") or {}).get("label") or ""),
+                location=str((j.get("location") or {}).get("fullLocation") or ""),
+                published=when,
+                url=f"https://jobs.smartrecruiters.com/{company}/{j.get('id')}" if company and j.get("id") else "",
+                ref=str(j.get("id")),
+            )
+        )
+    return out
+
+
+# ats -> (API base URL, path for a board, parser, public board page). A path may be a full URL when the ATS gives
+# each employer its own sub-domain (Recruitee).
 ATS: dict[str, tuple[str, str, Callable[[Any], list[Posting]], str]] = {
     "greenhouse": (
         "https://boards-api.greenhouse.io",
@@ -125,7 +193,27 @@ ATS: dict[str, tuple[str, str, Callable[[Any], list[Posting]], str]] = {
     "lever": ("https://api.lever.co", "/v0/postings/{b}?mode=json", _lever, "https://jobs.lever.co/{b}"),
     "lever-eu": ("https://api.eu.lever.co", "/v0/postings/{b}?mode=json", _lever, "https://jobs.eu.lever.co/{b}"),
     "ashby": ("https://api.ashbyhq.com", "/posting-api/job-board/{b}", _ashby, "https://jobs.ashbyhq.com/{b}"),
+    # checked live on 2026-10-19 (public endpoints built for careers pages, no key)
+    "recruitee": (
+        "https://recruitee.com",
+        "https://{b}.recruitee.com/api/offers/",
+        _recruitee,
+        "https://{b}.recruitee.com",
+    ),
+    "workable": (
+        "https://apply.workable.com",
+        "/api/v1/widget/accounts/{b}",
+        _workable,
+        "https://apply.workable.com/{b}/",
+    ),
+    "smartrecruiters": (
+        "https://api.smartrecruiters.com",
+        "/v1/companies/{b}/postings?limit=100",
+        _smartrecruiters,
+        "https://jobs.smartrecruiters.com/{b}",
+    ),
 }
+SUBDOMAIN = {"recruitee"}  # the board name becomes a host name: letters, digits and hyphens only
 
 
 def parse_board(board: str) -> tuple[str, str] | None:
@@ -133,6 +221,8 @@ def parse_board(board: str) -> tuple[str, str] | None:
     ats, _, name = board.strip().partition(":")
     ats, name = ats.lower(), name.strip()
     if ats not in ATS or not name or not all(c.isalnum() or c in "-_." for c in name) or name.startswith("."):
+        return None
+    if ats in SUBDOMAIN and not all(c.isascii() and (c.isalnum() or c == "-") for c in name):
         return None
     return ats, name
 

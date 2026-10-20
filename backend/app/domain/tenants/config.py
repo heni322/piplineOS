@@ -49,7 +49,10 @@ class WatchedCompany(_Strict):
     company_number: str | None = Field(default=None, pattern=r"^[A-Za-z0-9]{1,9}$")  # UK: 8; France (SIREN): 9
     domain: str | None = None
     country: str | None = None
-    job_board: str | None = Field(default=None, pattern=r"^(greenhouse|lever|lever-eu|ashby):[A-Za-z0-9_.-]{1,100}$")
+    job_board: str | None = Field(
+        default=None,
+        pattern=r"^(greenhouse|lever|lever-eu|ashby|recruitee|workable|smartrecruiters):[A-Za-z0-9_.-]{1,100}$",
+    )
 
 
 class BrandVoice(_Strict):

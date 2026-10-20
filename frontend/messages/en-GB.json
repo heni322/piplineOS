@@ -903,6 +903,8 @@
     "showName": "Show name",
     "reason": "Why do you need to see this? (logged)",
     "reveal": "Show",
+    "linkedin": "Find the company on LinkedIn",
+    "linkedinFor": "Find {c} on LinkedIn (opens a search in a new tab)",
     "close": "Close task",
     "closeTitle": "Close task: {c}",
     "outcome": "Outcome",

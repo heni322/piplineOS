@@ -903,6 +903,8 @@
     "showName": "Afficher le nom",
     "reason": "Pourquoi devez-vous voir ceci ? (journalisé)",
     "reveal": "Afficher",
+    "linkedin": "Trouver l’entreprise sur LinkedIn",
+    "linkedinFor": "Trouver {c} sur LinkedIn (ouvre une recherche dans un nouvel onglet)",
     "close": "Fermer la tâche",
     "closeTitle": "Fermer la tâche : {c}",
     "outcome": "Résultat",

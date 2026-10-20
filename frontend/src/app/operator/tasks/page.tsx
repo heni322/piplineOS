@@ -106,7 +106,14 @@ export default function TasksPage() {
                     {r.signal ?? "–"}
                     {webUrl(r.signal_url) && <div className="muted"><a href={webUrl(r.signal_url) ?? undefined} target="_blank" rel="noopener noreferrer">{t.source}</a></div>}
                   </td>
-                  <td title={r.instructions}>{channelLabel(r.channel)}</td>
+                  <td title={r.instructions}>
+                    {channelLabel(r.channel)}
+                    {/* a search opened in your own browser, by hand: nothing is collected from LinkedIn */}
+                    <div className="muted">
+                      <a href={`https://www.linkedin.com/search/results/companies/?keywords=${encodeURIComponent(r.company)}`}
+                        target="_blank" rel="noopener noreferrer" aria-label={t.linkedinFor.replace("{c}", r.company)}>{t.linkedin}</a>
+                    </div>
+                  </td>
                   <td>{new Date(r.created_at).toLocaleString(LOCALE)}</td>
                   <td>
                     {r.status === "open" ? (
