@@ -24,6 +24,14 @@ companies you want and **Add selected to the watchlist**: this saves a new confi
 targeting form. Above the form, the page says whether searches can reach Google right now (FREE_ONLY, missing key,
 dry-run before go-live, or live) and how many searches were used this month.
 
+**Web research (Gemini with Google Search):** on the same page, ask about one company ("What is the official
+website of Exemple Infogérance SAS, Lyon?"). The answer appears once with its sources and Google's search
+suggestions, and is never stored: Google's terms require grounded answers to be shown to the person who asked, and
+forbid caching them or feeding them into automated processing. You decide what to do with it, for example add the
+company to a watchlist yourself. Paid (5,000 free search queries a month, then $14 per 1,000), so it follows the
+same rules as Places: only with the three live keys, never with `FREE_ONLY=true`, at most
+`GEMINI_SEARCH_MONTHLY_CAP` requests a month. Ask about companies, never about private people.
+
 Google Places does not give email addresses. The addresses come from the companies' own websites, as before.
 
 ## Rules that are enforced

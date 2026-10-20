@@ -121,6 +121,10 @@ class Settings(BaseSettings):
     llm_provider: Literal["local", "anthropic", "gemini"] = "anthropic"
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.8-flash"
+    # Web research panel (Gemini + Google Search; docs/GOOGLE-PLACES.md): paid, only with the three keys and
+    # FREE_ONLY=false; at most this many requests a month (Google gives 5,000 free search queries a month)
+    gemini_search_mode: AdapterMode = "mock"
+    gemini_search_monthly_cap: int = Field(default=1000, ge=0)
     # Google Places (paid; docs/GOOGLE-PLACES.md): finds company websites and businesses by activity and area.
     # Only with the three keys and FREE_ONLY=false; capped per month (1000 = Google's free allowance for these fields)
     places_adapter_mode: AdapterMode = "mock"

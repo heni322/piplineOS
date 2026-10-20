@@ -59,4 +59,5 @@ source_modules =
 forbidden_modules =
     app.adapters.hunter
     app.adapters.google_places
+    app.adapters.gemini_search
 allow_indirect_imports = True

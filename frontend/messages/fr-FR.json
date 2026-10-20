@@ -1103,7 +1103,21 @@
     "add": "Ajouter la sélection à la liste de surveillance",
     "added": "{n} ajoutée(s) à la liste de surveillance (version de configuration {v}).",
     "nothingNew": "Elles sont toutes déjà dans la liste de surveillance.",
-    "noneFound": "Aucune entreprise n’a passé les vérifications."
+    "noneFound": "Aucune entreprise n’a passé les vérifications.",
+    "researchTitle": "Recherche web (Gemini avec Google Search)",
+    "researchIntro": "Posez une question sur une entreprise : son site, son activité, sa localisation. La réponse s’affiche ici une seule fois, avec ses sources, et n’est pas enregistrée ; vous décidez quoi en faire. Questions sur des entreprises uniquement, jamais sur des particuliers.",
+    "researchQuestion": "Votre question",
+    "researchPlaceholder": "Quel est le site officiel d’Exemple Infogérance SAS, Lyon ?",
+    "researchAsk": "Demander",
+    "researchAsking": "Recherche…",
+    "researchUsage": "Recherche web ce mois-ci : {n} requête(s) sur {cap}.",
+    "researchOff": "La recherche web est désactivée jusqu’à la mise en production : les questions sont enregistrées dans le journal de simulation et Google n’est pas appelé.",
+    "researchNoKey": "Aucune clé Gemini n’est définie sur ce serveur (GEMINI_API_KEY).",
+    "researchNotCalled": "Google n’a pas été appelé : {r}",
+    "researchReasons": { "dry_run": "simulation avant la mise en production (enregistré dans le journal de simulation)", "cap_reached": "la limite du mois est atteinte" },
+    "researchAnswer": "Réponse",
+    "researchSources": "Sources",
+    "researchSuggestions": "Suggestions de recherche Google"
   },
   "pilotRequests": {
     "title": "Demandes de pilote",

@@ -128,6 +128,11 @@ every language, and email drafting) and recommends the best fully safe one. Cand
 - **Find companies** page in the console (Clients and money): search by activity and area, see the confirmed
   companies with their published business address, and add the ones you choose to a client's watchlist. Searches
   run in the background; the page says plainly when Google was not called and why.
+- **Web research with Gemini** on the Find companies page: a question about one company, answered from Google
+  Search with sources, shown to you and never stored (Google's terms). Paid, behind the three keys, capped.
+- **More public job boards:** Recruitee, Workable and SmartRecruiters, alongside Greenhouse, Lever and Ashby.
+  **LinkedIn** is a manual contact channel only: contact tasks link to a LinkedIn search you open yourself;
+  nothing is collected from LinkedIn or Instagram (the brief and their terms forbid scraping them).
 - **BOAMP**, France's official procurement bulletin (free open data, no key), as the trigger source for clients
   targeting France: contract awards with French titles, so French keywords match. It replaces TED for France (TED
   keeps the other EU countries). Checked live: 30 IT award signals in 14 days. `pipelineos signals check boamp`.

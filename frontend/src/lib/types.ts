@@ -112,9 +112,12 @@ export type CompanySearch = {
   counts: Record<string, number>; stopped_early: boolean; found: FoundCompany[];
 };
 export type CompanySearches = {
-  setup: { free_only: boolean; key_set: boolean; adapter_mode: string; global_go_live: boolean; calls_this_month: number; monthly_cap: number };
+  setup: { free_only: boolean; key_set: boolean; adapter_mode: string; global_go_live: boolean; calls_this_month: number; monthly_cap: number;
+    research_key_set: boolean; research_mode: string; research_calls_this_month: number; research_monthly_cap: number };
   searches: CompanySearch[];
 };
+export type WebResearch = { called: boolean; reason: string | null; answer: string | null;
+  sources: { title: string; url: string }[]; queries: string[]; suggestions_html: string };
 export type Watched = { name: string; company_number: string | null; domain: string | null; country: string | null; job_board: string | null };
 export type Targeting = {
   industry_keywords: string[]; exclude_keywords: string[]; hiring_keywords: string[]; sic_codes: string[];

@@ -5,6 +5,7 @@ import { api, type Problem } from "@/lib/api";
 import { day } from "@/lib/format";
 import { getMessages } from "@/lib/i18n";
 import type { Client, CompanySearch, CompanySearches, FoundCompany, Targeting } from "@/lib/types";
+import { WebResearchPanel } from "@/components/WebResearchPanel";
 
 const t = getMessages().discover;
 const fill = (s: string, v: Record<string, string | number>) =>
@@ -130,6 +131,8 @@ export default function DiscoverPage() {
           </form>
           {notice && <p className="status" role="status">{notice}</p>}
           {error && <p role="alert" className="error">{error}</p>}
+
+          <WebResearchPanel tenant={tenant} setup={data?.setup ?? null} onAsked={load} />
 
           <h2>{t.history}</h2>
           {!data ? <p className="muted" aria-busy="true">{getMessages().operator.loading}</p>

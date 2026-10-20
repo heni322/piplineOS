@@ -1093,7 +1093,21 @@
     "add": "Add selected to the watchlist",
     "added": "{n} added to the watchlist (configuration version {v}).",
     "nothingNew": "They are all on the watchlist already.",
-    "noneFound": "No business passed the checks."
+    "noneFound": "No business passed the checks.",
+    "researchTitle": "Web research (Gemini with Google Search)",
+    "researchIntro": "Ask about one company: its website, what it does, where it is. The answer is shown here once, with its sources, and is not saved; you decide what to do with it. Ask about companies only, never about private people.",
+    "researchQuestion": "Your question",
+    "researchPlaceholder": "What is the official website of Exemple Infogérance SAS, Lyon?",
+    "researchAsk": "Ask",
+    "researchAsking": "Searching…",
+    "researchUsage": "Web research this month: {n} of {cap} requests.",
+    "researchOff": "Web research is off until go-live: questions are recorded in the dry-run log and Google is not called.",
+    "researchNoKey": "No Gemini key is set on this server (GEMINI_API_KEY).",
+    "researchNotCalled": "Google was not called: {r}",
+    "researchReasons": { "dry_run": "dry-run before go-live (recorded in the dry-run log)", "cap_reached": "this month's limit is reached" },
+    "researchAnswer": "Answer",
+    "researchSources": "Sources",
+    "researchSuggestions": "Google Search suggestions"
   },
   "pilotRequests": {
     "title": "Pilot requests",

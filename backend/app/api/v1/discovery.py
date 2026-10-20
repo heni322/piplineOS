@@ -16,13 +16,15 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from app.api.deps import CurrentUser, require, settings_dep
+from app.api.deps import CurrentUser, cipher_dep, require, settings_dep
+from app.core.crypto import PiiCipher
 from app.core.errors import ProblemError
 from app.core.logging import get_logger
 from app.core.security import Permission
 from app.db.session import DbContext, get_engine, transaction
 from app.domain.paid import searches
 from app.domain.paid.places import PROVIDER, usage
+from app.domain.paid.research import PROVIDER as RESEARCH
 from app.settings import Settings
 
 router = APIRouter(tags=["discovery"])
@@ -69,6 +71,11 @@ class SetupOut(BaseModel):
     global_go_live: bool
     calls_this_month: int
     monthly_cap: int
+    # web research (Gemini + Google Search)
+    research_key_set: bool = False
+    research_mode: str = "mock"
+    research_calls_this_month: int = 0
+    research_monthly_cap: int = 0
 
 
 class SearchesOut(BaseModel):
@@ -113,6 +120,10 @@ def list_searches(
         global_go_live=settings.global_go_live,
         calls_this_month=usage(engine, PROVIDER),
         monthly_cap=settings.places_monthly_cap,
+        research_key_set=bool(settings.gemini_api_key and settings.gemini_api_key.get_secret_value()),
+        research_mode=settings.gemini_search_mode,
+        research_calls_this_month=usage(engine, RESEARCH),
+        research_monthly_cap=settings.gemini_search_monthly_cap,
     )
     now = datetime.now(UTC)
     return SearchesOut(setup=setup, searches=[_out(r, now) for r in rows])
@@ -141,3 +152,56 @@ def start_search(tenant_id: uuid.UUID, body: SearchIn, user: Operator) -> Search
     with transaction(user.db_context(tenant_id), engine) as conn:
         row = next(r for r in searches.recent(conn, tenant_id) if r["id"] == search_id)
     return _out(row, datetime.now(UTC))
+
+
+class ResearchIn(BaseModel):
+    question: str = Field(min_length=5, max_length=500)
+
+
+class SourceOut(BaseModel):
+    title: str
+    url: str
+
+
+class ResearchOut(BaseModel):
+    """Shown once to the operator who asked, never stored (Google's terms for grounded results)."""
+
+    called: bool
+    reason: str | None = None
+    answer: str | None = None
+    sources: list[SourceOut] = []
+    queries: list[str] = []
+    suggestions_html: str = ""
+
+
+@router.post("/clients/{tenant_id}/web-research", response_model=ResearchOut)
+def web_research(
+    tenant_id: uuid.UUID,
+    body: ResearchIn,
+    user: Operator,
+    settings: Annotated[Settings, Depends(settings_dep)],
+    cipher: Annotated[PiiCipher, Depends(cipher_dep)],
+) -> ResearchOut:
+    """Ask Gemini, grounded on Google Search, about a company. Paid and gated: before go-live (or with FREE_ONLY,
+    or without a key) nothing is called and the reason is returned. Ask about companies, never private people."""
+    from app.adapters.base import AdapterNotConfigured
+    from app.domain.paid.research import research_for
+
+    engine = get_engine()
+    with transaction(user.db_context(tenant_id), engine) as conn:
+        if conn.execute(text("SELECT 1 FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar() is None:
+            raise ProblemError(404, "No such client")
+    try:
+        result = research_for(settings, engine, cipher, tenant_id).ask(body.question.strip(), user.id)
+    except AdapterNotConfigured as exc:
+        return ResearchOut(called=False, reason=str(exc))
+    a = result.answer
+    if a is None:
+        return ResearchOut(called=False, reason=result.reason)
+    return ResearchOut(
+        called=True,
+        answer=a.text,
+        sources=[SourceOut(title=s.title, url=s.url) for s in a.sources],
+        queries=a.queries,
+        suggestions_html=a.suggestions_html,
+    )

@@ -109,6 +109,7 @@ set_kv LOCAL_LLM_MODEL gemma4:12b
 set_kv OLLAMA_MEM_LIMIT 10g
 set_kv OLLAMA_CPUS 6
 set_kv GEMINI_API_KEY "$GEMINI_API_KEY"
+set_kv GEMINI_SEARCH_MODE live  # still behind the three live keys: nothing is called before go-live
 set_kv GOOGLE_PLACES_API_KEY "$GOOGLE_PLACES_API_KEY"
 set_kv PLACES_ADAPTER_MODE live
 set_kv PLACES_MONTHLY_CAP 1000
