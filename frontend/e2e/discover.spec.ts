@@ -11,8 +11,11 @@ test("find companies: the page explains why Google is not called, and a search i
   await signInOperator(page, EMAIL!, PASSWORD!, SECRET!);
   await page.getByRole("link", { name: "Find companies" }).click();
   await expect(page.getByRole("heading", { name: "Find companies", level: 1 })).toBeVisible();
-  // one of the setup notes is always shown above the form; in this environment Google is never reachable
-  await expect(page.getByRole("note")).toContainText(/FREE_ONLY|No Google Places key|Dry-run/);
+  // each panel says above its form why Google cannot be reached in this environment (Places, then web research)
+  const notes = page.getByRole("note");
+  await expect(notes).toHaveCount(2);
+  await expect(notes.nth(0)).toContainText(/FREE_ONLY|No Google Places key|Dry-run/);
+  await expect(notes.nth(1)).toContainText(/FREE_ONLY|No Gemini key|off until go-live/);
   await expect(page.getByText(/Google Places searches this month: 0 of \d+\./)).toBeVisible();
   await expect(page.getByText("No searches yet.")).toBeVisible();
 
