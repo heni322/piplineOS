@@ -142,3 +142,18 @@ Then open https://voyz.fr, sign in, and follow `docs/LAUNCH-PLAN-30-DAYS.md`.
   is on with the checklist signed. Until then each would-be search is written to the dry-run log.
 - Trigger sources and registers: `SIGNALS_ADAPTER_MODE` and the register modes are `mock` (demo data). Switch them
   to `sandbox` to read the free public sources (read-only) once the Companies House key is set.
+
+## 9. A preset own account (Vayz)
+
+Your own outreach (you are the controller: your own LIA, privacy notice and sending domain; no DPA, client login
+or billing) can be created on the server already filled in from a template in `config/niches/`. For Vayz:
+
+```bash
+$C run --rm api pipelineos clients create-own vayz-bailleurs \
+  --operator-email you@example.com --legal-name LYLIUM --company-number "103 579 322" \
+  --address "9 Allée Simone Gébelin, 13001 Marseille" --country FR --currency EUR
+```
+
+It creates the account once (a second run is refused) with the French offer, targeting (B2B landlords only:
+SCI, agencies, residences; private landlords are never emailed), criteria and objection answers. Then in the
+console: record the LIA, add the sending domain and inbox, check DNS, create a campaign. Everything stays dry-run.

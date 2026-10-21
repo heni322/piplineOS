@@ -149,3 +149,8 @@ every language, and email drafting) and recommends the best fully safe one. Cand
 - Phases 2–17 are on `main` (GitHub pull requests up to #19).
 - The live-check fixes, the local AI server, Google Places, Gemini and the VPS deployment are on branch
   `fix/live-source-findings`, ready for a pull request.
+
+## Vayz preset (2026-10-21)
+
+- `config/niches/vayz-bailleurs.yaml`: French template for Vayz (LYLIUM), B2B landlords and letting agencies in France only.
+- `pipelineos clients create-own <template>`: creates your own outreach account on the server, already configured, once. See DEPLOY-VPS.md section 9.

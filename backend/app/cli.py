@@ -39,6 +39,8 @@ economics_app = typer.Typer(help="Unit economics and funnel simulation (assumpti
 app.add_typer(economics_app, name="economics")
 llm_app = typer.Typer(help="The free local AI model (Ollama): compare models on this server")
 places_app = typer.Typer(help="Google Places (paid, gated, capped): find new target companies")
+clients_app = typer.Typer(help="Clients and your own outreach")
+app.add_typer(clients_app, name="clients")
 app.add_typer(places_app, name="places")
 app.add_typer(llm_app, name="llm")
 
@@ -435,3 +437,79 @@ def places_discover(
             out["added"] = len(new)
             out["config_version"] = set_config(conn, tenant_id=tenant_id, operator_id=op, config=data) if new else None
     typer.echo(json.dumps(out, indent=2, default=str))
+
+
+@clients_app.command("create-own")
+def clients_create_own(
+    template: str = typer.Argument(..., help="a template in config/niches, e.g. vayz-bailleurs"),
+    operator_email: str = typer.Option(..., help="your operator email (recorded as the author)"),
+    legal_name: str = typer.Option(..., help="your company's legal name, as registered"),
+    company_number: str = typer.Option("", help="register number (SIREN in France, company number in the UK)"),
+    address: str = typer.Option("", help="registered address (printed in every email footer)"),
+    country: str = typer.Option("GB", help="country of registration: GB or FR"),
+    currency: str = typer.Option("GBP", help="GBP or EUR"),
+    sender_name: str = typer.Option("", help="the name emails are signed with (default: the template's)"),
+    sender_title: str = typer.Option("", help="the sender's job title (default: the template's)"),
+) -> None:
+    """Create your own outreach (you are the controller: your own LIA, privacy notice and sending domain; no DPA,
+    client login or billing) from a ready-made template, with its offer, targeting, criteria and objection answers
+    already filled in. Then, in the console: record your LIA, add the sending domain, start a campaign."""
+    from app.config_paths import config_root
+    from app.domain.tenants import onboarding, setup
+
+    country, currency = country.upper(), currency.upper()
+    if country not in ("GB", "FR") or currency not in ("GBP", "EUR"):
+        raise typer.BadParameter("country must be GB or FR, and currency GBP or EUR")
+    tpls = setup.templates(config_root())
+    if template not in tpls:
+        raise typer.BadParameter(f"no template {template!r}; available: {', '.join(sorted(tpls))}")
+    tpl = tpls[template]
+    voice = tpl["config"].get("brand_voice") or {}
+    body = setup.SetupIn(
+        niche=template,
+        sender_name=sender_name or voice.get("sender_name") or legal_name,
+        sender_title=sender_title or voice.get("sender_title") or "Direction",
+        value_proposition=voice.get("value_proposition") or "",
+        outreach_purpose=tpl["config"].get("outreach_purpose") or "",
+        pricing=setup.PricingIn(),  # your own outreach is never billed
+    )
+    s = get_settings()
+    with transaction(DbContext(role="operator"), get_engine()) as conn:
+        op = conn.execute(
+            text("SELECT id FROM users WHERE email_bidx = :b AND role = 'operator'"),
+            {"b": blind_index(s.key("blind_index_key"), operator_email, None)},
+        ).scalar()
+        if op is None:
+            raise typer.BadParameter("no operator with that email (create it with `pipelineos users create-operator`)")
+        try:
+            tid = onboarding.create_own_account(
+                conn,
+                operator_id=op,
+                legal_name=legal_name,
+                company_number=company_number.replace(" ", "") or None,
+                registered_address=address or None,
+                country_code=country,
+                billing_currency=currency,
+                slug=template.split("-", maxsplit=1)[0][:30],
+            )
+        except onboarding.OwnAccountExists as exc:
+            raise typer.BadParameter("your own outreach account already exists: change it in the console") from exc
+        cfg = setup.build(None, tpl, body, currency)
+        version = onboarding.set_config(conn, tenant_id=tid, operator_id=op, config=cfg.model_dump())
+    typer.echo(
+        json.dumps(
+            {
+                "created": legal_name,
+                "tenant_id": str(tid),
+                "template": template,
+                "config_version": version,
+                "next": [
+                    "Console > Clients: record your legitimate interests assessment (LIA)",
+                    "Add your sending domain and inbox, then check DNS on the Inboxes page",
+                    "Campaigns: create and start a campaign (dry-run until go-live)",
+                ],
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    )

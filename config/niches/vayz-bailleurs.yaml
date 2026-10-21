@@ -1,0 +1,82 @@
+# Vayz (LYLIUM SAS, SIREN 103 579 322, Marseille): rental-management platform, as the operator's own outreach
+# (controller). B2B ONLY: landlords that are companies (SCI, property companies, letting agencies, residences).
+# Private landlords are individuals: in France, prospecting them by email needs their prior consent (CPCE L.34-5),
+# so the compliance gate never emails them. A STARTING POINT: our own LIA and privacy notice first, and a French
+# lawyer's view before any real sending.
+title: "Vayz : bailleurs professionnels et gestionnaires locatifs en France (SCI, agences, résidences)"
+config:
+  niche_slug: vayz-bailleurs
+  language: fr-FR
+  supported_languages: ["fr"]
+  registration_jurisdiction: "France (RCS Marseille)"
+  data_source_summary: "des sources publiques officielles (registre des entreprises, bulletins de marchés publics,
+    offres d'emploi publiées par les entreprises) et le site web de l'entreprise"
+  icp:
+    description: "Entreprises françaises qui louent ou gèrent des logements : SCI et foncières qui louent
+      plusieurs biens, agences immobilières et administrateurs de biens qui font de la gestion locative,
+      résidences étudiantes, coliving et résidences services. Jamais de propriétaires particuliers."
+    industry_keywords: ["gestion locative", "administration de biens", "gestion de logements", "logements",
+      "résidence étudiante", "résidences étudiantes", "coliving", "location meublée", "parc locatif",
+      "gestion immobilière", "bailleur"]
+    exclude_keywords: ["travaux", "construction", "démolition", "nettoyage", "rénovation", "voirie",
+      "assainissement"]
+    hiring_keywords: ["gestionnaire locatif", "gestionnaire de biens", "assistant gestion locative",
+      "property manager", "chargé de location", "comptable mandant", "-stage", "-alternance"]
+    countries: ["FR"]
+  personas:
+    - name: "Dirigeant ou responsable de la gestion locative"
+      titles: ["gérant", "gérante", "président", "présidente", "directeur général", "directrice générale",
+        "dirigeant", "fondateur", "fondatrice", "directeur d'agence", "directrice d'agence",
+        "responsable gestion locative", "responsable de la gestion locative", "administrateur de biens"]
+      seniority_keywords: ["gérant", "président", "directeur", "directrice", "responsable", "fondateur", "dirigeant"]
+  signal_threshold: 60
+  sequence: { follow_ups: 2, spacing_business_days: 4 }
+  brand_voice:
+    sender_name: "L'équipe Vayz"
+    sender_title: "Vayz"
+    tone: "simple, concret, professionnel et chaleureux ; vouvoiement ; pas de superlatifs"
+    banned_phrases: ["révolutionnaire", "incroyable", "meilleur du marché", "offre exceptionnelle", "garanti"]
+    value_proposition: "Vayz réunit propriétaires et locataires sur une seule plateforme : candidatures notées,
+      bail et dépôt de garantie, loyers encaissés et virés automatiquement, quittances et comptabilité."
+  outreach_purpose: "Présenter Vayz, plateforme de gestion locative, à des bailleurs professionnels et à des
+    gestionnaires de logements."
+  qualification:
+    framework: custom
+    criteria:
+      - id: decideur
+        question: "La personne décide de l'outil de gestion locative de l'entreprise"
+        evidence_from: profile
+      - id: parc
+        question: "L'entreprise loue ou gère au moins 5 logements"
+        hint_keywords: ["logements", "lots", "biens", "appartements", "chambres", "résidence", "parc"]
+      - id: besoin
+        question: "Elle veut simplifier ou automatiser sa gestion locative (loyers, quittances, candidatures)"
+        hint_keywords: ["simplifier", "automatiser", "gagner du temps", "loyers", "quittances", "outil", "logiciel"]
+  objection_playbook:
+    - id: deja_un_outil
+      objection: "Nous avons déjà un logiciel de gestion locative"
+      match_keywords: ["déjà un logiciel", "déjà un outil", "on utilise", "nous utilisons", "équipés"]
+      approved_response: "Bien sûr. Vayz est souvent choisi pour réunir sur un seul espace ce qui est éparpillé
+        aujourd'hui (candidatures, bail, encaissement, quittances). Si un jour vous comparez, l'offre gratuite
+        permet d'essayer sans engagement."
+    - id: pas_le_moment
+      objection: "Ce n'est pas le moment"
+      match_keywords: ["pas le moment", "plus tard", "pas maintenant", "l'année prochaine", "pas prioritaire"]
+      approved_response: "Aucun souci, je n'insiste pas. Si les choses changent, mes coordonnées sont ci-dessous."
+    - id: prix
+      objection: "Combien ça coûte ?"
+      match_keywords: ["prix", "tarif", "combien", "coût", "abonnement"]
+      approved_response: "Il existe une offre gratuite, sans carte bancaire et sans engagement ; les offres
+        payantes sont mensuelles ou annuelles, par logement loué. Le plus simple est d'en parler 20 minutes."
+  calendar:
+    host_timezone: "Europe/Paris"
+    host_country: "FR"
+    host_subdivision: null
+    meeting_minutes: 20
+    day_start_hour: 9
+    day_end_hour: 17
+  show_rate:
+    meeting_title: "Présentation de Vayz"
+    agenda: "1. Votre gestion locative aujourd'hui\n2. Ce que Vayz peut simplifier\n3. Prochaines étapes, s'il y
+      en a"
+  ai_disclosure_text: "Cette réponse a été rédigée avec l'aide d'une IA."

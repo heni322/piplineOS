@@ -68,6 +68,50 @@ def create_client(
     return tid
 
 
+class OwnAccountExists(Exception):
+    pass
+
+
+def create_own_account(
+    conn: Connection,
+    *,
+    operator_id: uuid.UUID,
+    legal_name: str,
+    company_number: str | None,
+    registered_address: str | None,
+    country_code: str = "GB",
+    billing_currency: str = "GBP",
+    slug: str = "own-outreach",
+) -> uuid.UUID:
+    """The operator's own outreach, as CONTROLLER: our own LIA, notice and sending domain; no DPA, client login or
+    billing. There can only be one (a unique index enforces it, also against two requests at once)."""
+    from sqlalchemy.exc import IntegrityError
+
+    if conn.execute(text("SELECT 1 FROM tenants WHERE is_operator_own")).first():
+        raise OwnAccountExists
+    if conn.execute(text("SELECT 1 FROM tenants WHERE slug = :s"), {"s": slug}).first():
+        slug = f"{slug}-{uuid.uuid4().hex[:6]}"  # a client already uses the plain slug
+    tid = create_client(
+        conn,
+        operator_id=operator_id,
+        slug=slug,
+        legal_name=legal_name.strip(),
+        company_number=company_number,
+        registered_address=registered_address,
+        country_code=country_code,
+        billing_currency=billing_currency,
+        vat_number=None,
+    )
+    try:
+        with conn.begin_nested():
+            conn.execute(
+                text("UPDATE tenants SET is_operator_own = true, role = 'controller' WHERE id = :t"), {"t": tid}
+            )
+    except IntegrityError as exc:
+        raise OwnAccountExists from exc
+    return tid
+
+
 def set_config(conn: Connection, *, tenant_id: uuid.UUID, operator_id: uuid.UUID, config: dict[str, Any]) -> int:
     """A new config version. Changing criteria or pricing means the client must sign again before billing."""
     cfg = TenantConfig.model_validate(config)

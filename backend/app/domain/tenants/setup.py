@@ -49,7 +49,7 @@ class SetupError(Exception):
 def templates(root: Path) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for p in sorted((root / "niches").glob("*.yaml")):
-        data = yaml.safe_load(p.read_text())
+        data = yaml.safe_load(p.read_text(encoding="utf-8"))
         out[p.stem] = {"title": data["title"], "config": data["config"]}
     return out
 

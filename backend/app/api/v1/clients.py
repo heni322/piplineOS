@@ -442,28 +442,16 @@ def create_own_account(body: OwnAccountIn, user: Operator) -> ClientOut:
     """PipelineOS selling itself: the operator's own outreach, as CONTROLLER (our own LIA, notice and sending
     domain; no DPA, client login or billing). There can only be one."""
     with transaction(user.db_context(), get_engine()) as conn:
-        if conn.execute(text("SELECT 1 FROM tenants WHERE is_operator_own")).first():
-            raise ProblemError(409, "Your own account already exists")
-        slug = "own-outreach"
-        if conn.execute(text("SELECT 1 FROM tenants WHERE slug = :s"), {"s": slug}).first():
-            slug = f"own-outreach-{uuid.uuid4().hex[:6]}"  # a client already uses the plain slug
-        tid = onboarding.create_client(
-            conn,
-            operator_id=user.id,
-            slug=slug,
-            legal_name=body.legal_name.strip(),
-            company_number=body.company_number,
-            registered_address=body.registered_address,
-            country_code="GB",
-            billing_currency=body.billing_currency,
-            vat_number=None,
-        )
         try:
-            with conn.begin_nested():  # two clicks at once: the unique index allows one own account only
-                conn.execute(
-                    text("UPDATE tenants SET is_operator_own = true, role = 'controller' WHERE id = :t"), {"t": tid}
-                )
-        except IntegrityError as exc:
+            tid = onboarding.create_own_account(
+                conn,
+                operator_id=user.id,
+                legal_name=body.legal_name,
+                company_number=body.company_number,
+                registered_address=body.registered_address,
+                billing_currency=body.billing_currency,
+            )
+        except onboarding.OwnAccountExists as exc:
             raise ProblemError(409, "Your own account already exists") from exc
         return _client(conn, tid)
 
