@@ -22,6 +22,9 @@ Lookup = Callable[[str, str], list[str]]  # (name, "TXT" | "CNAME" | "MX" | "A")
 
 SPF_INCLUDE = {"msgraph": "spf.protection.outlook.com", "google": "_spf.google.com"}
 DKIM_SELECTORS = {"msgraph": [("selector1", "CNAME"), ("selector2", "CNAME")], "google": [("google", "TXT")]}
+# Other hosts' usual selectors (LWS, cPanel/Plesk shared hosting, OVH, Brevo, Mailchimp), checked when the domain's
+# mail is not on Microsoft 365 or Google Workspace.
+DKIM_GENERIC = [("dkim", "TXT"), ("default", "TXT"), ("mail", "TXT"), ("ovh", "TXT"), ("s1", "TXT"), ("k1", "TXT")]
 
 
 @dataclass
@@ -95,7 +98,8 @@ def check_domain(domain: str, providers: set[str], lookup: Lookup) -> DnsResult:
             res.spf_ok = not missing
 
     candidates = [s for p in sorted(real) for s in DKIM_SELECTORS[p]] or [
-        s for p in sorted(DKIM_SELECTORS) for s in DKIM_SELECTORS[p]
+        *(s for p in sorted(DKIM_SELECTORS) for s in DKIM_SELECTORS[p]),
+        *DKIM_GENERIC,
     ]
     found = []
     for selector, rdtype in candidates:
@@ -115,7 +119,9 @@ def check_domain(domain: str, providers: set[str], lookup: Lookup) -> DnsResult:
     else:
         res.dkim_ok = bool(found)
         if not found:
-            res.issues.append(f"No DKIM record found for {d} (checked the Microsoft 365 and Google selectors).")
+            res.issues.append(
+                f"No DKIM record found for {d} (checked the Microsoft 365, Google and usual hosting selectors)."
+            )
 
     dmarc = [t for t in lookup(f"_dmarc.{d}", "TXT") if t.lower().replace(" ", "").startswith("v=dmarc1")]
     if not dmarc:

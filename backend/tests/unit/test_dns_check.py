@@ -70,3 +70,14 @@ def test_unknown_provider_accepts_either_dkim_style() -> None:
 def test_warmup_caps_rise_to_the_target() -> None:
     p = WarmupPlan(start_cap=10, daily_increase=2, target_cap=40, days_to_active=21)
     assert [p.cap_for(d) for d in (0, 1, 5, 15, 30)] == [10, 12, 20, 40, 40]
+
+
+def test_a_shared_hosting_domain_passes_with_its_own_dkim_selector() -> None:
+    # LWS (and most cPanel/Plesk hosts) publish DKIM under the "dkim" or "default" selector, not M365's or Google's.
+    lws = {
+        ("vayz-pro.fr", "TXT"): ["v=spf1 mx:vayz-pro.fr a:mail.vayz-pro.fr a:mailphp.lws-hosting.com -all"],
+        ("dkim._domainkey.vayz-pro.fr", "TXT"): ["v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3"],
+        ("_dmarc.vayz-pro.fr", "TXT"): ["v=DMARC1; p=quarantine; rua=mailto:contact@vayz-pro.fr"],
+    }
+    r = check_domain("vayz-pro.fr", set(), dns(lws))
+    assert r.ok and r.issues == []
