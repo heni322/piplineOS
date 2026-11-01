@@ -21,7 +21,7 @@ from app.core.audit import write_audit
 from app.core.crypto import normalise_domain
 from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
-from app.domain.compliance.jurisdiction import parse_location
+from app.domain.compliance.jurisdiction import is_in_europe, parse_location
 from app.domain.sources.health import describe_error, record_run
 from app.llm.client import LLMEscalation, UntrustedSource, wrap_untrusted
 from app.llm.prompts import PromptFile, load_prompt
@@ -41,6 +41,7 @@ class HuntStats:
     injection_flags: int = 0
     insolvent: int = 0
     bad_source_url: int = 0
+    outside_europe: int = 0
     source_failures: int = 0
     signals: list[TriggerSignal] = field(default_factory=list)
 
@@ -128,6 +129,10 @@ def _process(
         return
     domain = normalise_domain(s.domain) if s.domain else None
     loc = parse_location(s.country_hint)
+    if loc.country and not is_in_europe(loc.country):  # Europe only: skip before any AI is spent on it
+        stats.outside_europe += 1
+        log.info("trigger_skipped_outside_europe", source=source_name, country=loc.country)
+        return
     with transaction(DbContext.system(ctx.tenant_id), ctx.engine) as conn:
         company_id = _existing_company(conn, domain, s.company_name, s.company_number)
         if company_id is not None:

@@ -42,6 +42,11 @@ def create_client(
     billing_currency: str,
     vat_number: str | None,
 ) -> uuid.UUID:
+    from app.domain.compliance.jurisdiction import is_in_europe
+
+    country_code = (country_code or "").strip().upper()
+    if not is_in_europe(country_code):  # PipelineOS works only in Europe: the client must be established there
+        raise OnboardingError("CLIENT_OUTSIDE_EUROPE", [country_code or "none"])
     tid: uuid.UUID = conn.execute(
         text("""INSERT INTO tenants (slug, legal_name, company_number, registered_address, country_code,
           billing_currency, vat_number, status) VALUES (:s, :n, :cn, :a, :c, :cur, :v, 'onboarding') RETURNING id"""),

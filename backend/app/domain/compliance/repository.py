@@ -20,7 +20,7 @@ from app.domain.compliance.engine import (
     SuppressionResult,
     TenantGates,
 )
-from app.domain.compliance.jurisdiction import EEA
+from app.domain.compliance.jurisdiction import EEA, is_in_europe
 
 
 def load_rules(conn: Connection) -> dict[str, CountryRule]:
@@ -131,6 +131,8 @@ def record_decision(
 
 def enable_country(conn: Connection, country_code: str, operator_user_id: uuid.UUID, enabled: bool = True) -> int:
     """Operator-only action (caller must hold an operator context): writes a new rollout version."""
+    if enabled and not is_in_europe(country_code):  # PipelineOS works only in Europe (disabling is always allowed)
+        raise ValueError(f"{country_code} is outside Europe; PipelineOS works only in Europe")
     cur = (
         conn.execute(text("SELECT * FROM current_country_rollout WHERE country_code = :c"), {"c": country_code})
         .mappings()

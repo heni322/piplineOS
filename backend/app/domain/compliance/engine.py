@@ -12,7 +12,11 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
-ENGINE_VERSION = "1.1.0"  # 1.1.0: EU/EEA representative check (GDPR Article 27)
+from app.domain.compliance.jurisdiction import outside_europe
+
+# 1.1.0: EU/EEA representative check (GDPR Article 27)
+# 1.2.0: Europe only — a prospect or company outside Europe is a hard block (COUNTRY_OUTSIDE_EUROPE)
+ENGINE_VERSION = "1.2.0"
 
 
 class Mode(StrEnum):
@@ -41,6 +45,7 @@ class Reason(StrEnum):
     TENANT_PAUSED = "TENANT_PAUSED"
     CAMPAIGN_PAUSED = "CAMPAIGN_PAUSED"
     COUNTRY_UNKNOWN = "COUNTRY_UNKNOWN"
+    COUNTRY_OUTSIDE_EUROPE = "COUNTRY_OUTSIDE_EUROPE"
     COUNTRY_NOT_ENABLED = "COUNTRY_NOT_ENABLED"
     RULE_MISSING = "RULE_MISSING"
     COUNTRY_RESTRICTED_REVIEW = "COUNTRY_RESTRICTED_REVIEW"
@@ -162,6 +167,10 @@ def evaluate(ctx: ComplianceContext) -> ComplianceDecision:
     countries = [p.location_country, p.company_country]
     if any(c is None for c in countries):
         reasons.append(Reason.COUNTRY_UNKNOWN)
+    # Europe only: never contact a prospect located, or a company registered, outside Europe — whatever the rules
+    # table holds, and before any alternative channel is considered.
+    if outside_europe(countries):
+        reasons.append(Reason.COUNTRY_OUTSIDE_EUROPE)
     if reasons:
         return _decision(ctx, "block", reasons)
 

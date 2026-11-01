@@ -25,6 +25,7 @@ A **pure function** of its input (no I/O). The caller loads the context in one t
 | 3 | Tenant DPA signed (processor tenants) — operator's own tenant needs LIA only | `block` | `TENANT_NO_DPA` |
 | 4 | Tenant active, campaign active, not auto-paused | `block` | `TENANT_PAUSED` / `CAMPAIGN_PAUSED` |
 | 5 | Countries known: prospect location country **and** company country both present and valid ISO-3166 (with UK subdivisions) | `block` | `COUNTRY_UNKNOWN` |
+| 5b | **Europe only** (engine 1.2.0): neither the prospect's location nor the company's country is outside Europe (the EEA, the UK and Switzerland — `EUROPE` in `jurisdiction.py`). Hard block, never an alternative channel. A few non-European countries (US, CA, AU, TN) are recognised only so they get this reason instead of `COUNTRY_UNKNOWN`. | `block` | `COUNTRY_OUTSIDE_EUROPE` |
 | 6 | Each relevant country has an **enabled** rollout status | `block` | `COUNTRY_NOT_ENABLED` |
 | 7 | Each relevant country has a current rule | `block` | `RULE_MISSING` |
 | 8 | **Stricter rule** across {prospect location, company country} (see §3) | per mode | — |
@@ -131,3 +132,12 @@ rights: {privacy_url}
 ## 8. Global suppression — open legal point
 
 Suppressing an identity across all tenants means PipelineOS uses tenant A's data for tenant B's campaign. Proposed safeguard: store only a keyed hash, use it solely to *prevent* contact, and record PipelineOS's own controller purpose and lawful basis for the list in the operator privacy notice. **Flagged for solicitor review** (Phase 0 risk R4); the behaviour (global suppression) follows the brief.
+
+## Europe only (engine 1.2.0)
+
+PipelineOS works only in Europe (the EEA, the UK and Switzerland). Besides the engine's hard block above, the same rule is enforced where data enters:
+
+- **Clients:** a client must be established in Europe (`create_client`, the clients API and the CLI): `CLIENT_OUTSIDE_EUROPE`.
+- **Targeting:** a client's target countries and watched companies cannot be outside Europe (tenant configuration validation).
+- **Countries:** a country file outside Europe is refused by `config sync`, and such a country cannot be enabled.
+- **Trigger hunting:** a signal for a company outside Europe is skipped before any AI is spent on it (`outside_europe` in the hunt statistics).

@@ -21,6 +21,17 @@ class Persona(_Strict):
     seniority_keywords: list[str] = []  # partial match (e.g. "head", "director")
 
 
+_OUTSIDE_EUROPE = "PipelineOS works only in Europe"
+
+
+def _europe_codes(v: list[str]) -> list[str]:
+    from app.domain.compliance.jurisdiction import outside_europe
+
+    if bad := outside_europe(v):
+        raise ValueError(f"{_OUTSIDE_EUROPE}; not a European country: {', '.join(bad)}")
+    return v
+
+
 class Icp(_Strict):
     description: str
     industry_keywords: list[str] = Field(min_length=1)
@@ -31,6 +42,11 @@ class Icp(_Strict):
     # UK SIC 2007 codes of the target market (e.g. "62020" IT consultancy): market-wide funding signals from the
     # Companies House filing stream; empty = off
     sic_codes: list[str] = Field(default=[], max_length=50)
+
+    @field_validator("countries")
+    @classmethod
+    def _countries_in_europe(cls, v: list[str]) -> list[str]:
+        return _europe_codes(v)
 
     @field_validator("sic_codes")
     @classmethod
@@ -53,6 +69,17 @@ class WatchedCompany(_Strict):
         default=None,
         pattern=r"^(greenhouse|lever|lever-eu|ashby|recruitee|workable|smartrecruiters):[A-Za-z0-9_.-]{1,100}$",
     )
+
+    @field_validator("country")
+    @classmethod
+    def _country_in_europe(cls, v: str | None) -> str | None:
+        """Free text ("United Kingdom", "FR"...): refused only when it clearly names a country outside Europe."""
+        from app.domain.compliance.jurisdiction import is_in_europe, parse_location
+
+        loc = parse_location(v)
+        if loc.country and not is_in_europe(loc.country):
+            raise ValueError(f"{_OUTSIDE_EUROPE}; {v!r} is outside Europe")
+        return v
 
 
 class BrandVoice(_Strict):

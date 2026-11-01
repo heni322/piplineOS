@@ -37,6 +37,15 @@ class ClientIn(BaseModel):
     billing_currency: Literal["GBP", "EUR"] = "GBP"
     vat_number: str | None = Field(default=None, max_length=30)
 
+    @field_validator("country_code")
+    @classmethod
+    def _in_europe(cls, v: str) -> str:
+        from app.domain.compliance.jurisdiction import is_in_europe
+
+        if not is_in_europe(v):
+            raise ValueError("PipelineOS works only in Europe: the client must be established in a European country")
+        return v
+
 
 class ItemOut(BaseModel):
     key: str

@@ -4,12 +4,15 @@ Safety rules:
 - Ireland (IE, EU) and Northern Ireland (GB-NIR, UK) are different jurisdictions.
 - Ambiguous or conflicting input returns no country (=> the compliance engine blocks and flags).
 - A domain TLD is never used to infer jurisdiction.
+- PipelineOS works only in Europe (EUROPE below). A few non-European countries are still RECOGNISED, only so that
+  their leads and clients are refused with a clear reason (COUNTRY_OUTSIDE_EUROPE) rather than "unknown".
 """
 
 from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -17,7 +20,8 @@ Status = Literal["ok", "unknown", "ambiguous", "conflict"]
 
 # ISO 3166-1 alpha-2 codes we recognise directly (plus common aliases).
 COUNTRY_ALIASES: dict[str, str] = {"UK": "GB", "EL": "GR"}
-KNOWN_CODES = frozenset(
+# European countries PipelineOS can work with (prospects, companies, clients).
+EUROPEAN_CODES = frozenset(
     [
         "GB",
         "IE",
@@ -50,10 +54,6 @@ KNOWN_CODES = frozenset(
         "EE",
         "LV",
         "LT",
-        "US",
-        "CA",
-        "AU",
-        "TN",
     ]
 )
 # EU member states plus the EEA (Iceland, Liechtenstein, Norway): a client established here needs no Article 27
@@ -61,6 +61,25 @@ KNOWN_CODES = frozenset(
 EEA = frozenset(
     "AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE IS LI NO".split()  # noqa: SIM905
 )
+# Where PipelineOS works: the EEA, the United Kingdom and Switzerland. Anything else is refused.
+EUROPE = EEA | frozenset({"GB", "CH"})
+# Recognised ONLY to be refused by name (COUNTRY_OUTSIDE_EUROPE). Never a country PipelineOS can work in.
+OUTSIDE_EUROPE_CODES = frozenset({"US", "CA", "AU", "TN"})
+KNOWN_CODES = EUROPEAN_CODES | OUTSIDE_EUROPE_CODES
+if not EUROPEAN_CODES <= EUROPE:  # pragma: no cover - guards the lists above against a future edit
+    raise RuntimeError(f"Non-European code in EUROPEAN_CODES: {sorted(EUROPEAN_CODES - EUROPE)}")
+
+
+def is_in_europe(code: str | None) -> bool:
+    """True for a European country PipelineOS works in. None (unknown) is NOT in Europe."""
+    return bool(code) and str(code).strip().upper() in EUROPE
+
+
+def outside_europe(codes: Iterable[str | None]) -> list[str]:
+    """The KNOWN countries among `codes` that are outside Europe (unknown/None is handled elsewhere)."""
+    return sorted({c.strip().upper() for c in codes if c and c.strip().upper() not in EUROPE})
+
+
 UK_SUBDIVISIONS = frozenset({"GB-ENG", "GB-WLS", "GB-SCT", "GB-NIR"})
 
 # phrase -> (country, subdivision). Longest phrases are matched first.
@@ -228,8 +247,13 @@ PHRASES: dict[str, tuple[str, str | None]] = {
     "switzerland": ("CH", None),
     "zurich": ("CH", None),
     "luxembourg": ("LU", None),
+    # Outside Europe: recognised only so the lead is refused by name (COUNTRY_OUTSIDE_EUROPE).
     "tunisia": ("TN", None),
     "tunis": ("TN", None),
+    "united states": ("US", None),
+    "usa": ("US", None),
+    "canada": ("CA", None),
+    "australia": ("AU", None),
 }
 
 # Words that name places in more than one jurisdiction. Alone, they make the result ambiguous.

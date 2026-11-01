@@ -15,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
 from app.domain.compliance.engine import Mode
+from app.domain.compliance.jurisdiction import is_in_europe
 
 
 class _Strict(BaseModel):
@@ -156,6 +157,8 @@ def sync_countries(conn: Connection, root: Path, report: SyncReport) -> None:
         cfg = CountryConfig.model_validate(_load(f))
         if f.stem != cfg.country_code:
             raise ValueError(f"{f.name}: file name must match country_code")
+        if not is_in_europe(cfg.country_code):  # PipelineOS works only in Europe
+            raise ValueError(f"{f.name}: {cfg.country_code} is outside Europe; PipelineOS works only in Europe")
         rule_part = cfg.model_dump(
             include={
                 "mode",
