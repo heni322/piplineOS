@@ -11,6 +11,7 @@ from app.api import ops, public, webhooks
 from app.api.v1 import (
     auth,
     billing,
+    checks,
     clients,
     conversations,
     crm,
@@ -82,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(sources.router, prefix="/api/v1")
     app.include_router(proof.router, prefix="/api/v1")
     app.include_router(inbound.router, prefix="/api/v1")
+    app.include_router(checks.router, prefix="/api/v1")
     app.include_router(public.router)
     app.include_router(webhooks.router)
     app.include_router(ops.router)

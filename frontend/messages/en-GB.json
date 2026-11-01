@@ -19,6 +19,8 @@
   "operator": {
     "title": "Operator overview",
     "dryRunBanner": "Dry-run mode: no real emails, bookings or CRM writes can leave the system.",
+    "sendErrors": "{n} email(s) could not be sent in the last 7 days.",
+    "sendErrorsLink": "See why and what to do",
     "pipeline": "Pipeline by state",
     "approvalQueue": "Approval queue",
     "escalations": "Escalations",
@@ -133,6 +135,7 @@
     "clientInvoices": "Invoices",
     "clientTerms": "Terms",
     "governance": "Go-live",
+    "checks": "Checks",
     "leads": "Leads",
     "inboxes": "Inboxes",
     "clientCrm": "Your CRM",
@@ -603,6 +606,24 @@
     "missing": "This page needs the link from your email.",
     "back": "Back to sign in",
     "error": "That didn't work. Try again in a moment."
+  },
+  "checks": {
+    "title": "Checks",
+    "intro": "Run all checks to see, in one place, whether everything prospecting needs is working right now: the database, the background worker, the AI, Google Places, the mailboxes and sending domains, and recent failed emails. Nothing is sent or changed; Google Places is not called (each search is billed).",
+    "run": "Run all checks",
+    "running": "Checking…",
+    "lastRun": "Checked {when}.",
+    "allOk": "Everything checked is working.",
+    "someFail": "{n} check(s) failed. Fix them from the top: later ones often depend on earlier ones.",
+    "statuses": { "ok": "OK", "warn": "Attention", "fail": "Failed", "info": "Info" },
+    "fix": "What to do:",
+    "problemsTitle": "Sending problems",
+    "problemsIntro": "Emails from the last 30 days that failed, bounced, were stopped at the last check, or are held back by something you must fix. Recipients' addresses are never shown.",
+    "noProblems": "No sending problem in the last 30 days.",
+    "severities": { "error": "Error", "warning": "Attention" },
+    "why": "Why:",
+    "when": "Last change {when}",
+    "loadError": "The checks could not be run. Is the API running?"
   },
   "governance": {
     "title": "Go-live and governance",

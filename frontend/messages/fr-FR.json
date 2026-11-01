@@ -19,6 +19,8 @@
   "operator": {
     "title": "Vue d’ensemble opérateur",
     "dryRunBanner": "Mode simulation : aucun e-mail, rendez-vous ni écriture CRM réels ne peut sortir du système.",
+    "sendErrors": "{n} e-mail(s) n’ont pas pu être envoyés ces 7 derniers jours.",
+    "sendErrorsLink": "Voir pourquoi et que faire",
     "pipeline": "Pipeline par état",
     "approvalQueue": "File d’approbation",
     "escalations": "Escalades",
@@ -133,6 +135,7 @@
     "clientInvoices": "Factures",
     "clientTerms": "Conditions",
     "governance": "Mise en production",
+    "checks": "Vérifications",
     "leads": "Leads",
     "inboxes": "Boîtes d’envoi",
     "clientCrm": "Votre CRM",
@@ -603,6 +606,24 @@
     "missing": "Cette page a besoin du lien reçu par e-mail.",
     "back": "Retour à la connexion",
     "error": "Cela n’a pas fonctionné. Réessayez dans un instant."
+  },
+  "checks": {
+    "title": "Vérifications",
+    "intro": "Lancez toutes les vérifications pour voir, au même endroit, si tout ce dont la prospection a besoin fonctionne maintenant : la base de données, le worker, l’IA, Google Places, les boîtes d’envoi et domaines d’envoi, et les e-mails récemment en échec. Rien n’est envoyé ni modifié ; Google Places n’est pas appelé (chaque recherche est facturée).",
+    "run": "Lancer toutes les vérifications",
+    "running": "Vérification…",
+    "lastRun": "Vérifié {when}.",
+    "allOk": "Tout ce qui a été vérifié fonctionne.",
+    "someFail": "{n} vérification(s) en échec. Corrigez-les en partant du haut : les suivantes dépendent souvent des premières.",
+    "statuses": { "ok": "OK", "warn": "Attention", "fail": "Échec", "info": "Info" },
+    "fix": "Que faire :",
+    "problemsTitle": "Problèmes d’envoi",
+    "problemsIntro": "E-mails des 30 derniers jours en échec, rejetés, arrêtés à la dernière vérification, ou retenus par un problème à corriger. Les adresses des destinataires ne sont jamais affichées.",
+    "noProblems": "Aucun problème d’envoi ces 30 derniers jours.",
+    "severities": { "error": "Erreur", "warning": "Attention" },
+    "why": "Pourquoi :",
+    "when": "Dernier changement {when}",
+    "loadError": "Les vérifications n’ont pas pu être lancées. L’API est-elle démarrée ?"
   },
   "governance": {
     "title": "Mise en production et gouvernance",

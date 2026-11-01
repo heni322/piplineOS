@@ -133,3 +133,12 @@ export type SourceHealth = {
 export type Account = { status: string; paused_reason: string | null; paused_at: string | null };
 export type Testimonial = { id: string; tenant_id: string; client: string; quote: string; attribution: string | null;
   scope: "anonymous" | "named" | "named_with_logo"; consented_at: string; withdrawn_at: string | null };
+
+export type CheckStatus = "ok" | "warn" | "fail" | "info";
+export type SystemCheck = { key: string; title: string; status: CheckStatus; detail: string; fix: string };
+export type SystemChecks = { checked_at: string; ok: boolean; checks: SystemCheck[] };
+export type SendingProblem = {
+  id: string; client: string; campaign: string; company: string; status: string; severity: "error" | "warning";
+  what: string; fix: string; reasons: { code: string; text: string; fix: string }[]; when: string;
+};
+export type SendingProblems = { errors_last_7_days: number; problems: SendingProblem[] };

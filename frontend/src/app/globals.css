@@ -255,3 +255,16 @@ label.inline input { width: auto; }
 .criterion { border-top: 1px solid var(--rule); padding-top: 10px; margin-top: 10px; }
 .next-step { background: var(--verify-soft); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
 .next-step strong { display: block; }
+
+/* Errors that need the operator: a red alert above every console page, and the Checks page */
+.alert { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--danger-soft); color: var(--danger);
+  border: 1px solid currentColor; border-radius: 10px; padding: 7px 14px; margin: 0 0 12px; font-size: 0.875rem; font-weight: 600;
+  width: fit-content; max-width: 100%; }
+.alert a { color: inherit; }
+.checks .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; font-size: 0.8125rem; font-weight: 600; white-space: nowrap; }
+.checks [data-status="ok"] .pill { color: var(--verify); }
+.checks [data-status="warn"] .pill, .checks [data-severity="warning"] .pill { color: var(--warn-ink); background: var(--warn-bg); }
+.checks [data-status="fail"] .pill, .checks [data-severity="error"] .pill { color: var(--danger); background: var(--danger-soft); }
+.checks [data-status="info"] .pill { color: var(--muted); }
+.checks .fix { margin: 4px 0 0; }
+.checks ul.reasons { margin: 6px 0 0; padding-left: 18px; }

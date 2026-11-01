@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell, type NavGroup } from "@/components/AppShell";
 import { api } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
-import type { GovernanceStatus } from "@/lib/types";
+import type { GovernanceStatus, SendingProblems } from "@/lib/types";
 
 const t = getMessages();
 const GROUPS: NavGroup[] = [
@@ -32,6 +33,7 @@ const GROUPS: NavGroup[] = [
     { href: "/operator/compliance", label: t.nav.compliance },
     { href: "/operator/dry-run", label: t.nav.dryRun },
     { href: "/operator/governance", label: t.nav.governance },
+    { href: "/operator/checks", label: t.nav.checks },
   ] },
 ];
 
@@ -46,6 +48,8 @@ export function OperatorShell({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   // false until confirmed: the dry-run banner stays up unless the system is really live (safe default)
   const [live, setLive] = useState(false);
+  // emails that failed recently: shown as a red alert on every page until they are dealt with
+  const [sendErrors, setSendErrors] = useState(0);
 
   useEffect(() => {
     api<{ role: string }>("/api/v1/auth/me")
@@ -55,6 +59,9 @@ export function OperatorShell({ children }: { children: React.ReactNode }) {
         api<GovernanceStatus>("/api/v1/governance/status")
           .then((s) => setLive(isSendingLive(s)))
           .catch(() => setLive(false));
+        api<SendingProblems>("/api/v1/sending-problems?days=7")
+          .then((p) => setSendErrors(p.errors_last_7_days))
+          .catch(() => setSendErrors(0));
       })
       .catch(() => router.replace("/login"));
   }, [router]);
@@ -66,7 +73,15 @@ export function OperatorShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppShell area={t.nav.console} navLabel={t.nav.primary} groups={GROUPS} onSignOut={signOut}
-      banner={live ? undefined : <p className="banner" role="status">{t.operator.dryRunBanner}</p>}>
+      banner={<>
+        {sendErrors > 0 && (
+          <p className="alert" role="alert">
+            {t.operator.sendErrors.replace("{n}", String(sendErrors))}{" "}
+            <Link href="/operator/checks">{t.operator.sendErrorsLink}</Link>
+          </p>
+        )}
+        {!live && <p className="banner" role="status">{t.operator.dryRunBanner}</p>}
+      </>}>
       {ready ? children : <p className="muted">{t.operator.loading}</p>}
     </AppShell>
   );
