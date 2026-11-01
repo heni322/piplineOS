@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AppShell, type NavGroup } from "@/components/AppShell";
 import { api } from "@/lib/api";
 import { getMessages } from "@/lib/i18n";
+import type { GovernanceStatus } from "@/lib/types";
 
 const t = getMessages();
 const GROUPS: NavGroup[] = [
@@ -34,14 +35,27 @@ const GROUPS: NavGroup[] = [
   ] },
 ];
 
+/** Live only when all three keys allow a real send: the global switch, the live email adapter and a live client. */
+export function isSendingLive(s: GovernanceStatus | null): boolean {
+  return !!s && s.global_go_live && s.adapter_modes.email === "live" && s.live_clients > 0;
+}
+
 /** Client-side guard: the API enforces auth on every call; this only redirects signed-out operators to sign in. */
 export function OperatorShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  // false until confirmed: the dry-run banner stays up unless the system is really live (safe default)
+  const [live, setLive] = useState(false);
 
   useEffect(() => {
     api<{ role: string }>("/api/v1/auth/me")
-      .then((me) => (me.role === "operator" ? setReady(true) : router.replace("/client")))
+      .then((me) => {
+        if (me.role !== "operator") return router.replace("/client");
+        setReady(true);
+        api<GovernanceStatus>("/api/v1/governance/status")
+          .then((s) => setLive(isSendingLive(s)))
+          .catch(() => setLive(false));
+      })
       .catch(() => router.replace("/login"));
   }, [router]);
 
@@ -52,7 +66,7 @@ export function OperatorShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppShell area={t.nav.console} navLabel={t.nav.primary} groups={GROUPS} onSignOut={signOut}
-      banner={<p className="banner" role="status">{t.operator.dryRunBanner}</p>}>
+      banner={live ? undefined : <p className="banner" role="status">{t.operator.dryRunBanner}</p>}>
       {ready ? children : <p className="muted">{t.operator.loading}</p>}
     </AppShell>
   );
