@@ -32,14 +32,17 @@ config:
   signal_threshold: 60
   sequence: { follow_ups: 2, spacing_business_days: 4 }
   brand_voice:
-    sender_name: "L'équipe Vayz"
+    # A person's name: emails are signed with its FIRST word ("L'équipe Vayz" would sign "L'équipe"), and cold
+    # emails signed by a person get more replies than a team signature. Add the surname if you like.
+    sender_name: "Heni"
     sender_title: "Vayz"
     tone: "simple, concret, professionnel et chaleureux ; vouvoiement ; pas de superlatifs"
     banned_phrases: ["révolutionnaire", "incroyable", "meilleur du marché", "offre exceptionnelle", "garanti"]
     value_proposition: "Vayz réunit propriétaires et locataires sur une seule plateforme : candidatures notées,
       bail et dépôt de garantie, loyers encaissés et virés automatiquement, quittances et comptabilité."
-  outreach_purpose: "Présenter Vayz, plateforme de gestion locative, à des bailleurs professionnels et à des
-    gestionnaires de logements."
+  # A noun phrase: the footer reads "...et vous contactons au sujet de {outreach_purpose}, en lien avec votre fonction."
+  outreach_purpose: "la présentation de Vayz, plateforme de gestion locative, aux bailleurs professionnels et aux
+    gestionnaires de logements"
   qualification:
     framework: custom
     criteria:
