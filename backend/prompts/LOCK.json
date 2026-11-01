@@ -1,5 +1,7 @@
 {
   "common/untrusted_data_policy.v1.md": "793210ffb919228aceb289c78bc60882226906ca6190534fbeab7702a54b37cb",
+  "discovery/plan.v1.md": "c9cbea7e87796b0a24d53edc9bdbadbdcaa8053380fdb8d43a59c7a46687ab14",
+  "discovery/rank.v1.md": "3041555b695cc9f70332c402df409ab207013cf018e11f1ddb080d4e9505cadb",
   "reply_handler/classify.v1.md": "c19eb253481364b9e266ab3cdca81b068c2747e7a4ad7178d41ea21e3725e0b3",
   "reply_handler/qualify.v1.md": "966beff9c38fad15cbafe5c90bdccb6de7aad8fd3629face4f5b2825e87c59fb",
   "reply_handler/respond.v1.md": "54584d0f295f8143db2cca85e60e0906c6479a6364401cd595c5e7d5c08e3c72",

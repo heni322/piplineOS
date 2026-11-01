@@ -121,6 +121,10 @@ class Settings(BaseSettings):
     llm_provider: Literal["local", "anthropic", "gemini"] = "anthropic"
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.8-flash"
+    # which AI does the work while TESTING (LLM_ADAPTER_MODE=sandbox): the free local model (default, nothing leaves
+    # this machine) or Gemini (paid, real calls with GEMINI_API_KEY; prospect data goes to Google, so use a key on the
+    # paid tier). Sending is unaffected: it still needs the three live keys. FREE_ONLY=true always means local.
+    llm_sandbox_provider: Literal["local", "gemini"] = "local"
     # Web research panel (Gemini + Google Search; docs/GOOGLE-PLACES.md): paid, only with the three keys and
     # FREE_ONLY=false; at most this many requests a month (Google gives 5,000 free search queries a month)
     gemini_search_mode: AdapterMode = "mock"
@@ -132,6 +136,9 @@ class Settings(BaseSettings):
     places_monthly_cap: int = Field(default=1000, ge=0)
     places_region: str = Field(default="GB", pattern=r"^[A-Z]{2}$")
     places_language: str = "en"
+    # Smart search ("Find companies"): the AI turns the client's targeting into at most this many Places searches
+    # (each one billed per page) and ranks the confirmed companies by fit
+    smart_search_max_queries: int = Field(default=3, ge=1, le=6)
     # who finds decision-makers when FREE_ONLY=false: the free register (+ published addresses) or Hunter (paid)
     enrichment_provider: Literal["companies_house", "hunter"] | None = None
     llm_model_volume: str = "claude-sonnet-5-5"

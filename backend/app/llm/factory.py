@@ -1,7 +1,8 @@
 """Chooses the LLM backend. Paid model calls follow the same three-key rule as sending (brief: DRY-RUN everywhere):
 adapter mode live + tenant live + GLOBAL_GO_LIVE with the go-live checklist signed. Adapter mode "sandbox" = a free
-open-weights model on this machine (Ollama), for testing with a real model at no cost. FREE_ONLY: live work also runs
-on that local model and the paid API is never called. Otherwise: the simulator."""
+open-weights model on this machine (Ollama), for testing with a real model at no cost — or, with
+LLM_SANDBOX_PROVIDER=gemini, Gemini (paid, real calls while testing). FREE_ONLY: live and sandbox work run on the
+local model and no paid API is ever called. Otherwise: the simulator."""
 
 from __future__ import annotations
 
@@ -32,6 +33,31 @@ def local_backend(settings: Settings, model: str | None = None) -> OllamaBackend
     )
 
 
+def gemini_backend(settings: Settings, why: str) -> GeminiBackend:
+    if settings.gemini_api_key is None or not settings.gemini_api_key.get_secret_value():
+        raise AdapterNotConfigured(f"{why} needs GEMINI_API_KEY")
+    return GeminiBackend(settings.gemini_api_key.get_secret_value(), settings.gemini_model)
+
+
+def backend_name(settings: Settings, *, tenant_live: bool, golive_complete: bool) -> str:
+    """Which AI `select_backend` would use: "local", "gemini", "anthropic" or "simulated" (builds nothing)."""
+    mode = resolve_mode(
+        adapter_mode=settings.llm_adapter_mode,
+        tenant_live=tenant_live,
+        global_go_live=settings.global_go_live,
+        golive_complete=golive_complete,
+    )
+    if mode == "live":
+        if settings.free_only or settings.llm_provider == "local":
+            return "local"
+        if settings.llm_provider == "gemini":
+            return "gemini"
+        return "anthropic" if settings.anthropic_api_key is not None else "simulated"
+    if mode == "sandbox":
+        return "gemini" if settings.llm_sandbox_provider == "gemini" and not settings.free_only else "local"
+    return "simulated"
+
+
 def select_backend(settings: Settings, *, tenant_live: bool, golive_complete: bool) -> LLMBackend:
     mode = resolve_mode(
         adapter_mode=settings.llm_adapter_mode,
@@ -42,11 +68,11 @@ def select_backend(settings: Settings, *, tenant_live: bool, golive_complete: bo
     if mode == "live" and (settings.free_only or settings.llm_provider == "local"):
         return local_backend(settings)  # never a paid API: the free local model does the live work
     if mode == "live" and settings.llm_provider == "gemini":
-        if settings.gemini_api_key is None or not settings.gemini_api_key.get_secret_value():
-            raise AdapterNotConfigured("LLM_PROVIDER=gemini needs GEMINI_API_KEY")
-        return GeminiBackend(settings.gemini_api_key.get_secret_value(), settings.gemini_model)
+        return gemini_backend(settings, "LLM_PROVIDER=gemini")
     if mode == "live" and settings.anthropic_api_key is not None:
         return AnthropicBackend(settings.anthropic_api_key.get_secret_value())
+    if mode == "sandbox" and settings.llm_sandbox_provider == "gemini" and not settings.free_only:
+        return gemini_backend(settings, "LLM_SANDBOX_PROVIDER=gemini")  # real Gemini while testing (paid)
     if mode == "sandbox":
         return local_backend(settings)
     return SimulatedBackend()

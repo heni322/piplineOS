@@ -234,6 +234,47 @@ def _respond(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+SIM_CITIES = {
+    "FR": ["Paris", "Lyon", "Marseille", "Toulouse", "Bordeaux", "Lille"],
+    "GB": ["London", "Manchester", "Birmingham", "Leeds", "Bristol", "Glasgow"],
+}
+
+
+def _plan_searches(data: dict[str, Any]) -> dict[str, Any]:
+    """Smart search plan: each industry keyword in a different big city of the target country."""
+    offer = data.get("offer") or {}
+    keywords = [str(k) for k in offer.get("industry_keywords") or [] if str(k).strip()] or ["business"]
+    cities = SIM_CITIES.get(str(data.get("target_country")), ["capital"])
+    n = max(1, int(data.get("max_searches") or 3))
+    queries = [f"{keywords[i % len(keywords)]} {cities[i % len(cities)]}" for i in range(n)]
+    return {"queries": queries, "reasoning": "One industry keyword per city, spread across the largest cities."}
+
+
+def _fit_scores(data: dict[str, Any], sources: list[tuple[str, str]]) -> dict[str, Any]:
+    """Smart search ranking: keyword overlap between the targeting and the company's name and own page."""
+    offer = data.get("offer") or {}
+    wanted = [str(k).lower() for k in offer.get("industry_keywords") or [] if str(k).strip()]
+    excluded = [str(k).lower() for k in offer.get("excluded_keywords") or [] if str(k).strip()]
+    text_by_ref = dict(sources)
+    fr = data.get("language") == "fr"
+    scores = []
+    for c in data.get("companies") or []:
+        ref = str(c.get("ref"))
+        hay = f"{c.get('registered_name', '')} {text_by_ref.get(ref, '')}".lower()
+        hits = [k for k in wanted if k in hay]
+        if any(k in hay for k in excluded):
+            score, reason = 10, ("Activité exclue par le ciblage." if fr else "An excluded activity.")
+        elif hits:
+            score = min(95, 60 + 12 * len(hits))
+            reason = (
+                f"Son site mentionne : {', '.join(hits[:3])}." if fr else f"Its site mentions: {', '.join(hits[:3])}."
+            )
+        else:
+            score, reason = 35, ("Activité incertaine d'après son site." if fr else "Activity unclear from its site.")
+        scores.append({"ref": ref, "fit_score": score, "reason": reason})
+    return {"scores": scores}
+
+
 class SimulatedBackend:
     def complete(
         self,
@@ -259,6 +300,10 @@ class SimulatedBackend:
             out = _qualify(data, sources)
         elif title == "ReplyDraft":
             out = _respond(data)
+        elif title == "SearchPlan":
+            out = _plan_searches(data)
+        elif title == "FitScores":
+            out = _fit_scores(data, sources)
         else:
             raise ValueError(f"simulator has no behaviour for schema {title!r}")
         return BackendResponse(

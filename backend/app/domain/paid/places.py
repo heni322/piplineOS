@@ -1,8 +1,9 @@
 """Google Places behind the paid-call gate and a monthly cap.
 
-- Only with the three keys (Places adapter live, client live, global go-live with the checklist signed), never with
-  FREE_ONLY=true, and never in sandbox (Google has no free test key). Otherwise the would-be search is written to the
-  dry-run log and nothing is called.
+- Real searches with the three keys (Places adapter live, client live, global go-live with the checklist signed), or
+  while TESTING with PLACES_ADAPTER_MODE=sandbox (real, billed searches with your key: Google has no free test key).
+  Never with FREE_ONLY=true. Otherwise (mock) the would-be search is written to the dry-run log and nothing is called.
+  Either way the monthly cap below applies.
 - Every billed request is first counted in `provider_usage` under PLACES_MONTHLY_CAP (default 1,000 = Google's free
   monthly allowance for these fields), atomically across workers. At the cap, searching stops until next month.
 - Nothing returned by Places is stored (Google's terms). Websites are handed straight to the website check, which
@@ -71,7 +72,8 @@ class GatedPlaces:
 
     @property
     def allowed(self) -> bool:
-        return self.gate.mode == "live"  # no sandbox: every Places request is billed
+        # live: the three keys are on. sandbox: real (billed) searches while testing, chosen explicitly in .env.
+        return self.gate.mode in ("live", "sandbox")
 
     def _page(self, query: str, operation: str, subject: str, token: str | None) -> tuple[list[PlaceHit], str | None]:
         if not self.allowed:

@@ -5,13 +5,20 @@ does: Google Places behind the paid-call gate and the monthly cap, then each web
 the register confirms, and pass the website check. The result (counts and confirmed companies) is stored on the
 search for the console to show; the operator then chooses which companies to add to the client's watchlist.
 
+A SMART search (`smart`) has no query: the AI writes the searches from the client's targeting, and for every search
+the AI ranks the confirmed companies by fit with a short reason (`app.domain.paid.intelligence`). The checks that
+confirm a company are the same; the AI only plans and ranks.
+
 Before go-live (or with FREE_ONLY=true, or without a key) nothing reaches Google: the search ends as "dry_run" (the
-would-be request is in the dry-run log) or "failed" with the reason, never silently.
+would-be request is in the dry-run log) or "failed" with the reason, never silently. PLACES_ADAPTER_MODE=sandbox makes
+real, billed searches while testing.
 """
 
 from __future__ import annotations
 
+import time
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict
 from typing import Any
 
@@ -25,8 +32,11 @@ from app.core.audit import write_audit
 from app.core.crypto import PiiCipher
 from app.core.logging import get_logger
 from app.db.session import DbContext, transaction
-from app.domain.paid.discovery import discover_companies
+from app.domain.paid.discovery import DiscoveryReport, discover_companies
+from app.domain.paid.intelligence import LANGUAGES, plan_queries, rank
 from app.domain.paid.places import GatedPlaces
+from app.domain.tenants.config import TenantConfig, load_config
+from app.llm.client import LLMClient, LLMEscalation
 from app.settings import Settings
 
 log = get_logger(__name__)
@@ -50,13 +60,24 @@ def registry_for(settings: Settings, country: str) -> CompaniesRegistry:
     raise AdapterNotConfigured(f"no register for country {country!r}")
 
 
+SMART_LABEL = "Smart search (AI)"
+
+
 def request(
-    conn: Connection, *, tenant_id: uuid.UUID, operator_id: uuid.UUID, query: str, country: str, pages: int
+    conn: Connection,
+    *,
+    tenant_id: uuid.UUID,
+    operator_id: uuid.UUID,
+    query: str,
+    country: str,
+    pages: int,
+    smart: bool = False,
 ) -> uuid.UUID:
+    query = SMART_LABEL if smart else query
     search_id = conn.execute(
-        text("""INSERT INTO company_searches (tenant_id, query, country, pages, requested_by)
-                VALUES (:t, :q, :c, :p, :u) RETURNING id"""),
-        {"t": tenant_id, "q": query.strip(), "c": country, "p": pages, "u": operator_id},
+        text("""INSERT INTO company_searches (tenant_id, query, country, pages, requested_by, smart)
+                VALUES (:t, :q, :c, :p, :u, :s) RETURNING id"""),
+        {"t": tenant_id, "q": query.strip(), "c": country, "p": pages, "u": operator_id, "s": smart},
     ).scalar_one()
     write_audit(
         conn,
@@ -66,7 +87,7 @@ def request(
         tenant_id=tenant_id,
         entity_type="company_search",
         entity_id=search_id,
-        after={"query": query.strip(), "country": country, "pages": pages},
+        after={"query": query.strip(), "country": country, "pages": pages, "smart": smart},
     )
     return uuid.UUID(str(search_id))
 
@@ -97,6 +118,32 @@ def _finish(engine: Engine, search_id: uuid.UUID, tenant_id: uuid.UUID, **fields
         )
 
 
+def llm_for(engine: Engine, settings: Settings, cipher: PiiCipher, tenant_id: uuid.UUID) -> LLMClient:
+    """The AI for this client, chosen like the agents' (app.llm.factory): Gemini, the local model or the simulator."""
+    from app.llm.factory import build_llm_client
+
+    with transaction(DbContext.system(tenant_id), engine) as conn:
+        live = bool(conn.execute(text("SELECT live_mode FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+    return build_llm_client(settings, engine, cipher, tenant_live=live, golive_complete=golive)
+
+
+def _config(engine: Engine, tenant_id: uuid.UUID) -> TenantConfig | None:
+    with transaction(DbContext.system(tenant_id), engine) as conn:
+        try:
+            return load_config(conn, tenant_id)[1]
+        except LookupError:
+            return None
+
+
+def _merge(total: DiscoveryReport, part: DiscoveryReport) -> None:
+    for k in ("searched", "with_website", "no_number_on_site", "not_confirmed_by_register", "site_check_failed"):
+        setattr(total, k, getattr(total, k) + getattr(part, k))
+    total.stopped_early = total.stopped_early or part.stopped_early
+    known = {f.company_number for f in total.found}
+    total.found += [f for f in part.found if f.company_number not in known]
+
+
 def run(
     engine: Engine,
     settings: Settings,
@@ -107,7 +154,9 @@ def run(
     places: GatedPlaces | None = None,
     finder: WebsiteFinder | None = None,
     registry: CompaniesRegistry | None = None,
+    llm: LLMClient | None = None,
     time_limit: float = TIME_LIMIT,
+    clock: Callable[[], float] = time.monotonic,
 ) -> str:
     """Runs one queued search once (a redelivered task finds it no longer queued and stops). Returns its status."""
     import json
@@ -115,21 +164,70 @@ def run(
     with transaction(DbContext.system(tenant_id), engine) as conn:
         row = conn.execute(
             text("""UPDATE company_searches SET status = 'running' WHERE id = :id AND status = 'queued'
-                    RETURNING query, country, pages"""),
+                    RETURNING query, country, pages, smart"""),
             {"id": search_id},
         ).first()
     if row is None:
         return "skipped"
+    extra: dict[str, Any] = {"smart": bool(row.smart), "queries": [], "ranking": "off"}
+    cfg = _config(engine, tenant_id)
     try:
+        if row.smart and cfg is None:
+            raise AdapterNotConfigured("a smart search needs the client's targeting: configure the client first")
+        if row.smart or cfg is not None:
+            try:
+                llm = llm or llm_for(engine, settings, cipher, tenant_id)
+            except AdapterNotConfigured:
+                if row.smart:
+                    raise
+                llm = None  # a manual search still runs; only the ranking is missing
+                extra["ranking"] = "unavailable: the AI is not configured"
         if places is None:
             from app.domain.paid.providers import places_for
 
-            places = places_for(settings.model_copy(update={"places_region": row.country}), engine, cipher, tenant_id)
+            places = places_for(
+                settings.model_copy(
+                    update={"places_region": row.country, "places_language": LANGUAGES.get(row.country, "en")}
+                ),
+                engine,
+                cipher,
+                tenant_id,
+            )
         registry = registry or registry_for(settings, row.country)
         finder = finder or WebsiteFinder(contact=settings.crawler_contact)
-        report = discover_companies(
-            places, finder, registry, row.query, country=row.country, pages=row.pages, time_limit=time_limit
+        if row.smart:
+            if cfg is None or llm is None:  # both checked above; kept explicit for the type checker
+                raise AdapterNotConfigured("a smart search needs the client's targeting and an AI")
+            queries = plan_queries(
+                llm, cfg, country=row.country, tenant_id=tenant_id, max_queries=settings.smart_search_max_queries
+            )
+        else:
+            queries = [row.query]
+        extra["queries"] = queries
+        report = DiscoveryReport()
+        deadline = clock() + time_limit
+        for q in queries:
+            left = deadline - clock()
+            if left <= 0:
+                report.stopped_early = True
+                break
+            _merge(
+                report,
+                discover_companies(
+                    places, finder, registry, q, country=row.country, pages=row.pages, time_limit=left, clock=clock
+                ),
+            )
+        if report.found and cfg is not None and llm is not None:
+            descriptions = {f.domain: finder.describe(f.domain) for f in report.found}
+            report.found = rank(
+                llm, cfg, report.found, descriptions, tenant_id=tenant_id, language=LANGUAGES.get(row.country, "en")
+            )
+            extra["ranking"] = "done"
+    except LLMEscalation as exc:
+        _finish(
+            engine, search_id, tenant_id, status="failed", error=f"The AI could not plan the searches ({exc.reason})"
         )
+        return "failed"
     except AdapterNotConfigured as exc:
         _finish(engine, search_id, tenant_id, status="failed", error=str(exc)[:500])
         return "failed"
@@ -138,14 +236,15 @@ def run(
         _finish(engine, search_id, tenant_id, status="failed", error=f"unexpected error ({type(exc).__name__})")
         return "failed"
     status = "done" if places.allowed else "dry_run"
-    _finish(engine, search_id, tenant_id, status=status, called=places.allowed, report=json.dumps(asdict(report)))
+    payload = asdict(report) | extra
+    _finish(engine, search_id, tenant_id, status=status, called=places.allowed, report=json.dumps(payload))
     return status
 
 
 def recent(conn: Connection, tenant_id: uuid.UUID, limit: int = 20) -> list[dict[str, Any]]:
     rows = conn.execute(
-        text("""SELECT id, query, country, pages, status, called_google, report, error, created_at, finished_at
-                FROM company_searches WHERE tenant_id = :t ORDER BY created_at DESC LIMIT :n"""),
+        text("""SELECT id, query, country, pages, smart, status, called_google, report, error, created_at,
+                finished_at FROM company_searches WHERE tenant_id = :t ORDER BY created_at DESC LIMIT :n"""),
         {"t": tenant_id, "n": limit},
     ).mappings()
     return [dict(r) for r in rows]

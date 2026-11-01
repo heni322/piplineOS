@@ -60,6 +60,7 @@ def test_live_search_keeps_confirmed_companies_only_and_runs_once(clean_db, sett
     row = _row(clean_db, sid)
     assert row["status"] == "done" and row["called_google"] is True and row["finished_at"] is not None
     (found,) = row["report"]["found"]
+    fit = {k: found.pop(k) for k in ("fit_score", "fit_reason")}
     assert found == {
         "name": "LAKESIDE NETWORKS LIMITED",
         "company_number": "01234567",
@@ -67,6 +68,9 @@ def test_live_search_keeps_confirmed_companies_only_and_runs_once(clean_db, sett
         "address": "sales@lakesidenetworks.co.uk",
         "country": "GB",
     }
+    # the client has targeting, so the AI (here the simulator) ranked the confirmed company
+    assert isinstance(fit["fit_score"], int) and fit["fit_reason"] and row["report"]["ranking"] == "done"
+    assert row["report"]["queries"] == ["IT support Leeds"] and row["report"]["smart"] is False
     stored = json.dumps(row["report"])
     assert "1 High St" not in stored and "p1" not in stored  # nothing Google returned (address, place ID) is kept
     # a redelivered task finds the search no longer queued: no second billed request

@@ -104,16 +104,19 @@ export type SendingDomain = { id: string; tenant_id: string; tenant_name: string
   spf_ok: boolean; dkim_ok: boolean; dmarc_ok: boolean; dmarc_policy: string | null; issues: string[];
   checked_at: string | null; providers: string[] };
 export type ReadinessItem = { key: string; title: string; state: "done" | "todo" | "info"; who: "you" | "system"; detail: string };
-export type FoundCompany = { name: string; company_number: string; domain: string; address: string | null; country: string };
+export type FoundCompany = { name: string; company_number: string; domain: string; address: string | null; country: string;
+  fit_score?: number | null; fit_reason?: string | null };
 export type CompanySearch = {
   id: string; query: string; country: "GB" | "FR"; pages: number;
   status: "queued" | "running" | "done" | "dry_run" | "failed" | "stuck";
   called_google: boolean | null; error: string | null; created_at: string; finished_at: string | null;
   counts: Record<string, number>; stopped_early: boolean; found: FoundCompany[];
+  smart?: boolean; queries?: string[]; ranking?: string;
 };
 export type CompanySearches = {
   setup: { free_only: boolean; key_set: boolean; adapter_mode: string; global_go_live: boolean; calls_this_month: number; monthly_cap: number;
-    research_key_set: boolean; research_mode: string; research_calls_this_month: number; research_monthly_cap: number };
+    research_key_set: boolean; research_mode: string; research_calls_this_month: number; research_monthly_cap: number;
+    ai?: "gemini" | "local" | "anthropic" | "simulated"; ai_key_set?: boolean };
   searches: CompanySearch[];
 };
 export type WebResearch = { called: boolean; reason: string | null; answer: string | null;

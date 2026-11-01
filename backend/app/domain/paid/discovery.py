@@ -29,6 +29,8 @@ class Discovered:
     domain: str
     address: str | None  # the generic business address the site publishes, if any
     country: str
+    fit_score: int | None = None  # smart search: the AI's fit with the client's targeting (0-100), advice only
+    fit_reason: str | None = None
 
 
 @dataclass

@@ -11,6 +11,7 @@ const t = getMessages().discover;
 const fill = (s: string, v: Record<string, string | number>) =>
   Object.entries(v).reduce((acc, [k, x]) => acc.replaceAll(`{${k}}`, String(x)), s);
 const pending = (s: CompanySearch) => s.status === "queued" || s.status === "running";
+const ranked = (s: CompanySearch) => s.found.some((f) => f.fit_score != null);
 
 /** Find companies with Google Places (paid, gated), then add the confirmed ones to a client's watchlist. */
 export default function DiscoverPage() {
@@ -48,13 +49,12 @@ export default function DiscoverPage() {
     return () => clearInterval(id);
   }, [data, load]);
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault();
+  async function search(e: React.FormEvent | null, smart = false) {
+    e?.preventDefault();
     setBusy(true); setError(null); setNotice(null);
     try {
-      await api(`/api/v1/clients/${tenant}/company-searches`, {
-        method: "POST", body: JSON.stringify({ ...form, query: form.query.trim() }),
-      });
+      const body = smart ? { smart: true, country: form.country, pages: form.pages } : { ...form, query: form.query.trim() };
+      await api(`/api/v1/clients/${tenant}/company-searches`, { method: "POST", body: JSON.stringify(body) });
       setNotice(t.started); load();
     } catch (err) {
       setError((err as Problem).detail ?? (err as Problem).title);
@@ -92,7 +92,9 @@ export default function DiscoverPage() {
   if (!clients) return error ? <p role="alert" className="error">{error}</p> : <p className="muted" aria-busy="true">{getMessages().operator.loading}</p>;
   const setup = data?.setup;
   const setupNote = !setup ? null : setup.free_only ? t.setupFreeOnly : !setup.key_set ? t.setupNoKey
+    : setup.adapter_mode === "sandbox" ? t.setupTesting
     : setup.adapter_mode === "live" && setup.global_go_live ? t.setupLive : t.setupDryRun;
+  const ai = setup?.ai ?? "simulated";
 
   return (
     <>
@@ -129,6 +131,13 @@ export default function DiscoverPage() {
             </label>
             <button type="submit" disabled={busy || !tenant || form.query.trim().length < 3}>{t.search}</button>
           </form>
+          <section className="panel" aria-labelledby="smart-search">
+            <h2 id="smart-search">{t.smartTitle}</h2>
+            <p className="muted" style={{ maxWidth: "70ch" }}>{t.smartIntro}</p>
+            {setup && <p className="muted">{fill(t.ai, { ai: t.aiNames[ai] })}</p>}
+            {setup && ai === "gemini" && !setup.ai_key_set && <p className="error" role="note">{t.aiNoKey}</p>}
+            <button type="button" disabled={busy || !tenant} onClick={() => search(null, true)}>{t.smartButton}</button>
+          </section>
           {notice && <p className="status" role="status">{notice}</p>}
           {error && <p role="alert" className="error">{error}</p>}
 
@@ -151,6 +160,12 @@ export default function DiscoverPage() {
                     s: s.counts.searched ?? 0, w: s.counts.with_website ?? 0, f: s.found.length,
                   })}</p>
                 )}
+                {s.smart && s.queries && s.queries.length > 0 && (
+                  <p className="muted">{fill(t.aiQueries, { q: s.queries.join(" · ") })}</p>
+                )}
+                {s.ranking?.startsWith("unavailable") && (
+                  <p className="muted">{fill(t.rankingUnavailable, { why: s.ranking.replace(/^unavailable:\s*/, "") })}</p>
+                )}
                 {s.stopped_early && <p className="muted">{t.stoppedEarly}</p>}
                 {s.status === "done" && s.found.length === 0 && <p className="muted">{t.noneFound}</p>}
                 {s.found.length > 0 && (
@@ -161,6 +176,7 @@ export default function DiscoverPage() {
                           <th scope="col"><span className="skip">{fill(t.select, { c: "" })}</span></th>
                           <th scope="col">{t.company}</th><th scope="col">{t.number}</th>
                           <th scope="col">{t.website}</th><th scope="col">{t.address}</th>
+                          {ranked(s) && <th scope="col">{t.fit}</th>}
                         </tr></thead>
                         <tbody>
                           {s.found.map((f) => {
@@ -176,6 +192,11 @@ export default function DiscoverPage() {
                                 <td>{f.company_number}</td>
                                 <td><a href={`https://${f.domain}`} target="_blank" rel="noopener noreferrer">{f.domain}</a></td>
                                 <td>{f.address ?? <span className="muted">{t.noAddress}</span>}</td>
+                                {ranked(s) && (
+                                  <td>{f.fit_score == null ? <span className="muted">{t.fitNone}</span> : (
+                                    <><strong>{f.fit_score}</strong>/100{f.fit_reason && <span className="muted"> · {f.fit_reason}</span>}</>
+                                  )}</td>
+                                )}
                               </tr>
                             );
                           })}

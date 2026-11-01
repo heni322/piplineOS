@@ -68,15 +68,23 @@ def test_request_shape_key_in_header_and_closed_places_dropped() -> None:
 
 
 def test_nothing_is_called_until_live_and_the_would_be_search_is_logged(clean_db, settings, cipher) -> None:  # type: ignore[no-untyped-def]
-    for mode in ("dry_run", "sandbox"):
-        seen: list[httpx.Request] = []
-        p = gated(clean_db, settings, cipher, mode, seen)
-        assert p.websites_for("01234567", "Lakeside Networks Ltd") == [] and p.discover("IT Leeds") == []
-        assert seen == []
+    seen: list[httpx.Request] = []
+    p = gated(clean_db, settings, cipher, "dry_run", seen)
+    assert p.websites_for("01234567", "Lakeside Networks Ltd") == [] and p.discover("IT Leeds") == []
+    assert seen == []
     with transaction(DbContext.system(p.gate.tenant_id), clean_db) as conn:
         rows = conn.execute(text("SELECT adapter FROM dry_run_log WHERE effect_type = 'paid_api_call'")).scalars()
         assert set(rows) == {PROVIDER}
     assert usage(clean_db) == 0
+
+
+def test_sandbox_makes_real_searches_while_testing_under_the_cap(clean_db, settings, cipher) -> None:  # type: ignore[no-untyped-def]
+    """PLACES_ADAPTER_MODE=sandbox: real (billed) searches while testing, counted under the same monthly cap."""
+    seen: list[httpx.Request] = []
+    p = gated(clean_db, settings, cipher, "sandbox", seen, cap=1)
+    assert p.allowed and len(p.discover("IT support Leeds")) == 3
+    assert p.discover("again") == [] and len(seen) == 1  # the cap still stops it
+    assert usage(clean_db) == 1
 
 
 def test_live_calls_are_counted_under_the_monthly_cap(clean_db, settings, cipher) -> None:  # type: ignore[no-untyped-def]

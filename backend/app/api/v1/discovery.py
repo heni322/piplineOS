@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
@@ -25,6 +25,7 @@ from app.db.session import DbContext, get_engine, transaction
 from app.domain.paid import searches
 from app.domain.paid.places import PROVIDER, usage
 from app.domain.paid.research import PROVIDER as RESEARCH
+from app.llm.factory import backend_name
 from app.settings import Settings
 
 router = APIRouter(tags=["discovery"])
@@ -34,9 +35,17 @@ STUCK_AFTER = timedelta(minutes=20)  # longer than the worker's hard time limit
 
 
 class SearchIn(BaseModel):
-    query: str = Field(min_length=3, max_length=200)
+    query: str | None = Field(default=None, max_length=200)
     country: Literal["GB", "FR"] = "GB"
     pages: int = Field(default=1, ge=1, le=3)
+    # smart: no query, the AI writes the searches from the client's targeting (app.domain.paid.intelligence)
+    smart: bool = False
+
+    @model_validator(mode="after")
+    def _query_unless_smart(self) -> SearchIn:
+        if not self.smart and len((self.query or "").strip()) < 3:
+            raise ValueError("type an activity and an area (at least 3 characters), or run a smart search")
+        return self
 
 
 class FoundOut(BaseModel):
@@ -45,6 +54,8 @@ class FoundOut(BaseModel):
     domain: str
     address: str | None
     country: str
+    fit_score: int | None = None  # smart ranking (advice only)
+    fit_reason: str | None = None
 
 
 class SearchOut(BaseModel):
@@ -60,6 +71,9 @@ class SearchOut(BaseModel):
     counts: dict[str, int] = {}
     stopped_early: bool = False
     found: list[FoundOut] = []
+    smart: bool = False
+    queries: list[str] = []  # the searches made (written by the AI for a smart search)
+    ranking: str = "off"  # "done", "off", or "unavailable: why"
 
 
 class SetupOut(BaseModel):
@@ -76,6 +90,9 @@ class SetupOut(BaseModel):
     research_mode: str = "mock"
     research_calls_this_month: int = 0
     research_monthly_cap: int = 0
+    # the AI that plans and ranks smart searches for this client right now: gemini | local | anthropic | simulated
+    ai: str = "simulated"
+    ai_key_set: bool = False
 
 
 class SearchesOut(BaseModel):
@@ -102,6 +119,9 @@ def _out(row: dict[str, Any], now: datetime) -> SearchOut:
         counts=counts,
         stopped_early=bool(report.get("stopped_early")),
         found=[FoundOut(**f) for f in report.get("found", [])],
+        smart=bool(row.get("smart")),
+        queries=[str(q) for q in report.get("queries", [])],
+        ranking=str(report.get("ranking", "off")),
     )
 
 
@@ -112,6 +132,8 @@ def list_searches(
     engine = get_engine()
     with transaction(user.db_context(tenant_id), engine) as conn:
         rows = searches.recent(conn, tenant_id)
+        tenant_live = bool(conn.execute(text("SELECT live_mode FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
     key = settings.google_places_api_key
     setup = SetupOut(
         free_only=settings.free_only,
@@ -124,6 +146,8 @@ def list_searches(
         research_mode=settings.gemini_search_mode,
         research_calls_this_month=usage(engine, RESEARCH),
         research_monthly_cap=settings.gemini_search_monthly_cap,
+        ai=backend_name(settings, tenant_live=tenant_live, golive_complete=golive),
+        ai_key_set=bool(settings.gemini_api_key and settings.gemini_api_key.get_secret_value()),
     )
     now = datetime.now(UTC)
     return SearchesOut(setup=setup, searches=[_out(r, now) for r in rows])
@@ -135,7 +159,13 @@ def start_search(tenant_id: uuid.UUID, body: SearchIn, user: Operator) -> Search
     try:
         with transaction(user.db_context(tenant_id), engine) as conn:
             search_id = searches.request(
-                conn, tenant_id=tenant_id, operator_id=user.id, query=body.query, country=body.country, pages=body.pages
+                conn,
+                tenant_id=tenant_id,
+                operator_id=user.id,
+                query=body.query or "",
+                country=body.country,
+                pages=body.pages,
+                smart=body.smart,
             )
     except IntegrityError as exc:
         raise ProblemError(404, "No such client") from exc

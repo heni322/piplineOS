@@ -26,6 +26,7 @@ import re
 import socket
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from html import unescape
 from urllib.parse import urljoin, urlsplit
 from urllib.robotparser import RobotFileParser
 
@@ -63,6 +64,8 @@ GENERIC = [
 # bounded (RFC 5321 limits): an unbounded local part makes a long run of letters quadratic to scan (ReDoS)
 _EMAIL = re.compile(r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}")
 _TAGS = re.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", re.IGNORECASE | re.DOTALL)
+_TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_META_DESC = re.compile(r"<meta\s+[^>]*name=[\"']description[\"'][^>]*content=[\"']([^\"']*)[\"']", re.IGNORECASE)
 _DOMAIN = re.compile(r"^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$")
 WIKIDATA = "https://query.wikidata.org"
 
@@ -251,6 +254,23 @@ class WebsiteFinder:
         if best is not None and not self._mx(best.split("@", 1)[1]):
             best = None
         return SiteContact(domain, best, addresses.get(best, verified_at) if best else verified_at)
+
+    def describe(self, domain: str, max_chars: int = 400) -> str:
+        """What the company says about itself on its home page (title and meta description), to judge its activity.
+        One request, robots.txt respected; "" when there is nothing usable. Untrusted text: wrap it before any AI."""
+        domain = domain.lower().removeprefix("www.")
+        if not _DOMAIN.match(domain):
+            return ""
+        base = f"https://{domain}"
+        if not self._robots(base, domain).can_fetch(USER_AGENT, base + "/"):
+            return ""
+        resp = self._get(base + "/", domain)
+        if resp is None or resp.status_code != 200 or "html" not in (resp.content_type or "html"):
+            return ""
+        html_text = resp.text
+        parts = [m.group(1) for m in (_TITLE.search(html_text), _META_DESC.search(html_text)) if m]
+        out = " | ".join(re.sub(r"\s+", " ", unescape(p)).strip() for p in parts if p.strip())
+        return out[:max_chars]
 
     def identify(self, domain: str, country: str) -> str | None:
         """The register number a site prints about itself (legal notice, footer), for a site found by a search.

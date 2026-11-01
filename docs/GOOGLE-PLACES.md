@@ -24,6 +24,28 @@ companies you want and **Add selected to the watchlist**: this saves a new confi
 targeting form. Above the form, the page says whether searches can reach Google right now (FREE_ONLY, missing key,
 dry-run before go-live, or live) and how many searches were used this month.
 
+**Smart search (AI):** on the same page, **Run a smart search** needs no query. The AI reads the client's targeting
+(offer, ideal customers, excluded activities) and writes up to `SMART_SEARCH_MAX_QUERIES` searches (default 3) in the
+country's language, for example "administrateur de biens Lyon". Each runs like a normal search, and every business
+must pass exactly the same checks: the AI never confirms or adds a company. The AI then ranks the confirmed
+companies by fit with the targeting (a score out of 100 and a one-sentence reason), best first; manual searches are
+ranked too when the client has targeting. It reads only the registered name and what the company's own home page
+says about itself (title and description, robots.txt respected, wrapped as untrusted text); nothing Google Places
+returned is given to the AI. The searches it wrote and the scores are kept on the search. Which AI runs is shown on
+the page: Gemini, the local model, or the simulator when no real AI is configured.
+
+**Testing with real Gemini and Places (before go-live).** To try the real thing while nothing can be sent:
+```
+LLM_ADAPTER_MODE=sandbox
+LLM_SANDBOX_PROVIDER=gemini
+GEMINI_API_KEY=...            # paid tier: on the free tier Google may use prompts to improve its products
+PLACES_ADAPTER_MODE=sandbox   # real, billed Places searches, still under PLACES_MONTHLY_CAP
+GOOGLE_PLACES_API_KEY=...
+```
+Then restart the API and the worker. With these settings the agents (writing, replies, signal scoring) also use
+Gemini. Emails, bookings and CRM writes stay in dry-run until the three live keys are on. Never with
+`FREE_ONLY=true`, which always means the local model and no Places.
+
 **Web research (Gemini with Google Search):** on the same page, ask about one company ("What is the official
 website of Exemple Infogérance SAS, Lyon?"). The answer appears once with its sources and Google's search
 suggestions, and is never stored: Google's terms require grounded answers to be shown to the person who asked, and
@@ -36,9 +58,10 @@ Google Places does not give email addresses. The addresses come from the compani
 
 ## Rules that are enforced
 
-- **Paid, so behind the three keys.** Real searches only with `PLACES_ADAPTER_MODE=live`, the client live, and
-  `GLOBAL_GO_LIVE=true` with the go-live checklist signed. Before that, each would-be search is written to the
-  dry-run log and nothing is called. Never with `FREE_ONLY=true`, and never in sandbox (Google has no test key).
+- **Paid, so behind the three keys, or chosen explicitly for testing.** Real searches with `PLACES_ADAPTER_MODE=live`,
+  the client live, and `GLOBAL_GO_LIVE=true` with the go-live checklist signed; or while testing with
+  `PLACES_ADAPTER_MODE=sandbox` (real, billed: Google has no free test key). With `mock` (the default), each would-be
+  search is written to the dry-run log and nothing is called. Never with `FREE_ONLY=true`.
 - **Monthly cap.** Every billed request is counted first, across all workers. At `PLACES_MONTHLY_CAP` (default
   1,000) searching stops until the 1st of next month.
 - **Google's storage rule.** Only place IDs may be stored, and PipelineOS stores nothing from Places at all. What is
