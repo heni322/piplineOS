@@ -31,7 +31,7 @@ function mockApi() {
     }
     if (url.endsWith("/company-searches") && init?.method === "POST") return json(SEARCHES.searches[0], 202);
     if (url.endsWith("/company-searches")) return json(SEARCHES);
-    if (url.endsWith("/targeting")) return json({ watchlist: [] });
+    if (url.endsWith("/targeting")) return json({ watchlist: [], countries: ["FR"] });
     return json({});
   });
 }
@@ -55,9 +55,11 @@ describe("Find companies: smart search", () => {
   it("starts a smart search without a query", async () => {
     const fetchMock = mockApi();
     render(<DiscoverPage />);
+    await waitFor(() => expect(screen.getByLabelText("Country")).toHaveValue("FR"));
     fireEvent.click(await screen.findByRole("button", { name: "Run a smart search" }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([, i]) => i?.method === "POST")).toBe(true));
     const [, init] = fetchMock.mock.calls.find(([, i]) => i?.method === "POST")!;
-    expect(JSON.parse(init!.body as string)).toEqual({ smart: true, country: "GB", pages: 1 });
+    // a French client's page searches France by itself (the UK would need a Companies House key)
+    expect(JSON.parse(init!.body as string)).toEqual({ smart: true, country: "FR", pages: 1 });
   });
 });

@@ -16,7 +16,7 @@ from sqlalchemy import text
 from app.db.session import DbContext, transaction
 from app.demo.seed import seed_demo
 from app.domain.paid import searches
-from app.domain.tenants.config import load_config
+from app.domain.tenants.config import load_config, save_config
 from tests.security.test_company_searches import REGISTER, _row, finder
 from tests.security.test_golive_prep import _login
 from tests.security.test_places import gated
@@ -102,3 +102,31 @@ def test_api_smart_search_needs_no_query_and_reports_the_ai(clean_db, settings, 
     assert op.post(url, json={"country": "GB"}).status_code == 422  # a manual search still needs a query
     setup = op.get(url).json()["setup"]
     assert setup["ai"] == "simulated" and setup["ai_key_set"] is False
+
+
+def test_a_smart_search_uses_the_clients_own_country(clean_db, settings, cipher) -> None:  # type: ignore[no-untyped-def]
+    """A French client asking from a form left on GB still searches France (no Companies House key needed)."""
+    demo = seed_demo(clean_db, settings)
+    with transaction(DbContext.system(demo.tenant_id), clean_db) as conn:
+        cfg = load_config(conn, demo.tenant_id)[1]
+        save_config(
+            conn, demo.tenant_id, cfg.model_copy(update={"icp": cfg.icp.model_copy(update={"countries": ["FR"]})})
+        )
+    with transaction(DbContext(role="operator", tenant_id=demo.tenant_id), clean_db) as conn:
+        op = conn.execute(text("SELECT id FROM users ORDER BY role = 'operator' DESC LIMIT 1")).scalar()
+        smart = searches.request(
+            conn, tenant_id=demo.tenant_id, operator_id=op, query="", country="GB", pages=1, smart=True
+        )
+        manual = searches.request(
+            conn, tenant_id=demo.tenant_id, operator_id=op, query="IT Leeds", country="GB", pages=1
+        )
+    assert _row(clean_db, smart)["country"] == "FR"  # the client's country
+    assert _row(clean_db, manual)["country"] == "GB"  # a manual search keeps the country chosen
+
+
+def test_a_uk_search_without_the_key_says_what_to_do(settings) -> None:  # type: ignore[no-untyped-def]
+    from app.adapters.base import AdapterNotConfigured
+
+    with pytest.raises(AdapterNotConfigured, match="choose France"):
+        searches.registry_for(settings.model_copy(update={"companies_house_api_key": None}), "GB")
+    assert searches.registry_for(settings.model_copy(update={"companies_house_api_key": None}), "FR") is not None

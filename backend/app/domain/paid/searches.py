@@ -51,7 +51,10 @@ def registry_for(settings: Settings, country: str) -> CompaniesRegistry:
 
         key = settings.companies_house_api_key
         if key is None or not key.get_secret_value():
-            raise AdapterNotConfigured("COMPANIES_HOUSE_API_KEY is not set (free)")
+            raise AdapterNotConfigured(
+                "UK searches check companies on Companies House, which needs COMPANIES_HOUSE_API_KEY (free). "
+                "For French companies, choose France: the French register needs no key."
+            )
         return CompaniesHouseRegistry(key.get_secret_value())
     if country == "FR":
         from app.adapters.registries.france import FranceRegistry
@@ -74,6 +77,13 @@ def request(
     smart: bool = False,
 ) -> uuid.UUID:
     query = SMART_LABEL if smart else query
+    if smart:  # a smart search plans from the client's targeting: search the client's own country
+        try:
+            targets = load_config(conn, tenant_id)[1].icp.countries
+        except LookupError:
+            targets = []
+        if country not in targets and (home := next((c for c in targets if c in COUNTRIES), None)):
+            country = home
     search_id = conn.execute(
         text("""INSERT INTO company_searches (tenant_id, query, country, pages, requested_by, smart)
                 VALUES (:t, :q, :c, :p, :u, :s) RETURNING id"""),

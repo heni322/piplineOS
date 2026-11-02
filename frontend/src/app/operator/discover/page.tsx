@@ -37,7 +37,12 @@ export default function DiscoverPage() {
     api<CompanySearches>(`/api/v1/clients/${tenant}/company-searches`).then(setData)
       .catch(() => setError(getMessages().operator.loadError));
     api<Targeting>(`/api/v1/clients/${tenant}/targeting`)
-      .then((tg) => setWatched(new Set(tg.watchlist.map((w) => w.company_number).filter((n): n is string => !!n))))
+      .then((tg) => {
+        setWatched(new Set(tg.watchlist.map((w) => w.company_number).filter((n): n is string => !!n)));
+        // search in the client's own target country by default (France for a French client, not the UK)
+        const home = tg.countries.find((c): c is "GB" | "FR" => c === "FR" || c === "GB");
+        if (home) setForm((f) => ({ ...f, country: home }));
+      })
       .catch(() => setWatched(new Set()));
   }, [tenant]);
   useEffect(() => { setData(null); setPicked({}); load(); }, [load]);
