@@ -20,7 +20,7 @@ type Form = "lia" | "dpa" | "user" | "eurep" | "pause" | "details" | null;
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[] | null>(null);
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({ slug: "", legal_name: "", company_number: "", registered_address: "", billing_currency: "GBP" });
+  const [draft, setDraft] = useState({ slug: "", legal_name: "", company_number: "", registered_address: "", billing_currency: "EUR" });
   const [form, setForm] = useState<{ id: string; kind: Form }>({ id: "", kind: null });
   const [fields, setFields] = useState({ a: "", b: "", c: "" });
   const [status, setStatus] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export default function ClientsPage() {
           <input id="c-addr" value={draft.registered_address} onChange={(e) => setDraft({ ...draft, registered_address: e.target.value })} />
           <label htmlFor="c-cur">{t.currency}</label>
           <select id="c-cur" value={draft.billing_currency} onChange={(e) => setDraft({ ...draft, billing_currency: e.target.value })}>
-            <option value="GBP">GBP</option><option value="EUR">EUR</option>
+            <option value="EUR">EUR</option><option value="GBP">GBP</option>
           </select>
           <div className="actionbar" style={{ position: "static", border: 0 }}>
             <button type="button" disabled={busy || draft.legal_name.length < 2 || draft.slug.length < 2} onClick={create}>{t.create}</button>

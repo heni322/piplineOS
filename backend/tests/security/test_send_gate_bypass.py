@@ -213,7 +213,7 @@ def test_mfa_operator_can_sign_off_once(clean_db, settings, cipher) -> None:  # 
     with transaction(DbContext(role="operator", user_id=op), clean_db) as conn:
         item = conn.execute(text("SELECT id FROM golive_checklist_items LIMIT 1")).scalar_one()
         conn.execute(text("SELECT golive_sign_off(:i, 'https://evidence.example')"), {"i": item})
-        assert conn.execute(text("SELECT golive_complete('uk')")).scalar() is False  # 4 items still open
+        assert conn.execute(text("SELECT golive_complete('fr')")).scalar() is False  # 4 items still open
     with (
         pytest.raises(DBAPIError, match="already signed off"),
         transaction(DbContext(role="operator", user_id=op), clean_db) as conn,

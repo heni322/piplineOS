@@ -187,7 +187,7 @@ def sync_tenant(
         if c is None:
             return res
         live = bool(conn.execute(text("SELECT live_mode FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar())
-        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('fr')")).scalar())
         _, cfg = load_config(conn, tenant_id)
         token = cipher.decrypt(conn, tenant_id, "crm_connections.token", c["token_enc"])
     mode = resolve_mode(

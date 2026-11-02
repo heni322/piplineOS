@@ -178,7 +178,7 @@ def _supplier(conn: Connection) -> RowMapping | None:
 def issue_blockers(conn: Connection, inv: RowMapping) -> list[str]:
     """Everything that must be true before an invoice can be issued. Unknown -> block."""
     reasons: list[str] = []
-    if not conn.execute(text("SELECT golive_complete('uk')")).scalar():
+    if not conn.execute(text("SELECT golive_complete('fr')")).scalar():
         reasons.append("GO_LIVE_NOT_SIGNED_OFF")
     sup = _supplier(conn)
     if sup is None or sup["placeholder"]:

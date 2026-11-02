@@ -125,6 +125,19 @@ class Settings(BaseSettings):
     # this machine) or Gemini (paid, real calls with GEMINI_API_KEY; prospect data goes to Google, so use a key on the
     # paid tier). Sending is unaffected: it still needs the three live keys. FREE_ONLY=true always means local.
     llm_sandbox_provider: Literal["local", "gemini"] = "local"
+    # The countries this platform serves: where its clients are established and the only countries they can target,
+    # search or enable (comma-separated ISO codes). PipelineOS runs from France: FR. The UK is no longer offered.
+    served_countries: str = Field(default="FR", pattern=r"^[A-Z]{2}(,[A-Z]{2})*$")
+
+    @property
+    def served(self) -> tuple[str, ...]:
+        """SERVED_COUNTRIES as a tuple, the first one being the home country (the default everywhere)."""
+        return tuple(c.strip() for c in self.served_countries.split(",") if c.strip())
+
+    @property
+    def home_country(self) -> str:
+        return self.served[0]
+
     # Web research panel (Gemini + Google Search; docs/GOOGLE-PLACES.md): paid, only with the three keys and
     # FREE_ONLY=false; at most this many requests a month (Google gives 5,000 free search queries a month)
     gemini_search_mode: AdapterMode = "mock"
@@ -134,8 +147,8 @@ class Settings(BaseSettings):
     places_adapter_mode: AdapterMode = "mock"
     google_places_api_key: SecretStr | None = None
     places_monthly_cap: int = Field(default=1000, ge=0)
-    places_region: str = Field(default="GB", pattern=r"^[A-Z]{2}$")
-    places_language: str = "en"
+    places_region: str = Field(default="FR", pattern=r"^[A-Z]{2}$")
+    places_language: str = "fr"
     # Smart search ("Find companies"): the AI turns the client's targeting into at most this many Places searches
     # (each one billed per page) and ranks the confirmed companies by fit
     smart_search_max_queries: int = Field(default=3, ge=1, le=6)

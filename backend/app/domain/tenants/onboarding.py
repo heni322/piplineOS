@@ -84,8 +84,8 @@ def create_own_account(
     legal_name: str,
     company_number: str | None,
     registered_address: str | None,
-    country_code: str = "GB",
-    billing_currency: str = "GBP",
+    country_code: str = "FR",
+    billing_currency: str = "EUR",
     slug: str = "own-outreach",
 ) -> uuid.UUID:
     """The operator's own outreach, as CONTROLLER: our own LIA, notice and sending domain; no DPA, client login or

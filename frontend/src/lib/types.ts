@@ -116,7 +116,7 @@ export type CompanySearch = {
 export type CompanySearches = {
   setup: { free_only: boolean; key_set: boolean; adapter_mode: string; global_go_live: boolean; calls_this_month: number; monthly_cap: number;
     research_key_set: boolean; research_mode: string; research_calls_this_month: number; research_monthly_cap: number;
-    ai?: "gemini" | "local" | "anthropic" | "simulated"; ai_key_set?: boolean };
+    ai?: "gemini" | "local" | "anthropic" | "simulated"; ai_key_set?: boolean; countries?: string[] };
   searches: CompanySearch[];
 };
 export type WebResearch = { called: boolean; reason: string | null; answer: string | null;

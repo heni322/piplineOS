@@ -70,7 +70,7 @@ def agent_context(
     with transaction(DbContext.system(tenant_id), engine) as conn:
         config_id, cfg = load_config(conn, tenant_id)
         live = bool(conn.execute(text("SELECT live_mode FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar())
-        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('fr')")).scalar())
     llm = build_llm_client(settings, engine, cipher, tenant_live=live, golive_complete=golive, backend=llm_backend)
     return AgentContext(settings, engine, cipher, llm, tenant_id, campaign_id, cfg, config_id)
 

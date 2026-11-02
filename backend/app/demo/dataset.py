@@ -13,6 +13,7 @@ from app.adapters.enrichment.base import EnrichedPerson
 from app.adapters.signals.base import RawSignal
 from app.domain.tenants.config import (
     BrandVoice,
+    Calendar,
     Criterion,
     Icp,
     Persona,
@@ -377,7 +378,9 @@ DEMO_CONFIG = TenantConfig(
             "it service",
         ],
         exclude_keywords=["bakery", "restaurant", "school", "retail store"],
+        countries=["GB"],  # the demo is a UK client (the platform's defaults are French)
     ),
+    calendar=Calendar(host_timezone="Europe/London", host_country="GB", host_subdivision="GB-ENG"),
     personas=[
         Persona(
             name="Service delivery leader",

@@ -22,7 +22,7 @@ from app.settings import Settings
 def _gate(settings: Settings, engine: Engine, cipher: PiiCipher, tenant_id: uuid.UUID, adapter_mode: str) -> PaidGate:
     with transaction(DbContext.system(tenant_id), engine) as conn:
         live = bool(conn.execute(text("SELECT live_mode FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar())
-        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('fr')")).scalar())
     mode = resolve_mode(
         adapter_mode=adapter_mode, tenant_live=live, global_go_live=settings.global_go_live, golive_complete=golive
     )

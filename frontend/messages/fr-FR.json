@@ -642,7 +642,7 @@
     "on": "Activé",
     "off": "Désactivé",
     "checklistTitle": "Liste de mise en production",
-    "checklistIntro": "Vous seul validez ces points. Chaque validation demande votre code d’authentification et, idéalement, un lien vers la preuve (la lettre de l’avocat, le certificat ICO, etc.).",
+    "checklistIntro": "Vous seul validez ces points. Chaque validation demande votre code d’authentification et, idéalement, un lien vers la preuve (la lettre de l’avocat, l’avis de l’avocat, le registre des traitements, etc.).",
     "signOff": "Valider",
     "signedOn": "Validé le {date}",
     "notSigned": "Non validé",

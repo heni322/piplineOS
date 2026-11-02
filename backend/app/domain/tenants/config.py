@@ -35,7 +35,7 @@ def _europe_codes(v: list[str]) -> list[str]:
 class Icp(_Strict):
     description: str
     industry_keywords: list[str] = Field(min_length=1)
-    countries: list[str] = ["GB"]
+    countries: list[str] = ["FR"]
     exclude_keywords: list[str] = []
     # roles whose hiring is a trigger on a watched company's job board ("-x" excludes); empty = any new role
     hiring_keywords: list[str] = []
@@ -122,9 +122,9 @@ class PlaybookEntry(_Strict):
 class Calendar(_Strict):
     status: Literal["ok", "disconnected"] = "ok"
     calendar_ref: str = "primary"
-    host_timezone: str = "Europe/London"
-    host_country: str = "GB"
-    host_subdivision: str | None = "GB-ENG"
+    host_timezone: str = "Europe/Paris"
+    host_country: str = "FR"
+    host_subdivision: str | None = None
     meeting_minutes: int = Field(default=30, ge=15, le=90)
     day_start_hour: int = Field(default=10, ge=7, le=12)
     day_end_hour: int = Field(default=16, ge=13, le=19)
@@ -145,7 +145,7 @@ class ShowRate(_Strict):
 class Pricing(_Strict):
     """Commercial terms the client signs. Amounts in minor units (pence / cents), excluding VAT."""
 
-    currency: Literal["GBP", "EUR"] = "GBP"
+    currency: Literal["GBP", "EUR"] = "EUR"
     setup_fee_minor: int = Field(default=0, ge=0)
     monthly_retainer_minor: int = Field(default=0, ge=0)
     per_meeting_minor: int = Field(default=0, ge=0)

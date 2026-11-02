@@ -64,7 +64,7 @@ class CalendarGateway:
 
     def _mode(self, conn: Connection, tenant_id: uuid.UUID) -> SendMode:
         live = bool(conn.execute(text("SELECT live_mode FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar())
-        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('fr')")).scalar())
         return resolve_mode(
             adapter_mode=self.settings.calendar_adapter_mode,
             tenant_live=live,

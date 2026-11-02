@@ -41,6 +41,9 @@ os.environ.update(
         "SUPPRESSION_HASH_KEY": _key(),
         "UNSUBSCRIBE_SIGNING_KEY": _key(),
         "GLOBAL_GO_LIVE": "false",
+        # production serves France only (SERVED_COUNTRIES=FR, tests/security/test_france_only.py). The suite keeps its
+        # UK demo data and tests the country mechanics on other countries, so it serves them all (France first).
+        "SERVED_COUNTRIES": "FR,GB,IE,DE,AT,NL,BE,ES,PT,IT,SE,DK,FI,NO",
         # tests never use a real provider or a local model, whatever the developer's shell has loaded
         **{
             f"{name}_ADAPTER_MODE": "mock"

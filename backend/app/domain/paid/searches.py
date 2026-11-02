@@ -75,6 +75,7 @@ def request(
     country: str,
     pages: int,
     smart: bool = False,
+    served: tuple[str, ...] | None = None,
 ) -> uuid.UUID:
     query = SMART_LABEL if smart else query
     if smart:  # a smart search plans from the client's targeting: search the client's own country
@@ -82,8 +83,9 @@ def request(
             targets = load_config(conn, tenant_id)[1].icp.countries
         except LookupError:
             targets = []
-        if country not in targets and (home := next((c for c in targets if c in COUNTRIES), None)):
-            country = home
+        usable = [c for c in targets if c in COUNTRIES and (served is None or c in served)]
+        if country not in usable and usable:
+            country = usable[0]
     search_id = conn.execute(
         text("""INSERT INTO company_searches (tenant_id, query, country, pages, requested_by, smart)
                 VALUES (:t, :q, :c, :p, :u, :s) RETURNING id"""),
@@ -134,7 +136,7 @@ def llm_for(engine: Engine, settings: Settings, cipher: PiiCipher, tenant_id: uu
 
     with transaction(DbContext.system(tenant_id), engine) as conn:
         live = bool(conn.execute(text("SELECT live_mode FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar())
-        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('fr')")).scalar())
     return build_llm_client(settings, engine, cipher, tenant_live=live, golive_complete=golive)
 
 

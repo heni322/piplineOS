@@ -41,7 +41,7 @@ def send(
         adapter_mode=settings.email_adapter_mode,
         tenant_live=live_tenant,
         global_go_live=settings.global_go_live,
-        golive_complete=bool(conn.execute(text("SELECT golive_complete('uk')")).scalar()),
+        golive_complete=bool(conn.execute(text("SELECT golive_complete('fr')")).scalar()),
     )
     payload = EmailPayload(
         to_email=to_email,

@@ -246,7 +246,7 @@ class OutboundGateway:
             )
 
         # 3) mode (three-key switch)
-        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('fr')")).scalar())
         mode = resolve_mode(
             adapter_mode=self.settings.email_adapter_mode,
             tenant_live=row["live_mode"],

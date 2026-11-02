@@ -19,7 +19,7 @@ export default function DiscoverPage() {
   const [tenant, setTenant] = useState("");
   const [data, setData] = useState<CompanySearches | null>(null);
   const [watched, setWatched] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState({ query: "", country: "GB" as "GB" | "FR", pages: 1 });
+  const [form, setForm] = useState({ query: "", country: "FR" as "GB" | "FR", pages: 1 });
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,13 +39,19 @@ export default function DiscoverPage() {
     api<Targeting>(`/api/v1/clients/${tenant}/targeting`)
       .then((tg) => {
         setWatched(new Set(tg.watchlist.map((w) => w.company_number).filter((n): n is string => !!n)));
-        // search in the client's own target country by default (France for a French client, not the UK)
-        const home = tg.countries.find((c): c is "GB" | "FR" => c === "FR" || c === "GB");
+        // search in the client's own target country by default (France first)
+        const home = (["FR", "GB"] as const).find((c) => tg.countries.includes(c));
         if (home) setForm((f) => ({ ...f, country: home }));
       })
       .catch(() => setWatched(new Set()));
   }, [tenant]);
   useEffect(() => { setData(null); setPicked({}); load(); }, [load]);
+
+  // only a country the platform serves can be chosen (SERVED_COUNTRIES: France)
+  const served = data?.setup.countries;
+  useEffect(() => {
+    if (served?.length && !served.includes(form.country)) setForm((f) => ({ ...f, country: served[0] as "GB" | "FR" }));
+  }, [served, form.country]);
 
   // while a search is waiting or running, refresh every 5 seconds
   useEffect(() => {
@@ -123,8 +129,9 @@ export default function DiscoverPage() {
             </label>
             <label>{t.country}
               <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value as "GB" | "FR" })}>
-                <option value="GB">{t.countries.GB}</option>
-                <option value="FR">{t.countries.FR}</option>
+                {(data?.setup.countries ?? ["FR"]).map((c) => (
+                  <option key={c} value={c}>{t.countries[c as "GB" | "FR"] ?? c}</option>
+                ))}
               </select>
             </label>
             <label>{t.pages}

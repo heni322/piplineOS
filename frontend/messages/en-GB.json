@@ -642,7 +642,7 @@
     "on": "On",
     "off": "Off",
     "checklistTitle": "Go-live checklist",
-    "checklistIntro": "Only you sign these off. Each sign-off asks for your authenticator code and, ideally, a link to the evidence (the solicitor's letter, the ICO certificate, and so on).",
+    "checklistIntro": "Only you sign these off. Each sign-off asks for your authenticator code and, ideally, a link to the evidence (the lawyer's opinion, the records of processing, and so on).",
     "signOff": "Sign off",
     "signedOn": "Signed off {date}",
     "notSigned": "Not signed off",

@@ -47,9 +47,10 @@ def test_tax_transfers_checklist_files_validate() -> None:
     assert str(adequacy.valid_until) == "2031-12-27"
     cl = ChecklistFile.model_validate(yaml.safe_load((CONFIG / "golive_checklist.yaml").read_text()))
     assert {i.key for i in cl.items} == {
-        "uk.ico_fee",
-        "uk.solicitor_review",
-        "uk.transfer_documents",
-        "uk.vat_setup",
-        "uk.deliverability",
+        "fr.lawyer_review",
+        "fr.records_of_processing",
+        "fr.transfer_documents",
+        "fr.vat_invoicing",
+        "fr.deliverability",
     }
+    assert {i.scope for i in cl.items} == {"fr"}  # PipelineOS runs from France: the French checklist gates sending

@@ -36,7 +36,7 @@ STUCK_AFTER = timedelta(minutes=20)  # longer than the worker's hard time limit
 
 class SearchIn(BaseModel):
     query: str | None = Field(default=None, max_length=200)
-    country: Literal["GB", "FR"] = "GB"
+    country: Literal["GB", "FR"] = "FR"
     pages: int = Field(default=1, ge=1, le=3)
     # smart: no query, the AI writes the searches from the client's targeting (app.domain.paid.intelligence)
     smart: bool = False
@@ -92,6 +92,8 @@ class SetupOut(BaseModel):
     research_monthly_cap: int = 0
     # the AI that plans and ranks smart searches for this client right now: gemini | local | anthropic | simulated
     ai: str = "simulated"
+    # the countries this platform serves and searches can be made in (first = the default)
+    countries: list[str] = ["FR"]
     ai_key_set: bool = False
 
 
@@ -133,7 +135,7 @@ def list_searches(
     with transaction(user.db_context(tenant_id), engine) as conn:
         rows = searches.recent(conn, tenant_id)
         tenant_live = bool(conn.execute(text("SELECT live_mode FROM tenants WHERE id = :t"), {"t": tenant_id}).scalar())
-        golive = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        golive = bool(conn.execute(text("SELECT golive_complete('fr')")).scalar())
     key = settings.google_places_api_key
     setup = SetupOut(
         free_only=settings.free_only,
@@ -148,13 +150,20 @@ def list_searches(
         research_monthly_cap=settings.gemini_search_monthly_cap,
         ai=backend_name(settings, tenant_live=tenant_live, golive_complete=golive),
         ai_key_set=bool(settings.gemini_api_key and settings.gemini_api_key.get_secret_value()),
+        countries=[c for c in settings.served if c in searches.COUNTRIES],
     )
     now = datetime.now(UTC)
     return SearchesOut(setup=setup, searches=[_out(r, now) for r in rows])
 
 
 @router.post("/clients/{tenant_id}/company-searches", status_code=202, response_model=SearchOut)
-def start_search(tenant_id: uuid.UUID, body: SearchIn, user: Operator) -> SearchOut:
+def start_search(
+    tenant_id: uuid.UUID, body: SearchIn, user: Operator, settings: Annotated[Settings, Depends(settings_dep)]
+) -> SearchOut:
+    if body.country not in settings.served:
+        raise ProblemError(
+            422, "Country not served", f"Searches can be made in: {', '.join(settings.served)} (SERVED_COUNTRIES)."
+        )
     engine = get_engine()
     try:
         with transaction(user.db_context(tenant_id), engine) as conn:
@@ -166,6 +175,7 @@ def start_search(tenant_id: uuid.UUID, body: SearchIn, user: Operator) -> Search
                 country=body.country,
                 pages=body.pages,
                 smart=body.smart,
+                served=settings.served,
             )
     except IntegrityError as exc:
         raise ProblemError(404, "No such client") from exc

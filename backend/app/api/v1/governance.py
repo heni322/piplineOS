@@ -18,7 +18,7 @@ from app.core.errors import ProblemError
 from app.core.security import Permission, verify_totp
 from app.db.session import get_engine, transaction
 from app.domain.compliance.repository import enable_country
-from app.settings import Settings
+from app.settings import Settings, get_settings
 
 router = APIRouter(tags=["governance"])
 
@@ -80,7 +80,10 @@ class SignOffIn(BaseModel):
 @router.get("/golive", response_model=list[ChecklistOut])
 def checklist(user: Annotated[CurrentUser, Depends(require(Permission.SIGN_OFF_GOLIVE))]) -> list[ChecklistOut]:
     with transaction(user.db_context(), get_engine()) as conn:
-        rows = conn.execute(text("SELECT * FROM golive_checklist_items ORDER BY scope, key")).mappings().all()
+        # the French checklist only: the old UK items (before the move to France) no longer gate anything
+        rows = (
+            conn.execute(text("SELECT * FROM golive_checklist_items WHERE scope = 'fr' ORDER BY key")).mappings().all()
+        )
     return [
         ChecklistOut(
             id=str(r["id"]),
@@ -158,9 +161,9 @@ def governance_status(
     """The three live keys at a glance. Read-only: nothing here can switch anything on."""
     with transaction(user.db_context(), get_engine()) as conn:
         total, signed = conn.execute(
-            text("SELECT count(*), count(signed_off_at) FROM golive_checklist_items WHERE scope = 'uk'")
+            text("SELECT count(*), count(signed_off_at) FROM golive_checklist_items WHERE scope = 'fr'")
         ).one()
-        complete = bool(conn.execute(text("SELECT golive_complete('uk')")).scalar())
+        complete = bool(conn.execute(text("SELECT golive_complete('fr')")).scalar())
         enabled = list(
             conn.execute(text("SELECT country_code FROM current_country_rollout WHERE enabled ORDER BY 1")).scalars()
         )
@@ -350,6 +353,8 @@ def enable(
     """Enabling lets the compliance engine consider prospects in this country. It never sends anything by itself:
     sending still needs the three live keys."""
     code = code.upper()
+    if code not in get_settings().served:
+        raise ProblemError(422, "Country not served", f"This platform serves: {', '.join(get_settings().served)}.")
     with transaction(user.db_context(), get_engine()) as conn:
         _operator_mfa(conn, cipher, user, body.totp_code)
         row = conn.execute(text(_COUNTRIES_SQL + " WHERE r.country_code = :c"), {"c": code}).mappings().first()

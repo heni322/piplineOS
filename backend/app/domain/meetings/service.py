@@ -109,13 +109,13 @@ def load_prospect(conn: Connection, cipher: PiiCipher, tenant_id: uuid.UUID, lea
         .mappings()
         .one()
     )
-    country = r["country_code"] or "GB"
+    country = r["country_code"] or "FR"
     return Prospect(
         cipher.decrypt(conn, tenant_id, "prospects.name", r["name_enc"]).split()[0],
         cipher.decrypt(conn, tenant_id, "prospects.email", r["email_enc"]),
         country,
         r["subdivision_code"],
-        DEFAULT_TZ.get(country, "Europe/London"),
+        DEFAULT_TZ.get(country, "Europe/Paris"),
     )
 
 

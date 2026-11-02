@@ -43,30 +43,30 @@ def readiness(conn: Connection, settings: Settings) -> list[dict[str, str]]:
         )
     )
 
-    gb = conn.execute(
+    home = conn.execute(
         text("""SELECT r.enabled, coalesce(c.verified_by_counsel, false) AS counsel
                 FROM current_country_rollout r LEFT JOIN current_compliance_rules c ON c.country_code = r.country_code
-                WHERE r.country_code = 'GB'""")
+                WHERE r.country_code = 'FR'""")
     ).first()
-    counsel = bool(gb and gb.counsel)
+    counsel = bool(home and home.counsel)
     out.append(
         Item(
-            "uk_rules_reviewed",
-            "UK rules reviewed by your solicitor",
+            "fr_rules_reviewed",
+            "French rules reviewed by your lawyer",
             "done" if counsel else "todo",
             "you",
-            "Recorded" if counsel else "Record the solicitor's review on this page (Countries), then enable GB",
+            "Recorded" if counsel else "Record the lawyer's review on this page (Countries), then enable FR",
         )
     )
     out.append(
         Item(
-            "uk_enabled",
-            "UK enabled for sending",
-            "done" if (gb and gb.enabled and counsel) else "todo",
+            "fr_enabled",
+            "France enabled for sending",
+            "done" if (home and home.enabled and counsel) else "todo",
             "you",
             "Enabled after review"
-            if (gb and gb.enabled and counsel)
-            else ("Enabled without a recorded review (demo only)" if gb and gb.enabled else "Not enabled"),
+            if (home and home.enabled and counsel)
+            else ("Enabled without a recorded review (demo only)" if home and home.enabled else "Not enabled"),
         )
     )
 
@@ -201,7 +201,7 @@ def readiness(conn: Connection, settings: Settings) -> list[dict[str, str]]:
     )
 
     signed, total = conn.execute(
-        text("SELECT count(signed_off_at), count(*) FROM golive_checklist_items WHERE scope = 'uk'")
+        text("SELECT count(signed_off_at), count(*) FROM golive_checklist_items WHERE scope = 'fr'")
     ).one()
     out.append(
         Item(

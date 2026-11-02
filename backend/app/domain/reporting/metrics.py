@@ -245,7 +245,7 @@ def roi(conn: Connection, tenant_id: uuid.UUID, m: dict[str, Any]) -> dict[str, 
         return {"status": "not_configured"}
     if cfg.roi is None:
         return {"status": "not_configured"}
-    currency = cfg.pricing.currency if cfg.pricing else "GBP"
+    currency = cfg.pricing.currency if cfg.pricing else "EUR"
     pipeline = m["qualified_meetings"] * cfg.roi.average_deal_value_minor
     expected = pipeline * cfg.roi.close_rate_pct // 100
     cost = int(m["billed_minor"])

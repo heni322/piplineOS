@@ -80,7 +80,7 @@ def metrics(request: Request, settings: Annotated[Settings, Depends(settings_dep
             lines,
             "pipelineos_golive_complete",
             "1 if every go-live item is signed off",
-            [({}, one("SELECT golive_complete('uk')::int"))],
+            [({}, one("SELECT golive_complete('fr')::int"))],
         )
         _gauge(
             lines,

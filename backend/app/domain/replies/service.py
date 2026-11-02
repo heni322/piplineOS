@@ -414,7 +414,7 @@ def handle(
         if cls == "out_of_office":
             ret = (llm.ooo_return_date if llm and llm.ooo_return_date else None) or rules.ooo_return_date
             back = datetime.combine(ret, datetime.min.time(), tzinfo=UTC) if ret else at + timedelta(days=7)
-            resume = add_business_days(back, 1, prospect["country_code"] or "GB")
+            resume = add_business_days(back, 1, prospect["country_code"] or "FR")
             conn.execute(text("UPDATE leads SET paused_until = :p WHERE id = :l"), {"p": resume, "l": lead_id})
             conn.execute(
                 text(

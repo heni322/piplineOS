@@ -140,8 +140,8 @@ def test_readiness_lists_what_is_missing_and_signs_nothing(clean_db, settings) -
     items = {i["key"]: i for i in op.get("/api/v1/governance/readiness").json()}
     assert set(items) == {
         "company_details",
-        "uk_rules_reviewed",
-        "uk_enabled",
+        "fr_rules_reviewed",
+        "fr_enabled",
         "tax_rules",
         "sending_domains",
         "inboxes_warmed",
@@ -152,8 +152,8 @@ def test_readiness_lists_what_is_missing_and_signs_nothing(clean_db, settings) -
         "switch",
     }
     assert items["company_details"]["state"] == "todo"  # placeholders in config/supplier.yaml
-    assert items["uk_rules_reviewed"]["state"] == "todo"
-    assert items["uk_enabled"]["detail"] == "Enabled without a recorded review (demo only)"
+    assert items["fr_rules_reviewed"]["state"] == "todo"
+    assert items["fr_enabled"]["detail"] == "Not enabled"  # the demo enables only its UK country
     assert items["checklist"]["state"] == "todo" and items["switch"]["detail"].startswith("Off")
     assert items["pilot_client"]["state"] == "done"
     with transaction(DbContext(role="operator"), clean_db) as conn:

@@ -33,8 +33,8 @@ class ClientIn(BaseModel):
     legal_name: str = Field(min_length=2, max_length=200)
     company_number: str | None = Field(default=None, max_length=20)
     registered_address: str | None = Field(default=None, max_length=500)
-    country_code: str = Field(default="GB", pattern=r"^[A-Z]{2}$")
-    billing_currency: Literal["GBP", "EUR"] = "GBP"
+    country_code: str = Field(default="FR", pattern=r"^[A-Z]{2}$")
+    billing_currency: Literal["GBP", "EUR"] = "EUR"
     vat_number: str | None = Field(default=None, max_length=30)
 
     @field_validator("country_code")
@@ -111,8 +111,18 @@ def list_clients(user: Operator) -> list[ClientOut]:
         return [_client(conn, i) for i in ids]
 
 
+def _served(settings: Settings, codes: list[str | None]) -> None:
+    from app.domain.served import NotServed, require_served
+
+    try:
+        require_served(settings, codes)
+    except NotServed as exc:
+        raise ProblemError(422, "Country not served", str(exc)) from exc
+
+
 @router.post("/clients", response_model=ClientOut, status_code=201)
-def create_client(body: ClientIn, user: Operator) -> ClientOut:
+def create_client(body: ClientIn, user: Operator, settings: Annotated[Settings, Depends(settings_dep)]) -> ClientOut:
+    _served(settings, [body.country_code])
     try:
         with transaction(user.db_context(), get_engine()) as conn:
             tid = onboarding.create_client(conn, operator_id=user.id, **body.model_dump())
@@ -236,7 +246,7 @@ class TargetingIn(BaseModel):
     exclude_keywords: list[str] = []
     hiring_keywords: list[str] = []
     sic_codes: list[str] = []
-    countries: list[str] = ["GB"]
+    countries: list[str] = ["FR"]
     watchlist: list[WatchedIn] = []
     # The configuration version the form was opened on: a save based on an older one is refused (409), so the
     # operator's form can't silently undo the client's own target-account edits, or the other way round.
@@ -273,7 +283,9 @@ def _clean(items: list[str]) -> list[str]:
 
 
 @router.get("/clients/{tenant_id}/targeting", response_model=TargetingOut)
-def get_targeting(tenant_id: uuid.UUID, user: Operator) -> TargetingOut:
+def get_targeting(
+    tenant_id: uuid.UUID, user: Operator, settings: Annotated[Settings, Depends(settings_dep)]
+) -> TargetingOut:
     with transaction(user.db_context(tenant_id), get_engine()) as conn:
         try:
             _, cfg = load_config(conn, tenant_id)
@@ -282,7 +294,11 @@ def get_targeting(tenant_id: uuid.UUID, user: Operator) -> TargetingOut:
         version = conn.execute(
             text("SELECT max(version) FROM tenant_configs WHERE tenant_id = :t"), {"t": tenant_id}
         ).scalar_one()
-        countries = conn.execute(text("SELECT DISTINCT country_code FROM compliance_rules ORDER BY 1")).scalars().all()
+        countries = [
+            c
+            for c in conn.execute(text("SELECT DISTINCT country_code FROM compliance_rules ORDER BY 1")).scalars()
+            if c in settings.served
+        ]
     return TargetingOut(
         industry_keywords=cfg.icp.industry_keywords,
         exclude_keywords=cfg.icp.exclude_keywords,
@@ -296,7 +312,9 @@ def get_targeting(tenant_id: uuid.UUID, user: Operator) -> TargetingOut:
 
 
 @router.put("/clients/{tenant_id}/targeting")
-def put_targeting(tenant_id: uuid.UUID, body: TargetingIn, user: Operator) -> dict[str, int]:
+def put_targeting(
+    tenant_id: uuid.UUID, body: TargetingIn, user: Operator, settings: Annotated[Settings, Depends(settings_dep)]
+) -> dict[str, int]:
     """Saves a new configuration version with only the targeting changed. Qualification criteria and pricing are
     untouched, so nothing the client signed needs signing again."""
     with transaction(user.db_context(tenant_id), get_engine()) as conn:
@@ -310,6 +328,7 @@ def put_targeting(tenant_id: uuid.UUID, body: TargetingIn, user: Operator) -> di
         unknown = [c for c in countries if c not in known]
         if unknown or not countries:
             raise ProblemError(422, "Unknown country", f"No country rules for: {', '.join(unknown) or 'none chosen'}")
+        _served(settings, list(countries))
         data = cfg.model_dump()
         data["icp"] |= {
             "industry_keywords": _clean(body.industry_keywords),
@@ -443,11 +462,13 @@ class OwnAccountIn(BaseModel):
     legal_name: str = Field(min_length=2, max_length=200)
     company_number: str | None = Field(default=None, max_length=20)
     registered_address: str | None = Field(default=None, max_length=500)
-    billing_currency: Literal["GBP", "EUR"] = "GBP"
+    billing_currency: Literal["GBP", "EUR"] = "EUR"
 
 
 @router.post("/own-account", response_model=ClientOut, status_code=201)
-def create_own_account(body: OwnAccountIn, user: Operator) -> ClientOut:
+def create_own_account(
+    body: OwnAccountIn, user: Operator, settings: Annotated[Settings, Depends(settings_dep)]
+) -> ClientOut:
     """PipelineOS selling itself: the operator's own outreach, as CONTROLLER (our own LIA, notice and sending
     domain; no DPA, client login or billing). There can only be one."""
     with transaction(user.db_context(), get_engine()) as conn:
@@ -458,6 +479,7 @@ def create_own_account(body: OwnAccountIn, user: Operator) -> ClientOut:
                 legal_name=body.legal_name,
                 company_number=body.company_number,
                 registered_address=body.registered_address,
+                country_code=settings.home_country,
                 billing_currency=body.billing_currency,
             )
         except onboarding.OwnAccountExists as exc:

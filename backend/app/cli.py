@@ -368,7 +368,7 @@ def llm_benchmark(
 def places_discover(
     client: str = typer.Option(..., help="the client's slug (its live switch and the dry-run log apply)"),
     query: str = typer.Option(..., help='activity and area, e.g. "IT support Leeds" or "agence web Lyon"'),
-    country: str = typer.Option("GB", help="GB (company number) or FR (SIREN)"),
+    country: str = typer.Option("FR", help="FR (SIREN); only the countries in SERVED_COUNTRIES"),
     pages: int = typer.Option(1, min=1, max=3, help="pages of 20 results; each page is one billed request"),
     add: bool = typer.Option(False, help="add the confirmed companies to the client's watchlist"),
     operator_email: str = typer.Option("", help="with --add: your operator email (recorded on the new version)"),
@@ -376,6 +376,8 @@ def places_discover(
     """Search Google Places for businesses, keep those whose own website prints a register number that the register
     confirms, and list them with the business address their site publishes. Before go-live (or with FREE_ONLY=true)
     nothing is called: the search is written to the dry-run log."""
+    if country.upper() not in get_settings().served:
+        raise typer.BadParameter(f"country must be one of {', '.join(get_settings().served)} (SERVED_COUNTRIES)")
     from app.adapters.base import AdapterNotConfigured
     from app.adapters.website_contacts import WebsiteFinder
     from app.domain.paid.discovery import discover_companies
@@ -446,8 +448,8 @@ def clients_create_own(
     legal_name: str = typer.Option(..., help="your company's legal name, as registered"),
     company_number: str = typer.Option("", help="register number (SIREN in France, company number in the UK)"),
     address: str = typer.Option("", help="registered address (printed in every email footer)"),
-    country: str = typer.Option("GB", help="country of registration: GB or FR"),
-    currency: str = typer.Option("GBP", help="GBP or EUR"),
+    country: str = typer.Option("FR", help="country of registration (one of SERVED_COUNTRIES)"),
+    currency: str = typer.Option("EUR", help="EUR or GBP"),
     sender_name: str = typer.Option("", help="the name emails are signed with (default: the template's)"),
     sender_title: str = typer.Option("", help="the sender's job title (default: the template's)"),
 ) -> None:
@@ -458,8 +460,9 @@ def clients_create_own(
     from app.domain.tenants import onboarding, setup
 
     country, currency = country.upper(), currency.upper()
-    if country not in ("GB", "FR") or currency not in ("GBP", "EUR"):
-        raise typer.BadParameter("country must be GB or FR, and currency GBP or EUR")
+    served = get_settings().served
+    if country not in served or currency not in ("GBP", "EUR"):
+        raise typer.BadParameter(f"country must be one of {', '.join(served)} (SERVED_COUNTRIES), currency EUR or GBP")
     tpls = setup.templates(config_root())
     if template not in tpls:
         raise typer.BadParameter(f"no template {template!r}; available: {', '.join(sorted(tpls))}")
