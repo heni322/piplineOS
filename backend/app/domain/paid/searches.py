@@ -36,6 +36,7 @@ from app.domain.paid.discovery import DiscoveryReport, discover_companies
 from app.domain.paid.intelligence import LANGUAGES, plan_queries, rank
 from app.domain.paid.places import GatedPlaces
 from app.domain.tenants.config import TenantConfig, load_config
+from app.llm.backends import ProviderRefused
 from app.llm.client import LLMClient, LLMEscalation
 from app.settings import Settings
 
@@ -235,6 +236,9 @@ def run(
                 llm, cfg, report.found, descriptions, tenant_id=tenant_id, language=LANGUAGES.get(row.country, "en")
             )
             extra["ranking"] = "done"
+    except ProviderRefused as exc:  # e.g. an invalid Gemini key: say so plainly, with the provider's own reason
+        _finish(engine, search_id, tenant_id, status="failed", error=str(exc)[:500])
+        return "failed"
     except LLMEscalation as exc:
         _finish(
             engine, search_id, tenant_id, status="failed", error=f"The AI could not plan the searches ({exc.reason})"

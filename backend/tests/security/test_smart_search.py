@@ -130,3 +130,20 @@ def test_a_uk_search_without_the_key_says_what_to_do(settings) -> None:  # type:
     with pytest.raises(AdapterNotConfigured, match="choose France"):
         searches.registry_for(settings.model_copy(update={"companies_house_api_key": None}), "GB")
     assert searches.registry_for(settings.model_copy(update={"companies_house_api_key": None}), "FR") is not None
+
+
+def test_an_ai_refusal_is_shown_with_its_reason(clean_db, settings, cipher) -> None:  # type: ignore[no-untyped-def]
+    from app.llm.backends import ProviderRefused
+
+    class Refusing:
+        def run_structured(self, **kw):  # type: ignore[no-untyped-def]
+            raise ProviderRefused("Gemini", 400, "API key not valid. Check GEMINI_API_KEY.")
+
+    places = gated(clean_db, settings, cipher, "live", [])
+    tenant = places.gate.tenant_id
+    sid = _queue_smart(clean_db, tenant)
+    assert searches.run(clean_db, settings, cipher, sid, tenant, places=places, registry=REGISTER, llm=Refusing()) == (  # type: ignore[arg-type]
+        "failed"
+    )
+    error = _row(clean_db, sid)["error"] or ""
+    assert "Gemini refused the request (HTTP 400): API key not valid" in error

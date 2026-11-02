@@ -233,3 +233,24 @@ def test_a_gemini_block_is_a_refusal() -> None:
         model="x", system="", messages=[], max_tokens=5, json_schema={}, timeout=1
     )
     assert out.stop_reason == "refusal"
+
+
+def test_gemini_refusal_carries_googles_reason_never_the_key() -> None:
+    """A 400 "API key not valid" (or any 4xx) is reported with Google's own reason and what to fix, not as a bare
+    HTTPStatusError, and the key itself never appears in the message."""
+    import pytest
+
+    from app.llm.backends import GeminiBackend, ProviderRefused
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        body = {"error": {"code": 400, "message": "API key not valid. Please pass a valid API key.",
+                          "status": "INVALID_ARGUMENT"}}  # fmt: skip
+        return httpx.Response(400, json=body)
+
+    b = GeminiBackend("secret-key-123", "gemini-flash-latest", transport=httpx.MockTransport(handler))
+    with pytest.raises(ProviderRefused) as exc:
+        b.complete(model="m", system="s", messages=[{"role": "user", "content": "x"}], max_tokens=10,
+                   json_schema={"type": "object"}, timeout=5)  # fmt: skip
+    msg = str(exc.value)
+    assert exc.value.status == 400 and "API key not valid" in msg and "GEMINI_API_KEY" in msg
+    assert "secret-key-123" not in msg

@@ -154,6 +154,28 @@ def _gemini_stop(data: dict[str, Any], cand: dict[str, Any]) -> str:
     return "max_tokens" if reason == "MAX_TOKENS" else "end_turn"
 
 
+class ProviderRefused(RuntimeError):
+    """A provider refused the request (4xx): its own reason, safe to show the operator (it never holds the key)."""
+
+    def __init__(self, provider: str, status: int, reason: str) -> None:
+        self.provider, self.status, self.reason = provider, status, reason
+        super().__init__(f"{provider} refused the request (HTTP {status}): {reason}")
+
+
+def _google_reason(resp: Any) -> str:
+    """Google APIs answer {"error": {"message": ...}}; e.g. "API key not valid. Please pass a valid API key."."""
+    try:
+        msg = str((resp.json().get("error") or {}).get("message") or "")
+    except ValueError:
+        msg = ""
+    msg = " ".join(msg.split())[:300]
+    if "API key" in msg or resp.status_code in (401, 403):
+        msg += " Check GEMINI_API_KEY (https://aistudio.google.com/apikey), then restart the API and the worker."
+    elif resp.status_code == 404:
+        msg += " Check GEMINI_MODEL (e.g. gemini-flash-latest)."
+    return msg.strip() or "no reason given"
+
+
 class GeminiBackend:
     """Google's Gemini API (generateContent, JSON output constrained by a schema). Paid: only selected in live mode
     behind the three-key switch, with LLM_PROVIDER=gemini. Use a key on the PAID tier: on the free tier Google uses
@@ -201,7 +223,8 @@ class GeminiBackend:
             from app.adapters.base import RetryableProviderError
 
             raise RetryableProviderError(f"{resp.status_code} from Gemini")
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            raise ProviderRefused("Gemini", resp.status_code, _google_reason(resp))
         data = resp.json()
         cand = (data.get("candidates") or [{}])[0]
         text = "".join(
