@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
         with: { version: 10.28.0 }  # the same pnpm as frontend/package.json "packageManager"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint && pnpm typecheck && pnpm test && pnpm build
@@ -62,7 +62,7 @@ jobs:
         with: { version: "0.9.26" }
       - uses: pnpm/action-setup@v6
         with: { version: 10.28.0 }  # the same pnpm as frontend/package.json "packageManager"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
       - run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - run: psql "$TEST_PG_ADMIN_URL" -c "CREATE ROLE pipelineos_owner LOGIN PASSWORD 'owner_dev_only'" -c "CREATE ROLE pipelineos_app LOGIN PASSWORD 'app_dev_only' NOBYPASSRLS"
